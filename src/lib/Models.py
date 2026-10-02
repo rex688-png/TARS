@@ -573,8 +573,11 @@ class OpenAIResponsesLLMModel(LLMModel):
         params: dict[str, Any] = {
             "model": self.model_name,
             "input": self._convert_messages(messages),
-            "temperature": self.temperature,
         }
+
+        is_gpt_6 = self.model_name.startswith("gpt-6")
+        if not is_gpt_6:
+            params["temperature"] = self.temperature
 
         if self.model_name in ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.4', 'gpt-5.1']:
             params["text"] = {"verbosity": "low"}
@@ -584,7 +587,7 @@ class OpenAIResponsesLLMModel(LLMModel):
             if tool_choice:
                 params["tool_choice"] = self._convert_tool_choice(tool_choice)
 
-        if self.reasoning_effort and self.reasoning_effort not in ["disabled", "default", "none", None, ""]:
+        if self.reasoning_effort and self.reasoning_effort not in ["disabled", "default", None, ""] and (is_gpt_6 or self.reasoning_effort != "none"):
             params["reasoning"] = {"effort": self.reasoning_effort}
 
         if self.extra_body:
