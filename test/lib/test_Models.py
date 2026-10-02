@@ -13,7 +13,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from src.plugins.MistralPlugin import MistralLLMModel
-from src.lib.Models import OpenAILLMModel, OpenAIResponsesLLMModel
+from src.lib.Models import OpenAILLMModel, OpenAIResponsesLLMModel, create_llm_model
 
 
 class ContentChunk:
@@ -86,6 +86,67 @@ def test_responses_reports_sdk_retry_attempts() -> None:
     assert text == "Recovered"
     assert usage.retry_attempts == 1
     assert model.client.max_retries == 4
+
+
+def test_gpt_6_main_model_omits_temperature_and_sends_none_reasoning() -> None:
+    model = create_llm_model("openai", {
+        "api_key": "test-key",
+        "llm_model_name": "gpt-6-luna",
+        "llm_temperature": 0.3,
+        "llm_reasoning_effort": "none",
+    })
+    assert isinstance(model, OpenAIResponsesLLMModel)
+    response = MagicMock(error=None, usage=None, output_text="Ready", output=[])
+    model.client.responses.with_raw_response.create = MagicMock(
+        return_value=RawResponse(response)
+    )
+
+    model.generate([{"role": "user", "content": "Hello"}])
+
+    request = model.client.responses.with_raw_response.create.call_args.kwargs
+    assert "temperature" not in request
+    assert request["reasoning"] == {"effort": "none"}
+
+
+def test_gpt_6_agent_model_omits_temperature_and_sends_reasoning() -> None:
+    model = create_llm_model("openai", {
+        "api_key": "test-key",
+        "agent_llm_model_name": "gpt-6-luna",
+        "agent_llm_temperature": 0.7,
+        "agent_llm_reasoning_effort": "low",
+    }, prefix="agent_llm")
+    assert isinstance(model, OpenAIResponsesLLMModel)
+    response = MagicMock(error=None, usage=None, output_text="Ready", output=[])
+    model.client.responses.with_raw_response.create = MagicMock(
+        return_value=RawResponse(response)
+    )
+
+    model.generate([{"role": "user", "content": "Hello"}])
+
+    request = model.client.responses.with_raw_response.create.call_args.kwargs
+    assert "temperature" not in request
+    assert request["reasoning"] == {"effort": "low"}
+
+
+def test_pre_gpt_6_responses_request_preserves_temperature_and_omits_none_reasoning() -> None:
+    model = OpenAIResponsesLLMModel(
+        base_url="https://api.openai.com/v1",
+        api_key="test-key",
+        model_name="gpt-5.4",
+        temperature=0.4,
+        reasoning_effort="none",
+        provider_name="openai",
+    )
+    response = MagicMock(error=None, usage=None, output_text="Ready", output=[])
+    model.client.responses.with_raw_response.create = MagicMock(
+        return_value=RawResponse(response)
+    )
+
+    model.generate([{"role": "user", "content": "Hello"}])
+
+    request = model.client.responses.with_raw_response.create.call_args.kwargs
+    assert request["temperature"] == 0.4
+    assert "reasoning" not in request
 
 
 def test_chat_completion_extracts_visible_text_from_structured_content() -> None:
