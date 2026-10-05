@@ -22,11 +22,14 @@ import {
   normalizeDesktopOverlayScreen,
   selectOverlayDisplay,
 } from './desktop-overlay-lifecycle.js';
+import { buildBackendEnvironment, configureTarsApplication } from './tars-runtime-profile.js';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 const isLinux = process.platform === 'linux';
+const tarsRuntimeProfile = !isDevelopment;
+const tarsApplicationPaths = tarsRuntimeProfile ? configureTarsApplication(app) : null;
 const overlayPreloadPath = path.join(import.meta.dirname, 'preload.js');
-const overlayWindowTitle = 'COVAS:NEXT Overlay';
+const overlayWindowTitle = tarsRuntimeProfile ? 'TARS Overlay' : 'COVAS:NEXT Overlay';
 const redactedConfigLineMarkers = [
   '"type": "config"',
   '"type": "running_config"',
@@ -70,7 +73,7 @@ const transport = {
 transport.targets.push({
   target: 'pino-roll',
   options: { 
-    file: isDevelopment ? '../logs/com.covas-next.ui.log' : path.join(app.getPath('logs'), 'com.covas-next.ui.log'), 
+    file: isDevelopment ? '../logs/com.covas-next.ui.log' : path.join(app.getPath('logs'), 'tars.log'),
     size: '50m', 
     mkdir: true, 
     limit: { removeOtherLogFiles: true, count: 1 } 
@@ -88,11 +91,11 @@ app.on('before-quit', () => {
 });
 
 // delete old tauri log files
-if (process.platform === 'win32') {
+if (!tarsRuntimeProfile && process.platform === 'win32') {
   const logsPath = path.join(process.env.LOCALAPPDATA, 'com.covas-next.ui', 'logs');
   fs.rmSync(logsPath, { recursive: true, force: true });
   logger.info('Deleted logs directory:', logsPath);
-} else if (isLinux) {
+} else if (!tarsRuntimeProfile && isLinux) {
   const logsPath = path.join(process.env.XDG_DATA_HOME ?? `${process.env.HOME}/.local/share`, 'com.covas-next.ui', 'logs');
   fs.rmSync(logsPath, { recursive: true, force: true });
   logger.info('Deleted logs directory:', logsPath);
@@ -118,7 +121,7 @@ const config = isDevelopment ? {
   ui: 'app://./index.html',
   overlay: 'app://./index.html#/overlay',
   backend: path.resolve(import.meta.dirname, '../Chat/Chat'),
-  backend_cwd: isLinux ? path.join(process.env.XDG_DATA_HOME, './com.covas-next.ui') || app.getPath('sessionData') : app.getPath('userData'),
+  backend_cwd: tarsApplicationPaths.userData,
   backend_args: [],
 }
 
@@ -624,7 +627,7 @@ class BackendService {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: config.backend_cwd,
       env: {
-        ...process.env, // inherit environment variables
+        ...buildBackendEnvironment(process.env, tarsRuntimeProfile),
         // set unbuffered python
         PYTHONUNBUFFERED: 1,
       }
@@ -757,7 +760,7 @@ function createMainWindow() {
   const mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-    title: 'COVAS:NEXT',
+    title: tarsRuntimeProfile ? 'TARS' : 'COVAS:NEXT',
     webPreferences: {
       preload: overlayPreloadPath
     }
