@@ -1,0 +1,34 @@
+TARS Explorer 1.4.0 - COVAS event setup
+
+KEEP KNOWN ON, REACT OFF for exploration events:
+FSDJump
+Location (if exposed)
+CarrierJump
+FSSDiscoveryScan
+DiscoveryScan
+Scan
+FSSBodySignals
+FSSBiologicalSignals (if exposed)
+FSSAllBodiesFound
+SAAScanComplete
+SAASignalsFound
+ScanOrganic
+ScanOrganicFarEnough (if exposed)
+ScanOrganicFirst (if exposed)
+ScanOrganicSecond (if exposed)
+ScanOrganicThird (if exposed)
+CodexEntry
+ApproachBody
+LeaveBody
+
+Do NOT enable raw Scan/FSS/biology Reacts to make Explorer talk. Explorer dispatches TARSExplorerTarget itself at meaningful milestones.
+
+IMPORTANT FOR EXOBIOLOGY
+------------------------
+Some COVAS versions expose derived ScanOrganicFarEnough / ScanOrganicFirst /
+ScanOrganicSecond / ScanOrganicThird reactions in addition to the raw ScanOrganic journal event.
+Keep ALL of them at No react (known). If ScanOrganicThird is set to React,
+COVAS can announce the completed sample and Explorer will then correctly emit
+TARSExplorerTarget for the same completion, producing two spoken lines.
+
+Use No react (known), not Hidden, so TARS retains the event as conversation context.

@@ -1,0 +1,28 @@
+TARS Explorer 1.4.4 - source notes
+==================================
+Checked 2026-09-27.
+
+Elite Dangerous Journal documentation:
+- Exploration events: Scan, FSSAllBodiesFound, FSSBodySignals, FSSDiscoveryScan,
+  SAAScanComplete, SAASignalsFound, CodexEntry
+  https://elite-journal.readthedocs.io/en/latest/Exploration.html
+- Odyssey ScanOrganic event:
+  https://elite-journal.readthedocs.io/en/latest/New%20in%20Odyssey.html
+
+BioInsights documentation:
+- https://github.com/Xjph/observatory-docs/blob/main/pages/usage/plugins/thirdparty/bioinsights.mdx
+- BioInsights predicts biologicals from body/star characteristics, narrows genus after
+  DSS and species/variant after scanning.
+
+BioInsights/COVAS integration status:
+- Observatory Core issue #243 requests exposing BioInsights output for COVAS Next / EDCoPilot.
+  This is why Explorer 1.0.0 does not pretend a supported direct BioInsights bridge exists.
+  https://github.com/Xjph/ObservatoryCore/issues/243
+
+BioInsights-related public data:
+- https://github.com/matt-g-dev/bioinsights-data
+- Repository is MIT licensed and described as data relevant to BioInsights.
+
+Implementation note:
+TARS Explorer 1.0.0 contains original journal-state and analysis code. It does not copy
+prediction code from BioInsights, EDMC-BioScan or other third-party projects.

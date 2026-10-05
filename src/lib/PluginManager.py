@@ -34,23 +34,31 @@ class PluginManager:
         "TARSChatter",
         "TARSExpedition",
     )
+    TARS_PROVIDER_PLUGINS = ("mistral",)
 
     # Constructor
-    def __init__(self, config: Config, tars_profile: bool | None = None, plugin_folder: str = "plugins"):
+    def __init__(self, config: Config, tars_profile: bool | None = None, plugin_folder: str | None = None):
         self.plugin_list: dict[str, 'PluginBase'] = {}
         self.plugin_settings_configs: dict[str, PluginSettings] = {}
         self.plugin_model_providers: list[PluginModelProvider] = []
         self.builtin_plugin_guids: set[str] = set()
         self.failed_plugins: list[dict] = []
         self.settings_migrated = False
-        self.PLUGIN_FOLDER = plugin_folder
-        self.PLUGIN_DEPENDENCIES_FOLDER: str = "deps"
-        self.config = config
         self.tars_profile = (
             os.environ.get("TARS_RUNTIME_PROFILE") == "1"
             if tars_profile is None
             else tars_profile
         )
+        if plugin_folder is None:
+            bundled_root = os.environ.get("TARS_BUNDLED_RESOURCES")
+            plugin_folder = (
+                os.path.join(bundled_root, "plugins")
+                if self.tars_profile and bundled_root
+                else "plugins"
+            )
+        self.PLUGIN_FOLDER = plugin_folder
+        self.PLUGIN_DEPENDENCIES_FOLDER: str = "deps"
+        self.config = config
 
         # Add the plugin folder to sys.path
         # This allows us to import plugins as packages.
@@ -157,7 +165,7 @@ class PluginManager:
         return self
 
     def load_tars_plugins(self) -> Self:
-        """Load only the required external TARS plugins in product order."""
+        """Load approved providers and the required TARS behavior plugins."""
         required: list[tuple[str, str, PluginManifest]] = []
         missing: list[str] = []
         for folder_name in self.TARS_PLUGIN_ORDER:
@@ -182,6 +190,7 @@ class PluginManager:
         self.plugin_list.clear()
         self.builtin_plugin_guids.clear()
         self.failed_plugins = []
+        self.load_tars_provider_plugins()
         for folder_name, entrypoint_path, manifest in required:
             try:
                 plugin = self.load_plugin_module(manifest, entrypoint_path)
@@ -192,6 +201,19 @@ class PluginManager:
             module_name = f"{manifest.guid}.{manifest.entrypoint[:-3]}"
             self.plugin_list[module_name] = plugin
         return self
+
+    def load_tars_provider_plugins(self) -> None:
+        """Load the explicit provider-only allowlist for the TARS product."""
+        if "mistral" in self.TARS_PROVIDER_PLUGINS:
+            from plugins.MistralPlugin import MISTRAL_PLUGIN_GUID, MistralPlugin
+            self.builtin_plugin_guids.add(MISTRAL_PLUGIN_GUID)
+            self.plugin_list[MISTRAL_PLUGIN_GUID] = MistralPlugin(PluginManifest(json.dumps({
+                "guid": MISTRAL_PLUGIN_GUID,
+                "name": "Mistral Plugin",
+                "author": "Elite Dangerous AI Integration",
+                "version": "1.0.0",
+                "repository": ""
+            })))
     
     def load_default_plugins(self):
         """Load default built-in plugins."""

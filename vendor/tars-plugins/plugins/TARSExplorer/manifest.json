@@ -1,0 +1,8 @@
+{
+  "guid": "f8b87f19-f65e-4bf2-bd3f-26d30c128a04",
+  "name": "TARS Explorer",
+  "version": "1.4.9",
+  "author": "rispo / ChatGPT",
+  "description": "Journal-driven Elite Dangerous exploration copilot with direct-question priority, complete same-second FSS summaries, session-level novelty suppression and explicit FSS/DSS wording guards.",
+  "entrypoint": "TARSExplorerSession.py"
+}
