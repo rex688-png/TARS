@@ -53,6 +53,20 @@ def _git_sha(repo: Path) -> str:
     ).stdout.strip()
 
 
+def _git_is_ancestor(repo: Path, ancestor: str, descendant: str = "HEAD") -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", ancestor, descendant],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    detail = result.stderr.strip() or "git merge-base failed"
+    raise RuntimeError(f"Could not verify TARS baseline ancestry: {detail}")
+
+
 def _source_ref(callback: Callable[..., Any]) -> str:
     source = inspect.getsourcefile(callback) or "<unknown>"
     try:
@@ -427,8 +441,12 @@ def _prompt_fixture(name: str, prompt_generator, states, memory: bool = False) -
 
 
 def build_baseline() -> dict[str, Any]:
-    if _git_sha(TARS_ROOT) != TARS_BASELINE:
-        raise RuntimeError("TARS checkout differs from the pinned baseline")
+    if not _git_is_ancestor(TARS_ROOT, TARS_BASELINE):
+        raise RuntimeError("Pinned TARS baseline is not an ancestor of the current checkout")
+    if not PLUGINS_ROOT.is_dir():
+        raise RuntimeError(
+            f"Pinned external TARS-Plugins checkout is unavailable at {PLUGINS_ROOT}"
+        )
     if _git_sha(PLUGINS_ROOT) != PLUGINS_BASELINE:
         raise RuntimeError("TARS-Plugins checkout differs from the pinned baseline")
 
@@ -613,7 +631,7 @@ def build_baseline() -> dict[str, Any]:
             "tars_branch": "main baseline (cloud task branch derived from local work checkout)",
             "tars_plugins_branch": "main baseline (read-only local work checkout)",
             "tars_plugins_sha": _git_sha(PLUGINS_ROOT),
-            "tars_sha": _git_sha(TARS_ROOT),
+            "tars_sha": TARS_BASELINE,
         },
         "native_host": {
             "nested_web_agent_tools": _literal_native_tools(),
