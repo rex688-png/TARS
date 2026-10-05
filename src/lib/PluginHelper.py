@@ -1,4 +1,5 @@
 from pydantic.main import BaseModel
+import inspect
 import os
 from typing import Any, Callable, TypeVar
 
@@ -71,10 +72,42 @@ class PluginHelper():
 
     def register_action(self, name: str, description: str, parameters: type[_ActionModelT], method: Callable[[_ActionModelT, dict], str], action_type="ship", input_template: Callable[[dict, dict], str]|None=None):
         """Register an action"""
+        signature = inspect.signature(method)
+        positional = [
+            parameter
+            for parameter in signature.parameters.values()
+            if parameter.kind
+            in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        has_varargs = any(
+            parameter.kind == inspect.Parameter.VAR_POSITIONAL
+            for parameter in signature.parameters.values()
+        )
+        required_keyword_only = [
+            parameter.name
+            for parameter in signature.parameters.values()
+            if parameter.kind == inspect.Parameter.KEYWORD_ONLY
+            and parameter.default is inspect.Parameter.empty
+        ]
+        if required_keyword_only:
+            raise TypeError(
+                f"Plugin action '{name}' has unsupported required keyword-only "
+                f"parameters: {', '.join(required_keyword_only)}"
+            )
+        if has_varargs or len(positional) == 2:
+            invoke = lambda model, context: method(model, context)
+        elif len(positional) == 1:
+            invoke = lambda model, context: method(model)
+        else:
+            raise TypeError(
+                f"Plugin action '{name}' must accept one or two positional arguments; "
+                f"got {signature}"
+            )
+
         def _wrapper(args: dict, context: dict) -> str:
             try:
                 model = parameters(**args)
-                return method(model, context)
+                return invoke(model, context)
             except Exception as e:
                 log('error', f"Plugin action '{name}' raised an exception: {e}")
                 return f"Error executing action {name}: {str(e)}"

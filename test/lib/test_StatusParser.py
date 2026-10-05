@@ -1,8 +1,11 @@
 import json
+import io
 import os
 import pytest
+import queue
 import time
 
+import src.lib.StatusParser as status_parser_module
 from src.lib.StatusParser import StatusParser, parse_odyssey_flags, parse_status_json
 
 @pytest.fixture
@@ -77,3 +80,55 @@ def test_create_delta_events_for_sco_and_sca(old_flags2, new_flags2, expected_ev
     parser = StatusParser.__new__(StatusParser)
 
     assert parser._create_delta_events(old_status, new_status) == [{"event": expected_event}]
+
+
+def _reader(file_path, monkeypatch):
+    parser = StatusParser.__new__(StatusParser)
+    parser.file_path = str(file_path)
+    monkeypatch.setattr(status_parser_module, "sleep", lambda _: None)
+    return parser
+
+
+def test_status_read_valid_json(tmp_path, monkeypatch):
+    status_file = tmp_path / "Status.json"
+    status_file.write_text('{"Flags": 16777216}', encoding="utf-8")
+
+    assert _reader(status_file, monkeypatch)._read_status_file() == {"Flags": 16777216}
+
+
+@pytest.mark.parametrize("content", ["", '{"Flags":'])
+def test_status_read_empty_or_malformed_returns_none(tmp_path, monkeypatch, content):
+    status_file = tmp_path / "Status.json"
+    status_file.write_text(content, encoding="utf-8")
+
+    assert _reader(status_file, monkeypatch)._read_status_file() is None
+
+
+def test_status_read_retries_malformed_then_accepts_valid(monkeypatch):
+    documents = iter(['{"Flags":', '{"Flags": 16777216}'])
+    monkeypatch.setattr("builtins.open", lambda *args, **kwargs: io.StringIO(next(documents)))
+    parser = _reader("unused", monkeypatch)
+
+    assert parser._read_status_file() == {"Flags": 16777216}
+
+
+def test_repeated_malformed_status_does_not_raise(tmp_path, monkeypatch):
+    status_file = tmp_path / "Status.json"
+    status_file.write_text("not-json", encoding="utf-8")
+    parser = _reader(status_file, monkeypatch)
+
+    assert parser._read_status_file() is None
+    assert parser._read_status_file() is None
+
+
+def test_malformed_update_keeps_previous_valid_status(tmp_path, monkeypatch):
+    status_file = tmp_path / "Status.json"
+    status_file.write_text("", encoding="utf-8")
+    parser = _reader(status_file, monkeypatch)
+    previous = parse_status_json({"Flags": 16777216, "GuiFocus": 0})
+    parser.current_status = previous
+    parser.status_queue = queue.Queue()
+
+    assert parser._process_status_update() is False
+    assert parser.current_status is previous
+    assert parser.status_queue.empty()
