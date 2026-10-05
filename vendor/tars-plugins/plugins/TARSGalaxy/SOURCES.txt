@@ -1,0 +1,42 @@
+TARS Galaxy 1.4.0 - implementation references checked 2026-10-01
+
+COVAS:NEXT
+- Actions documentation:
+  https://ratherrude.github.io/Elite-Dangerous-AI-Integration/20_actions/
+- Plugin development:
+  https://ratherrude.github.io/Elite-Dangerous-AI-Integration/plugins/Development/
+- Native-first responsibilities used by the routing policy:
+  system_finder, station_finder, body_finder, material_finder, blueprint_finder.
+- station_finder supports station/service searches plus typed Raw, Manufactured
+  and Encoded Material Traders and Human/Guardian Technology Brokers.
+- Galaxy does not duplicate the native system/station action surface in 1.4.0.
+
+Ardent API
+- Base: https://api.ardent-insight.com/v2
+- Repository/docs: https://github.com/iaincollins/ardent-api
+- Nearest service:
+  /v2/system/name/{systemName}/nearest/{service}
+  /v2/system/address/{systemAddress}/nearest/{service}
+- System records expose x/y/z coordinates.
+- Nearest service supports minLandingPadSize.
+
+EDData API
+- Base: https://api.eddata.dev/v2
+- Repository/docs: https://github.com/EDDataAPI/eddata-api
+- Nearest service:
+  /v2/system/name/{systemName}/nearest/{service}
+  /v2/system/address/{systemAddress}/nearest/{service}
+- System records use systemX/systemY/systemZ in the current API overview.
+
+EDSM API v1
+- Docs: https://www.edsm.net/api-v1
+- Raw-coordinate sphere search:
+  GET https://www.edsm.net/api-v1/sphere-systems?x=...&y=...&z=...&radius=...
+- Radius maximum documented as 100 ly.
+- Used to bridge an unindexed journal StarPos origin to a nearby named system
+  known to a nearest-service provider; the proxy is never treated as the real origin.
+
+EDSM Commander API
+- Optional private fallback/verification for inventory, credits, ranks and last position.
+- Live COVAS/journal state remains authoritative for current state.
+- Credentials stay in plugin settings and are never returned to the model.

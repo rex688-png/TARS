@@ -47,8 +47,13 @@ def test_tars_profile_loads_only_required_plugins_in_fixed_order(tmp_path):
     manager.load_plugins()
 
     assert loaded == list(PluginManager.TARS_PLUGIN_ORDER)
-    assert len(manager.plugin_list) == 5
-    assert manager.builtin_plugin_guids == set()
+    assert len(manager.plugin_list) == 6
+    assert len(manager.builtin_plugin_guids) == 1
+
+    manager.register_settings()
+    assert {provider["kind"] for provider in manager.plugin_model_providers} == {
+        "llm", "vlm", "embedding", "stt", "tts"
+    }
 
 
 def test_tars_profile_fails_clearly_when_required_plugin_is_missing(tmp_path):
@@ -58,6 +63,23 @@ def test_tars_profile_fails_clearly_when_required_plugin_is_missing(tmp_path):
     manager = PluginManager({}, tars_profile=True, plugin_folder=str(tmp_path))
     with pytest.raises(RuntimeError, match="TARSExpedition/manifest.json"):
         manager.load_plugins()
+
+
+def test_tars_profile_ignores_unapproved_plugin_folder(tmp_path):
+    for position, name in enumerate(PluginManager.TARS_PLUGIN_ORDER):
+        _write_plugin(tmp_path, name, position)
+    _write_plugin(tmp_path, "ArbitraryPlugin", 99)
+
+    manager = PluginManager({}, tars_profile=True, plugin_folder=str(tmp_path))
+    loaded = []
+    manager.load_plugin_module = lambda manifest, entrypoint: (
+        loaded.append(Path(entrypoint).parent.name)
+        or SimpleNamespace(plugin_manifest=manifest)
+    )
+    manager.load_plugins()
+
+    assert loaded == list(PluginManager.TARS_PLUGIN_ORDER)
+    assert "ArbitraryPlugin" not in loaded
 
 
 def test_default_profile_retains_existing_loader(monkeypatch, tmp_path):

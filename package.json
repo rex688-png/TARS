@@ -1,5 +1,5 @@
 {
-  "name": "covas-next",
+  "name": "tars",
   "version": "0.0.0",
   "description": "[Getting Started](https://ratherrude.github.io/Elite-Dangerous-AI-Integration/) | [Join our Discord](https://discord.gg/9c58jxVuAT) | [Download latest version](https://github.com/RatherRude/Elite-Dangerous-AI-Integration/releases)",
   "homepage": "https://github.com/RatherRude/Elite-Dangerous-AI-Integration#readme",
@@ -32,7 +32,7 @@
     "package:msi": "electron-builder --win msi",
     "package:flatpak": "flatpak-builder --force-clean --install-deps-from=flathub --repo=.flatpak-repo --force-clean .flatpak-build  com.covasnext.ui.yml && flatpak build-bundle .flatpak-repo covas-next-ui-development.flatpak com.covasnext.ui --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo",
     "package:run": "run-script-os",
-    "package:run:win32": "cd dist/win-unpacked/ && start covas-next-ui.exe",
+    "package:run:win32": "cd dist/win-unpacked/ && start TARS.exe",
     "package:run:linux": "cd dist/linux-unpacked/ && ./covas-next",
     "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js"
   },
@@ -44,6 +44,7 @@
   "build": {
     "productName": "TARS",
     "appId": "com.rex688.tars",
+    "executableName": "TARS",
     "directories": {
       "buildResources": "electron"
     },
@@ -51,6 +52,11 @@
       {
         "from": "dist/Chat",
         "to": "Chat"
+      },
+      {
+        "from": "vendor/tars-plugins",
+        "to": "tars-plugins",
+        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
       }
     ],
     "files": [

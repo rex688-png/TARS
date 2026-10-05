@@ -1432,6 +1432,17 @@ def getDefaultCharacter(config: Config) -> Character:
         "bounty_scanned_min_bounty_var": 1,
     })
 
+def getTarsDefaultCharacter(config: Config, prompt_path: str) -> Character:
+    with open(prompt_path, 'r', encoding='utf-8') as prompt_file:
+        character = getDefaultCharacter(config)
+        character['name'] = 'TARS'
+        character['character'] = prompt_file.read()
+        character['personality_character_inspiration'] = 'TARS'
+        return character
+
+class TarsPackagingError(RuntimeError):
+    pass
+
 def load_config() -> Config:
     defaults: Config = {
         'config_version': 20,
@@ -1557,6 +1568,16 @@ def load_config() -> Config:
         
         if not config_exists:
             print("Config file not found, creating default configuration")
+            prompt_path = os.environ.get('TARS_CANONICAL_PROMPT')
+            bundled_root = os.environ.get('TARS_BUNDLED_RESOURCES')
+            if not prompt_path and bundled_root:
+                prompt_path = os.path.join(bundled_root, 'prompt', 'prompt.txt')
+            if os.environ.get('TARS_RUNTIME_PROFILE') == '1':
+                if not prompt_path or not os.path.isfile(prompt_path):
+                    raise TarsPackagingError(
+                        'Packaged TARS canonical prompt is missing'
+                    )
+                defaults['characters'] = [getTarsDefaultCharacter(defaults, prompt_path)]
             save_config(defaults)
             return defaults
             
@@ -1571,6 +1592,8 @@ def load_config() -> Config:
             else:
                 print("Empty config file, using defaults")
                 return defaults
+    except TarsPackagingError:
+        raise
     except Exception as e:
         print(f'Error loading config.json: {str(e)}')
         print('Restoring default configuration')

@@ -1,0 +1,8 @@
+{
+  "guid": "cac18803-add3-4f2d-a07d-306d5704bb7f",
+  "name": "TARS Chatter — Director",
+  "version": "0.11.1",
+  "author": "rispo / ChatGPT",
+  "description": "Screened TARS companion remarks anchored to fresh gameplay context, with premise cooldowns, session-level suppression, quieter docked/idle pacing, direct-question priority and stricter service certainty.",
+  "entrypoint": "TARSChatterSession.py"
+}
