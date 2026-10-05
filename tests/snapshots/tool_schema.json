@@ -1,0 +1,2145 @@
+{
+  "metadata": {
+    "baseline_date": "2026-10-05",
+    "harness_registration_order": [
+      "TARSExplorer",
+      "TARSNavigator",
+      "TARSGalaxy",
+      "TARSChatter",
+      "TARSExpedition"
+    ],
+    "plugin_loading_mechanism": "separate checkout; real manifest entrypoints imported as dotted modules from <WORKSPACE>/TARS-Plugins/plugins; isolated RecordingHelper mirrors registration contract",
+    "runtime_order_note": "PluginManager external discovery uses unsorted os.listdir; runtime order is filesystem-dependent, while snapshot object collections are stable-sorted",
+    "tars_branch": "main baseline (cloud task branch derived from local work checkout)",
+    "tars_plugins_branch": "main baseline (read-only local work checkout)",
+    "tars_plugins_sha": "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5",
+    "tars_sha": "f0153840016e33c498eafd5ea197963bcf776987"
+  },
+  "native_host": {
+    "nested_web_agent_tools": [
+      {
+        "description": "Find engineer blueprints based on search criteria. Returns material costs with grade calculations.",
+        "name": "blueprint_finder",
+        "parameters": {
+          "properties": {
+            "engineer": {
+              "description": "Engineer name to search for",
+              "type": "string"
+            },
+            "grade": {
+              "description": "Grade to search for",
+              "type": "integer"
+            },
+            "modifications": {
+              "description": "Array of modification names to search for - supports fuzzy search.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "module": {
+              "description": "Module/hardware name to search for",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Find a planet or star of a certain type or with a landmark.",
+        "name": "body_finder",
+        "parameters": {
+          "properties": {
+            "distance": {
+              "description": "Maximum distance to search",
+              "type": "number"
+            },
+            "landmark_subtype": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "name": {
+              "description": "Required string in body name",
+              "type": "string"
+            },
+            "reference_route": {
+              "description": "Search along a route instead of a single reference system.",
+              "properties": {
+                "destination": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "destination"
+              ],
+              "type": "object"
+            },
+            "reference_system": {
+              "description": "Name of the current system. Example: 'Sol'",
+              "type": "string"
+            },
+            "rings": {
+              "properties": {
+                "hotspots": {
+                  "type": "integer"
+                },
+                "material": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "material",
+                "hotspots"
+              ],
+              "type": "object"
+            },
+            "signals": {
+              "description": "Filter for signals on the body surface.",
+              "items": {
+                "enum": [
+                  "Biological",
+                  "Geological",
+                  "Human",
+                  "Guardian",
+                  "Thargoid"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "size": {
+              "description": "Number of results to return (1-25). Default: 3.",
+              "type": "integer"
+            },
+            "subtype": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Get information about engineers' location, standing and modifications.",
+        "name": "engineer_finder",
+        "parameters": {
+          "properties": {
+            "modifications": {
+              "description": "Filter engineers by what they modify",
+              "type": "string"
+            },
+            "name": {
+              "description": "Filter engineers by name",
+              "type": "string"
+            },
+            "progress": {
+              "description": "Filter engineers by their current progress status",
+              "enum": [
+                "Unknown",
+                "Known",
+                "Invited",
+                "Unlocked"
+              ],
+              "type": "string"
+            },
+            "system": {
+              "description": "Filter engineers by system/location",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Return combined commander data about the commander's statistics, elite ranks, super power reputation, and squadron.",
+        "name": "get_commander_data",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Return fleet carrier details",
+        "name": "get_fleet_carriers",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Retrieve current interstellar news from Galnet. Use this for questions about recent events, thargoids, etc.",
+        "name": "get_galnet_news",
+        "parameters": {
+          "properties": {
+            "query": {
+              "description": "Inquiry you are trying to answer. Example: 'What happened to the thargoids recently?'",
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Return current stored ship modules",
+        "name": "get_stored_ship_modules",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Return all stored ships",
+        "name": "get_stored_ships",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Find and search a list of materials for both ship and suit engineering from my inventory and where to source them from.",
+        "name": "material_finder",
+        "parameters": {
+          "properties": {
+            "grade": {
+              "description": "Filter ship materials by grade (1-5). Suit materials don't have grades.",
+              "maximum": 5,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "name": {
+              "description": "Array of material names to search for - supports fuzzy search.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "description": "Filter by material type.",
+              "enum": [
+                "raw",
+                "manufactured",
+                "encoded",
+                "items",
+                "components",
+                "data",
+                "consumables",
+                "ship",
+                "suit"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Find a station for commodities, modules and ships. Sorted by distance or best price when commodity.",
+        "name": "station_finder",
+        "parameters": {
+          "properties": {
+            "commodities": {
+              "items": {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "transaction": {
+                    "enum": [
+                      "Buy",
+                      "Sell"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "amount",
+                  "transaction"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "distance": {
+              "description": "The maximum distance to search in",
+              "type": "number"
+            },
+            "has_large_pad": {
+              "description": "Filter for stations with large landing pad",
+              "type": "boolean"
+            },
+            "include_planetary_stations": {
+              "description": "Include planetary stations. Default: true.",
+              "type": "boolean"
+            },
+            "include_player_fleetcarrier": {
+              "description": "Include Drake-Class Carrier (player-owned fleet carriers) in searches",
+              "type": "boolean"
+            },
+            "market_days_old": {
+              "description": "Maximum age of commodity market data in days. Used only for commodity searches. Default: 2.",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "material_trader": {
+              "items": {
+                "enum": [
+                  "Encoded",
+                  "Manufactured",
+                  "Raw"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "modules": {
+              "items": {
+                "properties": {
+                  "class": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "rating": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "name": {
+              "description": "Required string in station name",
+              "type": "string"
+            },
+            "reference_route": {
+              "description": "Search along a route instead of a single reference system.",
+              "properties": {
+                "destination": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "destination"
+              ],
+              "type": "object"
+            },
+            "reference_system": {
+              "description": "Name of the current system. Example: 'Sol'",
+              "type": "string"
+            },
+            "services": {
+              "items": {
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "Black Market",
+                      "Interstellar Factors Contact"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "ships": {
+              "items": {
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "size": {
+              "description": "Number of results to return (1-25). Default: 3.",
+              "type": "integer"
+            },
+            "sort_by": {
+              "description": "Sort stations either by distance or best price when commodities are included. Default: bestprice.",
+              "enum": [
+                "distance",
+                "bestprice"
+              ],
+              "type": "string"
+            },
+            "technology_broker": {
+              "items": {
+                "enum": [
+                  "Guardian",
+                  "Human"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "unfiltered_results": {
+              "description": "Set a category to true to include all returned data instead of only the requested items.",
+              "properties": {
+                "commodities": {
+                  "type": "boolean"
+                },
+                "modules": {
+                  "type": "boolean"
+                },
+                "ships": {
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      },
+      {
+        "description": "Find a star system based on allegiance, government, state, power, primary economy, and more.",
+        "name": "system_finder",
+        "parameters": {
+          "properties": {
+            "allegiance": {
+              "items": {
+                "enum": [
+                  "Alliance",
+                  "Empire",
+                  "Federation",
+                  "Guardian",
+                  "Independent",
+                  "Pilots Federation",
+                  "Player Pilots",
+                  "Thargoid"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "distance": {
+              "description": "The maximum distance to search",
+              "type": "number"
+            },
+            "government": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "name": {
+              "description": "Required string in system name",
+              "type": "string"
+            },
+            "population": {
+              "properties": {
+                "comparison": {
+                  "enum": [
+                    "<",
+                    ">"
+                  ],
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "type": "object"
+            },
+            "power": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "primary_economy": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "reference_route": {
+              "description": "Search along a route instead of a single reference system.",
+              "properties": {
+                "destination": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "destination"
+              ],
+              "type": "object"
+            },
+            "reference_system": {
+              "description": "Name of the current system. Example: 'Sol'",
+              "type": "string"
+            },
+            "security": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "size": {
+              "description": "Number of results to return (1-25). Default: 3.",
+              "type": "integer"
+            },
+            "sort_by": {
+              "description": "Sort systems by distance or by population (highest first). Default: distance.",
+              "enum": [
+                "distance",
+                "population"
+              ],
+              "type": "string"
+            },
+            "state": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "nested web_search_agent tool",
+        "source": "TARS/src/lib/actions/actions_web.py:126"
+      }
+    ],
+    "registered_literal_actions": [
+      {
+        "description": "Switch to combat or analysis mode",
+        "name": "Change_ship_HUD_mode",
+        "parameters": {
+          "properties": {
+            "hud mode": {
+              "description": "mode to switch to",
+              "enum": [
+                "combat",
+                "analysis",
+                "toggle"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "hud mode"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1824"
+      },
+      {
+        "description": "initiate FSD jump (jump to the next system or enter supercruise)",
+        "name": "FsdJump",
+        "parameters": {
+          "properties": {
+            "jump_type": {
+              "description": "Jump to next system, enter supercruise or auto if unspecified",
+              "enum": [
+                "next_system",
+                "supercruise",
+                "auto"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2024"
+      },
+      {
+        "description": "Toggle auto-brake",
+        "name": "autoBreak",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2258"
+      },
+      {
+        "description": "Use battery",
+        "name": "batteryHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2601"
+      },
+      {
+        "description": "Charge ECM",
+        "name": "chargeECM",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1936"
+      },
+      {
+        "description": "Charge Shutdown Field Neutraliser",
+        "name": "chargeFieldNeutraliser",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1948"
+      },
+      {
+        "description": "Clear authority level",
+        "name": "clearAuthorityLevelHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2577"
+      },
+      {
+        "description": "call this tool if the user asks to cycle, select or switch to specific firegroup, the the next firegroup or to the previous firegroup",
+        "name": "cycle_fire_group",
+        "parameters": {
+          "properties": {
+            "direction": {
+              "default": "next",
+              "description": "If next or previous is give: Cycle direction: 'next' or 'previous'.",
+              "enum": [
+                "next",
+                "previous"
+              ],
+              "type": "string"
+            },
+            "fire_group": {
+              "description": "Specific firegroup index to select. Letters A=0, B=1, C=2, etc.",
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1795"
+      },
+      {
+        "description": "Deploy or retract hardpoints. Do not call this action when asked to switch hud mode",
+        "name": "deployHardpointToggle",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1593"
+      },
+      {
+        "description": "Deploy heat sink",
+        "name": "deployHeatSink",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1580"
+      },
+      {
+        "description": "Deploy an SRV",
+        "name": "deploySRV",
+        "parameters": {
+          "properties": {
+            "vehicle_number": {
+              "description": "SRV bay slot to deploy",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2001"
+      },
+      {
+        "description": "Leave vehicle",
+        "name": "disembark",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2015"
+      },
+      {
+        "description": "Dock the SRV",
+        "name": "dockSRV",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2189"
+      },
+      {
+        "description": "Eject all cargo",
+        "name": "ejectAllCargo",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2073"
+      },
+      {
+        "description": "Eject all cargo",
+        "name": "ejectAllCargoBuggy",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2383"
+      },
+      {
+        "description": "Enter a vehicle",
+        "name": "embark",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2470"
+      },
+      {
+        "description": "Use engine boost",
+        "name": "engineBoost",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1869"
+      },
+      {
+        "description": "Equip or hide a piece of gear",
+        "name": "equipGearHumanoid",
+        "parameters": {
+          "properties": {
+            "equipment": {
+              "description": "Gear to equip",
+              "enum": [
+                "HumanoidSelectPrimaryWeaponButton",
+                "HumanoidSelectSecondaryWeaponButton",
+                "HumanoidSelectUtilityWeaponButton",
+                "HumanoidSwitchToRechargeTool",
+                "HumanoidSwitchToCompAnalyser",
+                "HumanoidSwitchToSuitTool",
+                "HumanoidHideWeaponButton",
+                "HumanoidSelectFragGrenade",
+                "HumanoidSelectEMPGrenade",
+                "HumanoidSelectShieldGrenade"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "equipment"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2502"
+      },
+      {
+        "description": "Request docking for Ship Launched Fighter",
+        "name": "fighterRequestDock",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2158"
+      },
+      {
+        "description": "Fire chaff launcher",
+        "name": "fireChaffLauncher",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1857"
+      },
+      {
+        "description": "Fire buggy weapons with simple controls: single shot, start continuous, or stop",
+        "name": "fireWeaponsBuggy",
+        "parameters": {
+          "properties": {
+            "action": {
+              "default": "fire",
+              "description": "Action to perform with weapons",
+              "enum": [
+                "fire",
+                "start",
+                "stop"
+              ],
+              "type": "string"
+            },
+            "duration": {
+              "description": "Duration to hold fire button in seconds (for fire action only)",
+              "maximum": 30,
+              "minimum": 0,
+              "type": "number"
+            },
+            "repetitions": {
+              "default": 0,
+              "description": "Number of additional repetitions (0 = single action, 1+ = repeat that many extra times)",
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "weaponType": {
+              "default": "primary",
+              "description": "Type of weapons to fire",
+              "enum": [
+                "primary",
+                "secondary"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "weaponType",
+            "action"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2209"
+      },
+      {
+        "description": "Open or close the galaxy map",
+        "name": "galaxyMapOpenOrClose",
+        "parameters": {
+          "properties": {
+            "desired_state": {
+              "description": "Desired state for the galaxy map: open or close.",
+              "enum": [
+                "open",
+                "close"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1676"
+      },
+      {
+        "description": "Open or close the galaxy map from the SRV.",
+        "name": "galaxyMapOpenOrCloseBuggy",
+        "parameters": {
+          "properties": {
+            "desired_state": {
+              "description": "Open or close galaxy map",
+              "enum": [
+                "open",
+                "close"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2432"
+      },
+      {
+        "description": "Open or Close Galaxy Map",
+        "name": "galaxyMapOpenOrCloseHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2613"
+      },
+      {
+        "description": "Generate, modify, reset, or undo the game overlay UI. Use an instruction to update the overlay, or set undo=true to delete the most recent saved version and restore the previous one. Undo and instruction are mutually exclusive.",
+        "name": "generate_overlay_ui",
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "instruction": {
+              "description": "Description of what UI to create, change, or reset. Be specific about what information to display and where. Limit the input to the requested change only, no need to reiterate the full requirements. Examples: 'Move fuel and cargo in the top right', 'Create a mission tracker in the bottom left', 'Add a heat warning indicator', 'Clear the overlay and reset it to default'. Mutually exclusive with undo.",
+              "type": "string"
+            },
+            "undo": {
+              "description": "Set to true to undo the latest saved overlay UI version by deleting it from the database and loading the previous version. Mutually exclusive with instruction.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/actions_genui.py:307"
+      },
+      {
+        "description": "Describes what's currently visible to the Commander.",
+        "name": "getVisuals",
+        "parameters": {
+          "properties": {
+            "query": {
+              "description": "Describe what you are curious about in the description. Example: 'Count the number of pirates'",
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2692"
+      },
+      {
+        "description": "Control SRV headlights - toggle or set to specific mode (off/low/high)",
+        "name": "headlights",
+        "parameters": {
+          "properties": {
+            "desired_state": {
+              "default": "toggle",
+              "description": "Desired headlight mode. 'toggle' cycles to next mode, or specify exact mode (off/low/high)",
+              "enum": [
+                "off",
+                "low",
+                "high",
+                "toggle"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2270"
+      },
+      {
+        "description": "Use health pack",
+        "name": "healthPackHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2589"
+      },
+      {
+        "description": "Toggle landing gear",
+        "name": "landingGearToggle",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2085"
+      },
+      {
+        "description": "Launch a ship-launched fighter",
+        "name": "launchSLF",
+        "parameters": {
+          "properties": {
+            "vehicle_number": {
+              "default": 1,
+              "description": "Fighter bay slot to launch; defaults to 1",
+              "enum": [
+                1,
+                2
+              ],
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1989"
+      },
+      {
+        "description": "Undock from station or lift off from planet",
+        "name": "liftoff",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2124"
+      },
+      {
+        "description": "Manage power distribution between ship systems. Apply pips to one or more power systems or balance the power across two or if unspecified, across all 3",
+        "name": "managePowerDistribution",
+        "parameters": {
+          "properties": {
+            "balance_power": {
+              "description": "Whether the user asks to balance power",
+              "type": "boolean"
+            },
+            "pips": {
+              "description": "Number of pips to allocate (ignored for balance), one per power_category",
+              "items": {
+                "default": 1,
+                "maximum": 4,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "power_category": {
+              "description": "Array of the system(s) being asked to change. if not specified return default",
+              "items": {
+                "default": [
+                  "Engines",
+                  "Weapons",
+                  "Systems"
+                ],
+                "enum": [
+                  "Engines",
+                  "Weapons",
+                  "Systems"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "power_category"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1607"
+      },
+      {
+        "description": "Manage power distribution between buggy power systems. Apply pips to one or more power systems or balance the power across two or if unspecified, across all 3",
+        "name": "managePowerDistributionBuggy",
+        "parameters": {
+          "properties": {
+            "balance_power": {
+              "description": "Whether the user asks to balance power",
+              "type": "boolean"
+            },
+            "pips": {
+              "description": "Number of pips to allocate (ignored for balance), one per power_category",
+              "items": {
+                "default": 1,
+                "maximum": 4,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "power_category": {
+              "description": "Array of the system(s) being asked to change. if not specified return default",
+              "items": {
+                "default": [
+                  "Engines",
+                  "Weapons",
+                  "Systems"
+                ],
+                "enum": [
+                  "Engines",
+                  "Weapons",
+                  "Systems"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "power_category"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2327"
+      },
+      {
+        "description": "Toggle night vision",
+        "name": "nightVisionToggle",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1879"
+      },
+      {
+        "description": "Toggle night vision",
+        "name": "nightVisionToggleBuggy",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2291"
+      },
+      {
+        "description": "Order NPC crew ship",
+        "name": "npcOrder",
+        "parameters": {
+          "properties": {
+            "orders": {
+              "description": "Orders to give to the NPC pilot",
+              "items": {
+                "enum": [
+                  "DefensiveBehaviour",
+                  "AggressiveBehaviour",
+                  "FocusTarget",
+                  "HoldFire",
+                  "HoldPosition",
+                  "Follow",
+                  "ReturnToShip",
+                  "LaunchFighter1",
+                  "LaunchFighter2"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1961"
+      },
+      {
+        "description": "Plot a navigation route to a system, station, or body. Uses Spansh to resolve the target, then plots via the galaxy map or navigates in the current system map when already there. Set clear_nav_route to true to clear the current navigation route; when a route exists this plots to the final stop in that route.",
+        "name": "plotToTarget",
+        "parameters": {
+          "properties": {
+            "body": {
+              "description": "Target body name",
+              "type": "string"
+            },
+            "clear_nav_route": {
+              "description": "Clear the current navigation route.",
+              "type": "boolean"
+            },
+            "station": {
+              "description": "Target station name",
+              "type": "string"
+            },
+            "system": {
+              "description": "Target system name",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1651"
+      },
+      {
+        "description": "Plot a navigation route to a system, station, or body from the SRV. Set clear_nav_route to true to clear the current navigation route; when a route exists this plots to the final stop in that route.",
+        "name": "plotToTargetBuggy",
+        "parameters": {
+          "properties": {
+            "body": {
+              "description": "Target body name",
+              "type": "string"
+            },
+            "clear_nav_route": {
+              "description": "Clear the current navigation route. If a route exists, this plots to the final stop in that route to clear it. If no route exists, this succeeds only when no system, station, or body target was provided.",
+              "type": "boolean"
+            },
+            "station": {
+              "description": "Target station name",
+              "type": "string"
+            },
+            "system": {
+              "description": "Target system name",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2407"
+      },
+      {
+        "description": "Primary interact action",
+        "name": "primaryInteractHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2478"
+      },
+      {
+        "description": "Recall or dismiss ship",
+        "name": "recallDismissShipBuggy",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2395"
+      },
+      {
+        "description": "Recall or dismiss ship",
+        "name": "recallDismissShipHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2639"
+      },
+      {
+        "description": "Recall or dismiss ship",
+        "name": "recallDismissShipNomad",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2180"
+      },
+      {
+        "description": "Request docking",
+        "name": "requestDocking",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2112"
+      },
+      {
+        "description": "Request docking with ship",
+        "name": "requestDockingNomad",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2171"
+      },
+      {
+        "description": "Scroll the currently displayed UI tab",
+        "name": "scrollUI",
+        "parameters": {
+          "properties": {
+            "direction": {
+              "description": "Where to scroll the current tab",
+              "enum": [
+                "top",
+                "up",
+                "down",
+                "bottom"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "direction"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/actions_ui.py:132"
+      },
+      {
+        "description": "Secondary interact action",
+        "name": "secondaryInteractHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2490"
+      },
+      {
+        "description": "Select target",
+        "name": "selectTargetBuggy",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2315"
+      },
+      {
+        "description": "Change flight thrust",
+        "name": "setSpeed",
+        "parameters": {
+          "properties": {
+            "speed": {
+              "description": "New speed value",
+              "enum": [
+                "Minus100",
+                "Minus75",
+                "Minus50",
+                "Minus25",
+                "Zero",
+                "25",
+                "50",
+                "75",
+                "100"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "speed"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1553"
+      },
+      {
+        "description": "Toggle ship spotlight",
+        "name": "shipSpotLightToggle",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1844"
+      },
+      {
+        "description": "Display a specific tab to the user via UI",
+        "name": "showUI",
+        "parameters": {
+          "properties": {
+            "submenu": {
+              "description": "Optional submenu. Navigation: location, list, route. Storage: colonisation, cargo, carriers, materials (all material types), raw material, manufactured material, encoded material, locker, engineers, blueprints, modules, ships. Tasks: missions, quests, community-goals.",
+              "enum": [
+                "location",
+                "list",
+                "route",
+                "colonisation",
+                "cargo",
+                "carriers",
+                "materials",
+                "raw material",
+                "manufactured material",
+                "encoded material",
+                "locker",
+                "engineers",
+                "blueprints",
+                "modules",
+                "ships",
+                "missions",
+                "quests",
+                "community-goals"
+              ],
+              "type": "string"
+            },
+            "tab": {
+              "description": "Chat: current conversation; Status: ship/suit loadout and state; Navigation: current system information; Storage: colony construction, materials and engineers; Station: outfitting and market info of docked station; Tasks: active missions and objectives; Logbook: user history and memories; Search: manual search agent and results",
+              "enum": [
+                "chat",
+                "status",
+                "navigation",
+                "storage",
+                "station",
+                "tasks",
+                "logbook",
+                "search"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "tab"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/actions_ui.py:83"
+      },
+      {
+        "description": "Access a station service",
+        "name": "stationServices",
+        "parameters": {
+          "properties": {
+            "service": {
+              "description": "Station services to access",
+              "items": {
+                "enum": [
+                  "refuel",
+                  "repair",
+                  "rearm"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "service"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2137"
+      },
+      {
+        "description": "Open or close system map",
+        "name": "systemMapOpenOrClose",
+        "parameters": {
+          "properties": {
+            "desired_state": {
+              "description": "Desired state for the system map: open or close.",
+              "enum": [
+                "open",
+                "close"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1695"
+      },
+      {
+        "description": "Open/close system map.",
+        "name": "systemMapOpenOrCloseBuggy",
+        "parameters": {
+          "properties": {
+            "desired_state": {
+              "description": "Desired state for the system map: open or close.",
+              "enum": [
+                "open",
+                "close"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2450"
+      },
+      {
+        "description": "Open or Close System Map",
+        "name": "systemMapOpenOrCloseHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2626"
+      },
+      {
+        "description": "Target a ship - cycle to next/previous target or select highest threat",
+        "name": "targetShip",
+        "parameters": {
+          "properties": {
+            "mode": {
+              "default": "next",
+              "description": "Target selection mode",
+              "enum": [
+                "next",
+                "previous",
+                "highest_threat",
+                "next_hostile",
+                "previous_hostile",
+                "wingman_1",
+                "wingman_2",
+                "wingman_3",
+                "wingman_1_target",
+                "wingman_2_target",
+                "wingman_3_target"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1714"
+      },
+      {
+        "description": "Target a subsystem on locked ship",
+        "name": "targetSubmodule",
+        "parameters": {
+          "properties": {
+            "subsystem": {
+              "description": "subsystem/module to target",
+              "enum": [
+                "Drive",
+                "Shield Generator",
+                "Power Distributor",
+                "Life Support",
+                "FSD",
+                "Point Defence Turret",
+                "Power Plant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "subsystem"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1893"
+      },
+      {
+        "description": "When we have a nav route set, this will automatically target the next system in the route",
+        "name": "target_next_system_in_route",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2046"
+      },
+      {
+        "description": "Send message to commander or local",
+        "name": "textMessage",
+        "parameters": {
+          "properties": {
+            "channel": {
+              "description": "Channel to send the message on.",
+              "enum": [
+                "local",
+                "system",
+                "wing",
+                "squadron",
+                "commander"
+              ],
+              "example": "commander",
+              "type": "string"
+            },
+            "message": {
+              "description": "Message to send",
+              "type": "string"
+            },
+            "recipient": {
+              "description": "Commander name to send message to. Only used if channel is commander.",
+              "example": "RatherRude.TTV",
+              "type": "string"
+            }
+          },
+          "required": [
+            "message",
+            "channel"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2651"
+      },
+      {
+        "description": "Toggles cargo scoop",
+        "name": "toggleCargoScoop",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2060"
+      },
+      {
+        "description": "Toggle cargo scoop",
+        "name": "toggleCargoScoopBuggy",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2371"
+      },
+      {
+        "description": "Toggle drive assist",
+        "name": "toggleDriveAssist",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2197"
+      },
+      {
+        "description": "Toggle flashlight",
+        "name": "toggleFlashlightHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2541"
+      },
+      {
+        "description": "Toggle night vision",
+        "name": "toggleNightVisionHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2553"
+      },
+      {
+        "description": "Toggle shields",
+        "name": "toggleShieldsHumanoid",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2565"
+      },
+      {
+        "description": "Toggle turret mode",
+        "name": "toggleTurret",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2303"
+      },
+      {
+        "description": "Toggle wing nav lock",
+        "name": "toggleWingNavLock",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:1777"
+      },
+      {
+        "description": "Use shield cell",
+        "name": "useShieldCell",
+        "parameters": {
+          "properties": {},
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/Actions.py:2099"
+      },
+      {
+        "description": "Request a detailed report about information from the game, including news, system, station, body, engineers, blueprint, material lookups and commander data(owned ships and modules, statistics, super power reputation, elite ranks, squadron, owned fleet carriers). Use this tool whenever the user asks about anything related to external or global information.",
+        "name": "web_search_agent",
+        "parameters": {
+          "properties": {
+            "query": {
+              "description": "The search query. Be as specific as possible. E.g., 'buy 10 Fer-de-Lance and Steel for the construction project near Sol' or 'engineer requirements to increase my FSD range'. The query can reference player specific details like 'active construction' or 'active mission'. Multiple questions may be asked in a single query.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        },
+        "registration": "ActionManager.registerAction",
+        "source": "TARS/src/lib/actions/actions_web.py:2704"
+      }
+    ],
+    "registration_conditions": {
+      "ActionManager.getToolsList": [
+        "active game mode/action type",
+        "tools_var and uses_actions",
+        "uses_web_actions",
+        "uses_ui_actions",
+        "allowed action permission flags",
+        "in-station state for in_station actions"
+      ],
+      "register_actions": [
+        "getVisuals only when a vision model exists",
+        "remember_memories only when an embedding model exists",
+        "generate_ui only when overlay_show_hud is enabled"
+      ]
+    }
+  },
+  "plugins": [
+    {
+      "actions": [],
+      "name": "TARS Chatter — Director"
+    },
+    {
+      "actions": [
+        {
+          "action_type": "global",
+          "callback_arity": 1,
+          "description": "Administrative expedition control for explicitly starting or finishing an expedition. Legacy rebuild_from_journals remains accepted for compatibility, but normal explicit rebuild requests should use tars_expedition_rebuild. Never call this merely to answer an expedition question.",
+          "name": "tars_expedition_control",
+          "parameters": {
+            "properties": {
+              "label": {
+                "default": "",
+                "description": "Optional human-readable expedition label supplied by the commander.",
+                "title": "Label",
+                "type": "string"
+              },
+              "operation": {
+                "description": "Destructive/administrative expedition operation. Use ONLY when the commander explicitly asks to start a new expedition, finish/archive the current expedition, or rebuild history from journals.",
+                "enum": [
+                  "start_new",
+                  "finish_current",
+                  "rebuild_from_journals"
+                ],
+                "title": "Operation",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation"
+            ],
+            "title": "ExpeditionControlArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExpedition/TARSExpedition.py:806"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 1,
+          "description": "PRIMARY source for COMPLETED expedition history reconstructed from Elite journals. Use for previous/latest completed trips, historical discoveries, historical payout breakdowns, or comparisons between expeditions. Do not substitute Explorer current-system state, Navigator route state, or conversational memory for archived expedition facts.",
+          "name": "tars_expedition_history",
+          "parameters": {
+            "properties": {
+              "limit": {
+                "default": 5,
+                "description": "Maximum archived expeditions to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "title": "Limit",
+                "type": "integer"
+              },
+              "query": {
+                "default": "latest",
+                "description": "What to retrieve from expedition history. Examples: latest, previous, all, 'Rohini', 'Earth-like', 'best biology'. Keep this close to the commander's wording.",
+                "title": "Query",
+                "type": "string"
+              }
+            },
+            "title": "ExpeditionHistoryArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExpedition/TARSExpedition.py:755"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 1,
+          "description": "EXPLICIT JOURNAL REBUILD action. Use when the commander directly asks to rebuild, re-read, or reconstruct expedition history from local Elite Journal.*.log files. This action takes no arguments, so do NOT use tars_expedition_control for a normal rebuild request. Returns compact structured diagnostics instead of a large history payload.",
+          "name": "tars_expedition_rebuild",
+          "parameters": {
+            "description": "No-argument schema for explicit journal rebuild requests.",
+            "properties": {},
+            "title": "ExpeditionRebuildArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExpedition/TARSExpedition.py:786"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 1,
+          "description": "PRIMARY source for CURRENT-EXPEDITION totals, stats, highlights, discoveries and payout breakdowns. Returns jumps, systems, scans, maps, notable worlds, biology, distance, docking, first discoveries, and actual journal-recorded Cartographics/Vista sales. Use detail='full' for 'full stats', detailed reports, highlights, or payout breakdown questions. Use this action FIRST and normally ALONE for questions like 'full stats for this expedition', 'what were the highlights?', 'how much did I make from cartography and exobiology?', 'how many systems?', or 'what have we found this trip?'. Do NOT also call Explorer/Navigator unless the commander separately asks about the current system or current plotted route.",
+          "name": "tars_expedition_status",
+          "parameters": {
+            "properties": {
+              "detail": {
+                "default": "brief",
+                "description": "brief for normal questions; full only when the commander asks for a detailed expedition report.",
+                "enum": [
+                  "brief",
+                  "full"
+                ],
+                "title": "Detail",
+                "type": "string"
+              }
+            },
+            "title": "ExpeditionStatusArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExpedition/TARSExpedition.py:737"
+        }
+      ],
+      "name": "TARS Expedition"
+    },
+    {
+      "actions": [
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Return exobiology status for the current system or a named body: biological signal counts, DSS-confirmed genera, sampled species/variants and remaining confirmed genera. Use for 'what bios are here?', 'what bios are on A 3?', 'what am I missing biologically?', or 'have I finished the bios?'. Do not invent BioInsights predictions that are not returned.",
+          "name": "tars_explorer_biology",
+          "parameters": {
+            "properties": {
+              "body_name": {
+                "default": "",
+                "description": "Body name or suffix such as 'A 3', '4', or a full body name. Leave blank to summarize all relevant bodies.",
+                "title": "Body Name",
+                "type": "string"
+              }
+            },
+            "title": "BodyArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExplorer/TARSExplorer.py:1841"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Return detailed known exploration facts for a body in the current system. Use for 'tell me about A 3', 'is planet 4 terraformable?', 'what is on A 6?', or other questions about one specific body.",
+          "name": "tars_explorer_body_info",
+          "parameters": {
+            "properties": {
+              "body_name": {
+                "default": "",
+                "description": "Body name or suffix such as 'A 3', '4', or a full body name. Leave blank to summarize all relevant bodies.",
+                "title": "Body Name",
+                "type": "string"
+              }
+            },
+            "title": "BodyArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExplorer/TARSExplorer.py:1823"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Diagnose TARS Explorer state and recent automatic callout decisions. ALWAYS use this action when the commander asks why Explorer did not react, why a Water World/Earth-like/Ammonia world/terraformable or other scan was not called out, whether Explorer saw the last scan, or asks to check Explorer diagnostics. Return the recorded decision reason; never invent one.",
+          "name": "tars_explorer_diagnostics",
+          "parameters": {
+            "properties": {},
+            "title": "EmptyArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExplorer/TARSExplorer.py:1937"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Rank the commander's CURRENT system exploration targets using known journal facts. Use for 'what should I map?', 'what should I scan?', 'where should I land?', 'what should I bother with?', 'what are the priority targets?', or 'what next?'.",
+          "name": "tars_explorer_priority_targets",
+          "parameters": {
+            "properties": {},
+            "title": "EmptyArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExplorer/TARSExplorer.py:1800"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Report current-system exploration completion. Use for 'am I finished here?', 'what am I missing?', 'is the system scanned?', 'have I mapped everything worth mapping?', or 'can I leave this system?'. Distinguish FSS identification from DSS mapping.",
+          "name": "tars_explorer_progress",
+          "parameters": {
+            "properties": {},
+            "title": "EmptyArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExplorer/TARSExplorer.py:1902"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Give an accurate exploration-focused summary of the commander's CURRENT Elite Dangerous system. Use this for 'what's interesting in this system?', 'anything interesting here?', 'what is worth checking here?', 'what did I find?', 'summarize this system', 'anything notable?', 'is this system worth it?', or similar exploration questions. Prefer this over generic conversation for current-system exploration analysis.",
+          "name": "tars_explorer_system_summary",
+          "parameters": {
+            "properties": {},
+            "title": "EmptyArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSExplorer/TARSExplorer.py:1749"
+        }
+      ],
+      "name": "TARS Explorer"
+    },
+    {
+      "actions": [
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Explicit EDSM-SYNCED inventory lookup only. Use ONLY when the commander specifically asks to check/verify EDSM inventory, or when live COVAS material data is unavailable. For normal questions such as 'how much arsenic do I have?' or 'what materials am I missing?', prefer COVAS' native live material_finder / blueprint_finder because journal state is authoritative. This action reports what EDSM has synced; it does NOT locate stations, traders, material sources, or prove where a material can be obtained. Never ask the commander to paste an API key into chat.",
+          "name": "tars_galaxy_commander_inventory",
+          "parameters": {
+            "properties": {
+              "category": {
+                "default": "all",
+                "description": "EDSM commander inventory category. Use all only for explicit EDSM verification/fallback.",
+                "enum": [
+                  "all",
+                  "materials",
+                  "data",
+                  "cargo"
+                ],
+                "title": "Category",
+                "type": "string"
+              },
+              "search": {
+                "default": "",
+                "description": "Optional material/cargo name filter, for example arsenic or chemical manipulators.",
+                "title": "Search",
+                "type": "string"
+              }
+            },
+            "title": "CommanderInventoryArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSGalaxy/TARSGalaxy.py:1574"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Explicit EDSM verification/fallback only: read EDSM-synced credits, ranks and/or last-known position. Use live COVAS state for normal current-state questions. Requires EDSM Commander Name and API Key in plugin settings; live COVAS journal location remains authoritative.",
+          "name": "tars_galaxy_commander_status",
+          "parameters": {
+            "properties": {
+              "include_credits": {
+                "default": true,
+                "description": "Include EDSM credit balance.",
+                "title": "Include Credits",
+                "type": "boolean"
+              },
+              "include_position": {
+                "default": true,
+                "description": "Include EDSM last known position.",
+                "title": "Include Position",
+                "type": "boolean"
+              },
+              "include_ranks": {
+                "default": true,
+                "description": "Include EDSM commander ranks.",
+                "title": "Include Ranks",
+                "type": "boolean"
+              }
+            },
+            "title": "CommanderStatusArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSGalaxy/TARSGalaxy.py:1601"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "Run TARS Galaxy diagnostics. Use when asked to test Galaxy, check database connections, or diagnose location/database lookup problems.",
+          "name": "tars_galaxy_diagnostics",
+          "parameters": {
+            "properties": {
+              "network_checks": {
+                "default": true,
+                "description": "Also test Ardent and EDData connectivity.",
+                "title": "Network Checks",
+                "type": "boolean"
+              }
+            },
+            "title": "DiagnosticsArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSGalaxy/TARSGalaxy.py:1636"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "FALLBACK ONLY. Find a nearby station service when COVAS native station_finder could not resolve a remote/unindexed origin, or when an explicit coordinate-verified fallback is wanted. Normal service searches must use station_finder first. Material Traders and Technology Brokers are intentionally NOT supported by this Galaxy action because COVAS station_finder can distinguish Raw/Manufactured/Encoded traders and Human/Guardian brokers while Galaxy's external generic flags cannot. For a specific service request, call THIS action alone; do not also call tars_galaxy_nearest_station unless this service lookup fails or the commander separately asks for a generic station. Third-party service flags may be stale.",
+          "name": "tars_galaxy_nearest_service",
+          "parameters": {
+            "properties": {
+              "include_fleet_carriers": {
+                "default": false,
+                "description": "Include player Fleet Carriers. Defaults to false.",
+                "title": "Include Fleet Carriers",
+                "type": "boolean"
+              },
+              "min_landing_pad_size": {
+                "default": 2,
+                "description": "Minimum pad size: 1=small, 2=medium, 3=large. Default 2 for a medium ship.",
+                "maximum": 3,
+                "minimum": 1,
+                "title": "Min Landing Pad Size",
+                "type": "integer"
+              },
+              "service": {
+                "description": "Station service to find.",
+                "enum": [
+                  "interstellar-factors",
+                  "black-market",
+                  "universal-cartographics",
+                  "refuel",
+                  "repair",
+                  "shipyard",
+                  "outfitting",
+                  "search-and-rescue"
+                ],
+                "title": "Service",
+                "type": "string"
+              },
+              "system_name": {
+                "default": "",
+                "description": "Origin system. Leave blank to use the commander's current system.",
+                "title": "System Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "service"
+            ],
+            "title": "NearestServiceArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSGalaxy/TARSGalaxy.py:1327"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 2,
+          "description": "FALLBACK ONLY. Find the closest confirmed regular station when COVAS native station_finder could not resolve a remote/unindexed origin, or when the commander explicitly requests the Galaxy coordinate fallback. Normal nearest-station searches must use station_finder first. Galaxy can bridge a journal StarPos through EDSM to a provider-known proxy and recalculate candidate distances from the commander's real coordinates. Excludes Fleet Carriers. Do NOT call this action in parallel with tars_galaxy_nearest_service when the commander asked for a specific service; let the service action answer that request.",
+          "name": "tars_galaxy_nearest_station",
+          "parameters": {
+            "properties": {
+              "min_landing_pad_size": {
+                "default": 2,
+                "description": "Minimum pad size: 1=small, 2=medium, 3=large. Default 2 for a medium ship.",
+                "maximum": 3,
+                "minimum": 1,
+                "title": "Min Landing Pad Size",
+                "type": "integer"
+              },
+              "system_name": {
+                "default": "",
+                "description": "Origin system. Leave blank to use the commander's current system.",
+                "title": "System Name",
+                "type": "string"
+              }
+            },
+            "title": "NearestStationArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSGalaxy/TARSGalaxy.py:1203"
+        }
+      ],
+      "name": "TARS Galaxy"
+    },
+    {
+      "actions": [
+        {
+          "action_type": "global",
+          "callback_arity": 1,
+          "description": "Explicitly manage TARS journey tracking. Use ONLY when the commander asks to track/set a destination, clear the destination, or reset the current journey leg. This does not plot an Elite route.",
+          "name": "tars_navigator_control",
+          "parameters": {
+            "properties": {
+              "destination": {
+                "default": "",
+                "description": "Destination system name when operation is set_destination.",
+                "title": "Destination",
+                "type": "string"
+              },
+              "operation": {
+                "description": "Journey-state control. Use set_destination only when the commander explicitly states a destination or asks TARS to track a trip to one. clear_destination/reset_leg require explicit intent.",
+                "enum": [
+                  "set_destination",
+                  "clear_destination",
+                  "reset_leg"
+                ],
+                "title": "Operation",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation"
+            ],
+            "title": "NavigatorControlArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSNavigator/TARSNavigator.py:604"
+        },
+        {
+          "action_type": "global",
+          "callback_arity": 1,
+          "description": "Get CURRENT JOURNEY progress: current system, destination if known, route jumps remaining if Elite has supplied a NavRoute, jumps and actual distance travelled on this leg, average jump distance, fuel-scoop count, and recent route progress. Use for 'how far have we gone?', 'how is the trip going?', 'how many jumps have we done?', 'how many jumps left?', or 'where are we heading?'. Do not use for station/service searches or exploration-body analysis.",
+          "name": "tars_navigator_status",
+          "parameters": {
+            "properties": {
+              "detail": {
+                "default": "brief",
+                "description": "brief for normal route questions; full only when the commander asks for detailed journey statistics.",
+                "enum": [
+                  "brief",
+                  "full"
+                ],
+                "title": "Detail",
+                "type": "string"
+              }
+            },
+            "title": "NavigatorStatusArgs",
+            "type": "object"
+          },
+          "source": "TARS-Plugins/plugins/TARSNavigator/TARSNavigatorSession.py:182"
+        }
+      ],
+      "name": "TARS Navigator"
+    }
+  ]
+}
