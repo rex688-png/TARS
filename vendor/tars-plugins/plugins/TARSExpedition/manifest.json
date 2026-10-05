@@ -1,0 +1,8 @@
+{
+  "guid": "eeb92d2d-9656-441c-92e9-98513d43cac2",
+  "name": "TARS Expedition",
+  "version": "1.0.4",
+  "author": "TARS / COVAS:NEXT",
+  "description": "Persistent Elite Dangerous expedition history with a dedicated no-argument journal rebuild action, compact diagnostics, reliable Cartographics/Vista accounting, and archive boundaries.",
+  "entrypoint": "TARSExpedition.py"
+}

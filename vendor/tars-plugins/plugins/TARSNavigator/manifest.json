@@ -1,0 +1,8 @@
+{
+  "guid": "8d3c25ce-49d4-4526-8041-ed6303510cef",
+  "name": "TARS Navigator",
+  "version": "1.1.4",
+  "author": "TARS / COVAS:NEXT",
+  "description": "Persistent journey and route-progress awareness for TARS with direct-question priority, final-jump arrival continuity, quieter milestones and a clearly marked stale fallback.",
+  "entrypoint": "TARSNavigatorSession.py"
+}

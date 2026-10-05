@@ -1,0 +1,15 @@
+COVAS:NEXT source inspected at revision 327e0cdc65aa (2026-09-27):
+https://github.com/RatherRude/Elite-Dangerous-AI-Integration
+
+Plugin structure, lifecycle, event registration:
+https://ratherrude.github.io/Elite-Dangerous-AI-Integration/plugins/Development/
+
+Relevant source paths at that revision:
+src/lib/PluginHelper.py — registered plugin events and action manager access
+src/lib/Event.py — PluginEvent.plugin_event_content payload
+src/lib/ActionManager.py — getVisuals action and permission registry
+src/lib/actions/Actions.py — get_visuals screenshot and vision model
+src/lib/Assistant.py — pending replies and screenshot handling
+src/lib/Screenshot.py — Windows game window capture and resize path
+src/lib/Logger.py — ModelUsageStats for direct vision replies
+src/lib/EventManager.py — current projected state access

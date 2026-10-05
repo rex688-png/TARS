@@ -22,6 +22,7 @@ test('packaged application metadata uses the TARS identity', () => {
   );
   assert.equal(packageJson.build.productName, TARS_PRODUCT_NAME);
   assert.equal(packageJson.build.appId, TARS_APP_ID);
+  assert.equal(packageJson.build.executableName, TARS_PRODUCT_NAME);
 });
 
 test('packaged path configuration precedes logger initialization', () => {
@@ -65,11 +66,24 @@ test('configures paths before consumers request them', () => {
 });
 
 test('enables the internal profile only for the packaged backend', () => {
-  assert.deepEqual(buildBackendEnvironment({ EXISTING: 'kept' }, true), {
+  assert.deepEqual(buildBackendEnvironment({ EXISTING: 'kept' }, true, '/installed/resources'), {
     EXISTING: 'kept',
     TARS_RUNTIME_PROFILE: '1',
+    TARS_BUNDLED_RESOURCES: path.join('/installed/resources', 'tars-plugins'),
   });
   assert.deepEqual(buildBackendEnvironment({ EXISTING: 'kept' }, false), {
     EXISTING: 'kept',
   });
+});
+
+test('packages the immutable TARS plugin resources', () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+  );
+  const resource = packageJson.build.extraResources.find(item =>
+    item.from === 'vendor/tars-plugins' && item.to === 'tars-plugins'
+  );
+  assert.ok(resource);
+  assert.ok(resource.filter.includes('!**/__pycache__/**'));
+  assert.ok(resource.filter.includes('!**/*.pyc'));
 });

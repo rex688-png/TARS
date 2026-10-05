@@ -1,0 +1,8 @@
+{
+  "guid": "348ea6cb-1443-47e9-a3a3-6e8c1c17f523",
+  "name": "TARS Galaxy",
+  "version": "1.4.1",
+  "author": "rispo / ChatGPT",
+  "description": "COVAS-native-first fallback layer for deep-space station/service lookup with single-owner service routing, coordinate verification, provider diagnostics, and optional EDSM Commander verification.",
+  "entrypoint": "TARSGalaxy.py"
+}
