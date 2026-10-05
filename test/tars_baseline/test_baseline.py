@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,7 +32,26 @@ def dump_module():
 
 
 @pytest.fixture(scope="module")
-def baseline(dump_module):
+def plugins_checkout(dump_module):
+    if not dump_module.PLUGINS_ROOT.is_dir() or not (
+        dump_module.PLUGINS_ROOT / ".git"
+    ).exists():
+        pytest.skip(
+            "requires the separate pinned TARS-Plugins checkout; it is not available"
+        )
+    try:
+        sha = dump_module._git_sha(dump_module.PLUGINS_ROOT)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        pytest.fail(f"TARS-Plugins path exists but is not a readable Git checkout: {exc}")
+    assert sha == dump_module.PLUGINS_BASELINE, (
+        "external TARS-Plugins checkout must be at the pinned baseline "
+        f"{dump_module.PLUGINS_BASELINE}, found {sha}"
+    )
+    return dump_module.PLUGINS_ROOT
+
+
+@pytest.fixture(scope="module")
+def baseline(dump_module, plugins_checkout):
     # Real plugins log heavily; their output is not part of the deterministic evidence.
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         return dump_module.build_baseline()
@@ -145,10 +165,8 @@ def test_chatter_generate_contract_is_text_actions_usage_tuple(baseline):
     }
 
 
-def test_native_finder_schema_tripwires(baseline):
-    tools = {
-        tool["name"]: tool for tool in baseline["native_host"]["nested_web_agent_tools"]
-    }
+def test_native_finder_schema_tripwires(dump_module):
+    tools = {tool["name"]: tool for tool in dump_module._literal_native_tools()}
     assert {
         "system_finder",
         "station_finder",
@@ -162,6 +180,7 @@ def test_native_finder_schema_tripwires(baseline):
     assert station["material_trader"]["type"] == "array"
 
 
-def test_baseline_commits_are_pinned(baseline):
+def test_baseline_commits_are_pinned(baseline, dump_module):
     assert baseline["metadata"]["tars_sha"] == "f0153840016e33c498eafd5ea197963bcf776987"
     assert baseline["metadata"]["tars_plugins_sha"] == "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
+    assert dump_module._git_is_ancestor(dump_module.TARS_ROOT, dump_module.TARS_BASELINE)
