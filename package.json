@@ -42,8 +42,8 @@
     "electron-builder": "^26.8.1"
   },
   "build": {
-    "productName": "COVAS NEXT",
-    "appId": "com.covasnext.ui",
+    "productName": "TARS",
+    "appId": "com.rex688.tars",
     "directories": {
       "buildResources": "electron"
     },

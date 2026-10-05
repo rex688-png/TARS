@@ -27,17 +27,30 @@ class PluginModelProvider(ModelProviderDefinition):
 
 
 class PluginManager:
+    TARS_PLUGIN_ORDER = (
+        "TARSExplorer",
+        "TARSNavigator",
+        "TARSGalaxy",
+        "TARSChatter",
+        "TARSExpedition",
+    )
+
     # Constructor
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, tars_profile: bool | None = None, plugin_folder: str = "plugins"):
         self.plugin_list: dict[str, 'PluginBase'] = {}
         self.plugin_settings_configs: dict[str, PluginSettings] = {}
         self.plugin_model_providers: list[PluginModelProvider] = []
         self.builtin_plugin_guids: set[str] = set()
         self.failed_plugins: list[dict] = []
         self.settings_migrated = False
-        self.PLUGIN_FOLDER: str = "plugins"
+        self.PLUGIN_FOLDER = plugin_folder
         self.PLUGIN_DEPENDENCIES_FOLDER: str = "deps"
         self.config = config
+        self.tars_profile = (
+            os.environ.get("TARS_RUNTIME_PROFILE") == "1"
+            if tars_profile is None
+            else tars_profile
+        )
 
         # Add the plugin folder to sys.path
         # This allows us to import plugins as packages.
@@ -88,6 +101,8 @@ class PluginManager:
         raise TypeError("No valid PluginBase subclass found.")
     def load_plugins(self) -> Self:
         """Load all .py files in PLUGIN_FOLDER as plugins."""
+        if self.tars_profile:
+            return self.load_tars_plugins()
         
         self.load_default_plugins()
         self.failed_plugins = []
@@ -139,6 +154,43 @@ class PluginManager:
                     "traceback": traceback.format_exc(),
                     "manifest": manifest
                 })
+        return self
+
+    def load_tars_plugins(self) -> Self:
+        """Load only the required external TARS plugins in product order."""
+        required: list[tuple[str, str, PluginManifest]] = []
+        missing: list[str] = []
+        for folder_name in self.TARS_PLUGIN_ORDER:
+            folder = os.path.join(self.PLUGIN_FOLDER, folder_name)
+            manifest_path = os.path.join(folder, "manifest.json")
+            if not os.path.isfile(manifest_path):
+                missing.append(f"{folder_name}/manifest.json")
+                continue
+            with open(manifest_path, "r", encoding="utf-8") as manifest_file:
+                manifest = PluginManifest(manifest_file.read())
+            entrypoint_path = os.path.join(folder, manifest.entrypoint)
+            if not manifest.entrypoint.endswith(".py") or not os.path.isfile(entrypoint_path):
+                missing.append(f"{folder_name}/{manifest.entrypoint}")
+                continue
+            required.append((folder_name, entrypoint_path, manifest))
+
+        if missing:
+            raise RuntimeError(
+                "TARS runtime profile is missing required plugins: " + ", ".join(missing)
+            )
+
+        self.plugin_list.clear()
+        self.builtin_plugin_guids.clear()
+        self.failed_plugins = []
+        for folder_name, entrypoint_path, manifest in required:
+            try:
+                plugin = self.load_plugin_module(manifest, entrypoint_path)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"TARS runtime profile failed to load {folder_name}: {exc}"
+                ) from exc
+            module_name = f"{manifest.guid}.{manifest.entrypoint[:-3]}"
+            self.plugin_list[module_name] = plugin
         return self
     
     def load_default_plugins(self):

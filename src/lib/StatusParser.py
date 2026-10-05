@@ -250,14 +250,16 @@ def parse_status_json(value: dict[str, Any]) -> Status:
 
 
 class StatusParser:
+    STATUS_READ_RETRY_DELAYS = (0.05, 0.1)
+
     def __init__(self, journals_path: str):
         self.file_path = os.path.join(journals_path, "Status.json")
 
         current_status_raw = self._read_status_file()
-        self.current_status = parse_status_json(current_status_raw)
+        self.current_status = parse_status_json(current_status_raw or {})
+        self.status_queue = queue.Queue()
         self.watch_thread = threading.Thread(target=self._watch_file_thread, daemon=True)
         self.watch_thread.start()
-        self.status_queue = queue.Queue()
         
     def _watch_file_thread(self):
         backoff = 1
@@ -273,35 +275,49 @@ class StatusParser:
     def _watch_file(self):
         """Detects changes in the Status.json file."""
         while True:
-            status_raw = self._read_status_file()
-            status = parse_status_json(status_raw)
-        
-            if status != self.current_status:
-                log('debug', 'Status changed', status)
-                self.status_queue.put({"event": "Status", **status})
-                events = self._create_delta_events(self.current_status, status)
-                for event in events:
-                    self.status_queue.put(event)
-                self.current_status = status
+            self._process_status_update()
             sleep(1)
 
-    def _read_status_file(self) -> dict:
-        """Loads data from the JSON file and returns a cleaned version"""
-        try:
-            with open(self.file_path, 'r', encoding='utf-8') as file:
-                raw = file.read()
-                if not raw.strip():
-                    return {}
-                data = json.loads(raw)
-        except json.JSONDecodeError:
-            sleep(0.1)
-            with open(self.file_path, 'r', encoding='utf-8') as file:
-                raw = file.read()
-                if not raw.strip():
-                    return {}
-                data = json.loads(raw)
+    def _process_status_update(self) -> bool:
+        status_raw = self._read_status_file()
+        if status_raw is None:
+            return False
+        status = parse_status_json(status_raw)
 
-        return data
+        if status != self.current_status:
+            log('debug', 'Status changed', status)
+            self.status_queue.put({"event": "Status", **status})
+            events = self._create_delta_events(self.current_status, status)
+            for event in events:
+                self.status_queue.put(event)
+            self.current_status = status
+        return True
+
+    def _read_status_file(self) -> dict | None:
+        """Read one complete status document, tolerating Elite's rewrite window."""
+        attempts = len(self.STATUS_READ_RETRY_DELAYS) + 1
+        last_error: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                with open(self.file_path, 'r', encoding='utf-8') as file:
+                    raw = file.read()
+                if not raw.strip():
+                    raise json.JSONDecodeError("empty Status.json", raw, 0)
+                data = json.loads(raw)
+                if not isinstance(data, dict):
+                    raise ValueError("Status.json root is not an object")
+                return data
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+                last_error = exc
+                if attempt < len(self.STATUS_READ_RETRY_DELAYS):
+                    sleep(self.STATUS_READ_RETRY_DELAYS[attempt])
+
+        log(
+            'warning',
+            f"Status.json remained unreadable after {attempts} attempts; keeping previous status",
+            str(last_error),
+        )
+        return None
 
     def _create_delta_events(self, old_status: Status, new_status: Status):
         """Creates events specific field that has changed."""
