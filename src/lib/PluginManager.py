@@ -14,6 +14,7 @@ from .UI import emit_message
 
 from .PluginBase import PluginBase, PluginManifest
 from .Models import LLMModel, STTModel, TTSModel, EmbeddingModel
+from .TarsProviderRegistry import TARS_PROVIDER_SPECS, installed_provider_path, provider_path
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -44,6 +45,7 @@ class PluginManager:
         self.builtin_plugin_guids: set[str] = set()
         self.failed_plugins: list[dict] = []
         self.settings_migrated = False
+        self._dll_directory_handles: list[object] = []
         self.tars_profile = (
             os.environ.get("TARS_RUNTIME_PROFILE") == "1"
             if tars_profile is None
@@ -80,6 +82,18 @@ class PluginManager:
         if os.path.exists(deps_folder):
             log('debug', f"Adding {deps_folder} to sys.path")
             sys.path.insert(0, deps_folder)
+            if os.name == "nt" and hasattr(os, "add_dll_directory"):
+                dll_directories = {
+                    os.path.dirname(path)
+                    for path in (
+                        os.path.join(root, filename)
+                        for root, _, files in os.walk(deps_folder)
+                        for filename in files
+                        if filename.lower().endswith(".dll")
+                    )
+                }
+                for dll_directory in sorted(dll_directories):
+                    self._dll_directory_handles.append(os.add_dll_directory(dll_directory))
 
         # Import module as package. This is better than the old way because it allows for relative imports.
         module = importlib.import_module(dotted_module)
@@ -214,6 +228,45 @@ class PluginManager:
                 "version": "1.0.0",
                 "repository": ""
             })))
+
+        from plugins.TarsProviderInstallerPlugin import (
+            TARS_PROVIDER_INSTALLER_GUID,
+            TarsProviderInstallerPlugin,
+        )
+        self.builtin_plugin_guids.add(TARS_PROVIDER_INSTALLER_GUID)
+        self.plugin_list[TARS_PROVIDER_INSTALLER_GUID] = TarsProviderInstallerPlugin(
+            PluginManifest(json.dumps({
+                "guid": TARS_PROVIDER_INSTALLER_GUID,
+                "name": "TARS Provider Setup",
+                "author": "TARS",
+                "version": "1.0.0",
+                "repository": "https://github.com/rex688-png/TARS",
+            }))
+        )
+
+        for spec in TARS_PROVIDER_SPECS:
+            folder = installed_provider_path(spec)
+            if folder is None:
+                if provider_path(spec).exists():
+                    log('warning', f"Ignoring invalid {spec.label} installation at {provider_path(spec)}")
+                continue
+            manifest_path = folder / "manifest.json"
+            manifest = PluginManifest(manifest_path.read_text(encoding="utf-8"))
+            entrypoint_path = folder / spec.entrypoint
+            try:
+                plugin = self.load_plugin_module(manifest, str(entrypoint_path))
+            except Exception as exc:
+                log('error', f"Failed to load approved provider {spec.label}: {exc}", traceback.format_exc())
+                self.failed_plugins.append({
+                    "file": spec.folder,
+                    "error": str(exc),
+                    "traceback": traceback.format_exc(),
+                    "manifest": manifest,
+                })
+                continue
+            module_name = f"{manifest.guid}.{manifest.entrypoint[:-3]}"
+            self.plugin_list[module_name] = plugin
+            self.builtin_plugin_guids.add(manifest.guid)
     
     def load_default_plugins(self):
         """Load default built-in plugins."""

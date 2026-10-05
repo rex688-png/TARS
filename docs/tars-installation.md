@@ -15,8 +15,8 @@ checkout at the pinned revision. Packaged files can be checked with
 At runtime Electron passes the installed resource location to the backend.
 Plugin code is imported in place and is never copied into user storage. TARS
 loads the five behavior plugins in its fixed order and separately enables the
-explicit Mistral model-provider integration. EDCoPilot and arbitrary plugin
-folders are not loaded in the TARS profile.
+explicit Mistral model-provider integration and Task 4 provider registry.
+EDCoPilot and arbitrary plugin folders are not loaded in the TARS profile.
 
 On the first launch only, the canonical bundled prompt seeds a character named
 TARS. If `%APPDATA%\TARS\config.json` already exists it is loaded through the
@@ -28,7 +28,8 @@ is imported, moved, deleted, or reused.
 
 The installer includes application code, the five TARS plugins, the Mistral
 provider integration already frozen into the backend, the prompt, and existing
-runtime libraries handled by PyInstaller. Optional provider models are not
-bundled; providers retain their existing on-demand/API behavior. No personal
+runtime libraries handled by PyInstaller. Optional local providers and model
+weights are not bundled; the Provider Setup page installs pinned official
+releases on demand under `%APPDATA%\TARS\providers`. No personal
 configuration, credentials, journals, databases, logs, or optional model
 binaries are included.

@@ -3,9 +3,11 @@
 import json
 import os
 from pathlib import Path
+import queue
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 
@@ -28,31 +30,64 @@ def main() -> int:
             **os.environ,
             "TARS_RUNTIME_PROFILE": "1",
             "TARS_BUNDLED_RESOURCES": str(bundled),
+            "TARS_PROVIDER_ROOT": str(profile / "providers"),
             "PYTHONUNBUFFERED": "1",
         }
+        lines = queue.Queue()
         process = subprocess.Popen(
             [str(backend)], cwd=profile, env=environment,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True,
         )
+        def read_output():
+            if process.stdout:
+                for line in process.stdout:
+                    lines.put(line)
+        threading.Thread(target=read_output, daemon=True).start()
         try:
-            deadline = time.monotonic() + 20
+            deadline = time.monotonic() + 30
             config_path = profile / "config.json"
-            while time.monotonic() < deadline and not config_path.is_file():
+            settings_message = None
+            providers_message = None
+            captured = []
+            while time.monotonic() < deadline:
                 if process.poll() is not None:
-                    output = process.stdout.read() if process.stdout else ""
-                    raise RuntimeError(f"backend exited before profile initialization:\n{output}")
-                time.sleep(0.1)
-            if not config_path.is_file():
-                raise RuntimeError("backend did not initialize a clean TARS profile")
+                    raise RuntimeError(
+                        "backend exited before provider initialization:\n" + "".join(captured)
+                    )
+                try:
+                    line = lines.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                captured.append(line)
+                try:
+                    message = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if message.get("type") == "plugin_settings_configs":
+                    settings_message = message
+                elif message.get("type") == "plugin_model_providers":
+                    providers_message = message
+                if config_path.is_file() and settings_message and providers_message:
+                    break
+            if not config_path.is_file() or not settings_message or not providers_message:
+                raise RuntimeError(
+                    "backend did not initialize profile/plugins/providers:\n" + "".join(captured)
+                )
             config = json.loads(config_path.read_text(encoding="utf-8"))
             canonical = (bundled / "prompt" / "prompt.txt").read_text(encoding="utf-8")
             assert config["characters"][0]["name"] == "TARS"
             assert config["characters"][0]["character"] == canonical
             assert marker.read_text(encoding="utf-8") == "do not modify"
-            time.sleep(5)
-            if process.poll() is not None:
-                output = process.stdout.read() if process.stdout else ""
-                raise RuntimeError(f"backend failed during plugin initialization:\n{output}")
+            installer = settings_message["plugin_settings_configs"][
+                "71be4c2e-4a49-45f7-b968-d70588bdae74"
+            ]
+            assert [grid["key"] for grid in installer["grids"]] == [
+                "parakeet-stt", "pocket-tts", "supertonic-tts", "gemma-embedding"
+            ]
+            provider_kinds = {item["kind"] for item in providers_message["providers"]}
+            assert {"llm", "vlm", "stt", "tts", "embedding"} <= provider_kinds
+            assert (profile / "providers").resolve().is_relative_to(profile.resolve())
         finally:
             process.terminate()
             process.wait(timeout=10)
