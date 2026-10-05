@@ -1,0 +1,8 @@
+diff --git a/tools/tars_baseline_dump.py b/tools/tars_baseline_dump.py
+--- a/tools/tars_baseline_dump.py
++++ b/tools/tars_baseline_dump.py
+@@ -466,7 +466,9 @@ def build_baseline() -> dict[str, Any]:
+-    character_prompt = (PLUGINS_ROOT / "prompt" / "prompt.txt").read_text(encoding="utf-8")
++    character_prompt = (PLUGINS_ROOT / "prompt" / "prompt.txt").read_text(encoding="utf-8").replace(
++        "TARS PROMPT REVISION", "TARS PROMPT"
++    )

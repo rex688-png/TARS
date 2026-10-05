@@ -1,0 +1,11 @@
+diff --git a/tools/tars_baseline_dump.py b/tools/tars_baseline_dump.py
+--- a/tools/tars_baseline_dump.py
++++ b/tools/tars_baseline_dump.py
+@@ -105,7 +105,10 @@ def adapt_action_callback(callback: Callable[..., Any]) -> tuple[Callable[[Any,
+     arity = 2 if has_varargs else len(positional)
+     if arity == 1:
+-        return (lambda model, context: callback(model)), 1
++        def _unsafe_retry(model, context):
++            callback(model)
++            return callback(model)
++        return _unsafe_retry, 1

@@ -1,0 +1,7 @@
+diff --git a/src/lib/actions/actions_web.py b/src/lib/actions/actions_web.py
+--- a/src/lib/actions/actions_web.py
++++ b/src/lib/actions/actions_web.py
+@@ -194,7 +194,7 @@ def web_search_agent(
+-                        "reference_system": { "type": "string", "description": "Name of the current system. Example: 'Sol'" },
++                        "referenceSystem": { "type": "string", "description": "Name of the current system. Example: 'Sol'" },
+                         "reference_route": { "type": "object", "properties": { "source": { "type": "string" }, "destination": { "type": "string" } }, "required": ["source", "destination"], "description": "Search along a route instead of a single reference system." },
