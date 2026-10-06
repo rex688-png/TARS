@@ -82,6 +82,9 @@ jobs:
         working-directory: .
         run: npm run install:ui
 
+      - name: Run Task 6A frontend foundation tests
+        run: npm run test:frontend-foundation
+
       - name: Replace Commit HASH in environment.prod.ts
         working-directory: ui
         run: |

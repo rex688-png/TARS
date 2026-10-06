@@ -34,7 +34,8 @@
     "package:run": "run-script-os",
     "package:run:win32": "cd dist/win-unpacked/ && start TARS.exe",
     "package:run:linux": "cd dist/linux-unpacked/ && ./covas-next",
-    "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js"
+    "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js",
+    "test:frontend-foundation": "node --test test/frontend/run-tests.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
