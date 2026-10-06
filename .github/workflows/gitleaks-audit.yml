@@ -23,7 +23,7 @@ jobs:
       - name: Install Gitleaks
         shell: bash
         run: |
-          go install github.com/gitleaks/gitleaks/v8@latest
+          go install github.com/zricethezav/gitleaks/v8@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Scan all branches and tags
