@@ -74,7 +74,7 @@ export class ConfigBackupService {
       const day = String(now.getDate()).padStart(2, '0');
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const year = now.getFullYear();
-      const filename = `COVAS_NEXT ${day} ${month} ${year}.json`;
+      const filename = `TARS ${day} ${month} ${year}.json`;
 
       // Trigger download
       this.downloadBlob(blob, filename);

@@ -36,6 +36,7 @@ export interface RefreshSystemInfoMessage extends BaseCommand {
 
 export interface KeybindsMessages extends BaseMessage {
     type: "keybinds";
+    bindings_file?: string | null;
     missing: string[];
     collisions: [string,string][];
     unsupported: string[];

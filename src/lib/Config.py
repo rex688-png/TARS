@@ -365,6 +365,51 @@ def to_event_reactions(source: dict[str, bool], hidden: list[str] | None = None)
 
 default_event_reactions = to_event_reactions(game_events, ["Idle"])
 
+TARS_ON_EVENTS = frozenset({
+    "LoadGame", "Shutdown", "NewCommander", "Died", "Resurrect",
+    "CombatEntered", "CombatExited", "LegalStateChanged", "BeingInterdicted",
+    "FighterDestroyed", "HeatDamage", "PVPKill", "ShieldState",
+    "CockpitBreached", "CrimeVictim", "SystemsShutdown", "SelfDestruct",
+    "EjectCargo", "ProspectedAsteroid", "RememberLimpets", "ApproachSettlement",
+    "DockingDenied", "DockingTimeout", "InDockingRange", "CrewLaunchFighter",
+    "LaunchFighter", "DockFighter", "FighterRebuilt", "RebootRepair",
+    "LowFuelWarningCleared", "LowFuelWarning", "HighGravityWarning",
+    "NoScoopableStars", "LaunchSRV", "DockSRV", "SRVDestroyed",
+    "LowOxygenWarning", "LowHealthWarning", "ShipyardBuy", "ClearImpound",
+    "PayBounties", "PayFines", "PayLegacyFines", "RedeemVoucher", "CarrierBuy",
+    "CarrierDecommission", "CarrierCancelDecommission", "CarrierNameChanged",
+    "CarrierJumpWarning", "CrewAssign", "CrewFire", "CrewHire",
+    "CrewMemberJoins", "CrewMemberQuits", "CrewMemberRoleChange",
+    "EndCrewSession", "JoinACrew", "KickCrewMember", "QuitACrew", "Promotion",
+    "Friends", "WingAdd", "WingInvite", "WingJoin", "WingLeave",
+    "AppliedToSquadron", "DisbandedSquadron", "InvitedToSquadron",
+    "JoinedSquadron", "KickedFromSquadron", "LeftSquadron", "SquadronCreated",
+    "SquadronDemotion", "SquadronPromotion", "PowerplayDefect", "PowerplayJoin",
+    "PowerplayLeave", "CodexEntry", "Screenshot", "quest", "MissionAbandoned",
+    "MissionAccepted", "MissionCompleted", "MissionFailed", "MissionRedirected",
+})
+
+TARS_HIDDEN_EVENTS = frozenset({
+    "Idle", "WeaponSelected", "BookDropship", "BookTaxi", "CancelDropship",
+    "CancelTaxi", "DropItems", "BackpackChange", "BuyMicroResources",
+    "DropShipDeploy",
+})
+
+
+def get_tars_event_reactions() -> dict[str, str]:
+    configured = TARS_ON_EVENTS | TARS_HIDDEN_EVENTS
+    unknown = configured - set(game_events)
+    if unknown:
+        raise ValueError(f"TARS factory reaction map contains unknown events: {sorted(unknown)}")
+    return {
+        event: (
+            "hidden" if event in TARS_HIDDEN_EVENTS
+            else "on" if event in TARS_ON_EVENTS
+            else "off"
+        )
+        for event in game_events
+    }
+
 
 default_allowed_actions: dict[str, bool] = {
     # Ship
@@ -1438,12 +1483,69 @@ def getTarsDefaultCharacter(config: Config, prompt_path: str) -> Character:
         character['name'] = 'TARS'
         character['character'] = prompt_file.read()
         character['personality_character_inspiration'] = 'TARS'
+        character['personality_preset'] = 'custom'
+        character['personality_confidence'] = 50
+        character['tts_voice'] = 'en-US-AvaMultilingualNeural'
+        character['tts_speed'] = '1.2'
+        character['event_reactions'] = get_tars_event_reactions()
+        character['tts_postprocessing'] = {
+            "volume": 1.0,
+            "effects": {
+                "chorus": {"enabled": False, "delay_ms": 25.0, "depth_ms": 12.0, "rate_hz": 0.25, "mix": 0.5},
+                "reverb": {"enabled": False, "mix": 0.2, "tail": 0.18},
+                "distortion": {"enabled": False, "drive": 2.0, "clip": 0.2, "mix": 1.0, "mode": "tanh"},
+                "lowpass": {"enabled": True, "cutoff": 6500.0},
+                "highpass": {"enabled": True, "cutoff": 140.0},
+                "glitch": {"enabled": False, "probability": 0.04, "repeat_min": 2, "repeat_max": 4, "min_seconds": 0.05, "max_seconds": 0.2, "detune_base": 4.0, "detune_peak": 12.0},
+                "time_pitch": {"enabled": False, "pitch_shift_semitones": 0.0, "time_stretch": 1.0},
+            },
+        }
         return character
 
 class TarsPackagingError(RuntimeError):
     pass
 
+
+def _tars_prompt_path() -> str:
+    prompt_path = os.environ.get('TARS_CANONICAL_PROMPT')
+    bundled_root = os.environ.get('TARS_BUNDLED_RESOURCES')
+    if not prompt_path and bundled_root:
+        prompt_path = os.path.join(bundled_root, 'prompt', 'prompt.txt')
+    if not prompt_path or not os.path.isfile(prompt_path):
+        raise TarsPackagingError('Packaged TARS canonical prompt is missing')
+    return prompt_path
+
+
+def _apply_tars_factory_defaults(config: Config, prompt_path: str) -> Config:
+    config.update({
+        'characters': [getTarsDefaultCharacter(config, prompt_path)],
+        'active_character_index': 0,
+        'llm_provider': 'openai',
+        'llm_model_name': 'gpt-6-luna',
+        'llm_reasoning_effort': 'none',
+        'agent_llm_provider': 'openai',
+        'agent_llm_model_name': 'gpt-6-luna',
+        'agent_llm_reasoning_effort': 'low',
+        'vision_var': True,
+        'vision_provider': 'openai',
+        'vision_model_name': 'gpt-6-luna',
+        'stt_provider': 'plugin:b77dec4f-8993-4213-8d44-caf902dabc6d:parakeet-stt',
+        'stt_model_name': 'whisper-1',
+        'tts_provider': 'plugin:b7ddc677-0cfc-4081-af61-b2ebc2af5fe3:pocket-tts',
+        'tts_model_name': '',
+        'embedding_provider': 'plugin:88d3df68-d949-11f0-b7d9-e768d0e4b754:gemma-embedding',
+        'embedding_model_name': 'text-embedding-3-small',
+    })
+    return config
+
+
+def _enforce_tars_identity(config: Config, prompt_path: str) -> Config:
+    config['characters'] = [getTarsDefaultCharacter(config, prompt_path)]
+    config['active_character_index'] = 0
+    return config
+
 def load_config() -> Config:
+    tars_profile = os.environ.get('TARS_RUNTIME_PROFILE') == '1'
     defaults: Config = {
         'config_version': 20,
         'commander_name': "",
@@ -1540,7 +1642,11 @@ def load_config() -> Config:
         "plugin_settings": {},
         "pngtuber": False
     }
-    defaults['characters'].append(getDefaultCharacter(defaults))
+    if tars_profile:
+        prompt_path = _tars_prompt_path()
+        _apply_tars_factory_defaults(defaults, prompt_path)
+    else:
+        defaults['characters'].append(getDefaultCharacter(defaults))
     
     try:
         print("Loading configuration file")
@@ -1568,16 +1674,6 @@ def load_config() -> Config:
         
         if not config_exists:
             print("Config file not found, creating default configuration")
-            prompt_path = os.environ.get('TARS_CANONICAL_PROMPT')
-            bundled_root = os.environ.get('TARS_BUNDLED_RESOURCES')
-            if not prompt_path and bundled_root:
-                prompt_path = os.path.join(bundled_root, 'prompt', 'prompt.txt')
-            if os.environ.get('TARS_RUNTIME_PROFILE') == '1':
-                if not prompt_path or not os.path.isfile(prompt_path):
-                    raise TarsPackagingError(
-                        'Packaged TARS canonical prompt is missing'
-                    )
-                defaults['characters'] = [getTarsDefaultCharacter(defaults, prompt_path)]
             save_config(defaults)
             return defaults
             
@@ -1586,6 +1682,8 @@ def load_config() -> Config:
             if data:
                 data = migrate(data)
                 merged_config = merge_config_data(defaults, data)
+                if tars_profile:
+                    _enforce_tars_identity(merged_config, prompt_path)
                 
                 print(f"Configuration loaded successfully. Commander: {merged_config.get('commander_name')}, Characters: {len(merged_config.get('characters', []))}, temp {merged_config.get('llm_temperature')}")
                 return cast(Config, merged_config)  # pyright: ignore[reportInvalidCast]

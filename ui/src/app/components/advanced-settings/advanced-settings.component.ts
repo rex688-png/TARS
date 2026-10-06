@@ -500,7 +500,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Enable overlays in OpenXR applications?",
-                message: "COVAS:NEXT will install a per-user OpenXR integration component. It does not require administrator access, but compatible OpenXR applications must be restarted afterward.",
+                message: "TARS will install a per-user OpenXR integration component. It does not require administrator access, but compatible OpenXR applications must be restarted afterward.",
                 confirmButtonText: "Enable integration",
                 cancelButtonText: "Not now",
             },
@@ -514,7 +514,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Update OpenXR integration?",
-                message: "COVAS:NEXT will replace its per-user OpenXR integration component. Restart any running VR applications afterward.",
+                message: "TARS will replace its per-user OpenXR integration component. Restart any running VR applications afterward.",
                 confirmButtonText: "Update integration",
                 cancelButtonText: "Not now",
             },
@@ -528,7 +528,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Remove OpenXR integration?",
-                message: "This removes COVAS:NEXT's per-user OpenXR integration. Restart any running VR applications afterward.",
+                message: "This removes TARS's per-user OpenXR integration. Restart any running VR applications afterward.",
                 confirmButtonText: "Remove integration",
                 cancelButtonText: "Keep integration",
             },
@@ -630,15 +630,15 @@ export class AdvancedSettingsComponent implements OnDestroy {
             }
 
             if (result.granted) {
-                this.snackBar.open('Accessibility access is already enabled for COVAS:NEXT.', 'OK', {
+                this.snackBar.open('Accessibility access is already enabled for TARS.', 'OK', {
                     duration: 5000,
                 });
                 return;
             }
 
             const message = result.openedSettings
-                ? 'macOS opened Accessibility settings. Enable COVAS:NEXT there and restart the app if needed.'
-                : 'Accessibility permission was requested. Enable COVAS:NEXT in System Settings if macOS did not grant it immediately.';
+                ? 'macOS opened Accessibility settings. Enable TARS there and restart the app if needed.'
+                : 'Accessibility permission was requested. Enable TARS in System Settings if macOS did not grant it immediately.';
             this.snackBar.open(message, 'OK', {
                 duration: 8000,
             });

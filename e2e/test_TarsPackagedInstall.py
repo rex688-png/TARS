@@ -76,8 +76,23 @@ def main() -> int:
                 )
             config = json.loads(config_path.read_text(encoding="utf-8"))
             canonical = (bundled / "prompt" / "prompt.txt").read_text(encoding="utf-8")
-            assert config["characters"][0]["name"] == "TARS"
-            assert config["characters"][0]["character"] == canonical
+            assert config["active_character_index"] == 0
+            assert [character["name"] for character in config["characters"]] == ["TARS"]
+            character = config["characters"][0]
+            assert character["character"] == canonical
+            reaction_states = list(character["event_reactions"].values())
+            assert {
+                state: reaction_states.count(state)
+                for state in ("on", "off", "hidden")
+            } == {"on": 85, "off": 207, "hidden": 10}
+            assert config["llm_provider"] == config["agent_llm_provider"] == "openai"
+            assert config["llm_model_name"] == config["agent_llm_model_name"] == "gpt-6-luna"
+            assert config["vision_provider"] == "openai"
+            assert config["vision_model_name"] == "gpt-6-luna"
+            assert config["stt_provider"].endswith(":parakeet-stt")
+            assert config["tts_provider"].endswith(":pocket-tts")
+            assert config["embedding_provider"].endswith(":gemma-embedding")
+            assert config["api_key"] == config["llm_api_key"] == ""
             assert marker.read_text(encoding="utf-8") == "do not modify"
             installer = settings_message["plugin_settings_configs"][
                 "71be4c2e-4a49-45f7-b968-d70588bdae74"

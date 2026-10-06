@@ -63,7 +63,7 @@ def test_fresh_tars_profile_fails_instead_of_using_stock_prompt(monkeypatch, tmp
     assert not (tmp_path / "config.json").exists()
 
 
-def test_existing_tars_config_is_not_overwritten(monkeypatch, tmp_path):
+def test_existing_tars_config_is_not_overwritten_but_runtime_identity_is_fixed(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(config_module, "get_default_input_device_name", lambda: "")
     monkeypatch.setattr(config_module, "get_default_output_device_name", lambda: "")
@@ -81,9 +81,8 @@ def test_existing_tars_config_is_not_overwritten(monkeypatch, tmp_path):
 
     config = config_module.load_config()
 
-    assert any(character["name"] == "My Character" for character in config["characters"])
-    assert any(
-        character["character"] == "Keep this prompt"
-        for character in config["characters"]
-    )
+    assert [character["name"] for character in config["characters"]] == ["TARS"]
+    assert config["characters"][0]["character"] == (
+        verify_tars_bundle.BUNDLE_ROOT / "prompt" / "prompt.txt"
+    ).read_text(encoding="utf-8")
     assert config_path.read_bytes() == before
