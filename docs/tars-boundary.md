@@ -112,7 +112,7 @@ Thus the host clearly separates projection/database reconstruction from live sid
 
 The production Electron launcher sets the packaged Python backend working directory to Electron `userData` on Windows (`electron/index.js:114-123`). `get_cn_appdata_path()` simply returns `os.getcwd()` (`src/lib/Config.py:981-982`), while config and plugin paths are also relative to the working directory. Consequently the known Windows installation places the main writable set under:
 
-`C:\Users\rex68\AppData\Roaming\com.covas-next.ui`
+`C:\Users\<USERNAME>\AppData\Roaming\com.covas-next.ui`
 
 | Current path | Owner / class | Purpose | Unsafe to share? | Future isolation requirement |
 |---|---|---|---|---|
