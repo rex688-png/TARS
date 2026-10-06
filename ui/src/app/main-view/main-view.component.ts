@@ -24,7 +24,6 @@ import { ProjectionsService } from "../services/projections.service";
 import { MemoriesContainerComponent } from "../components/memories-container/memories-container.component";
 import { SearchResultsComponent } from "../components/search-results-container/search-results-container.component";
 import { NavigationContainerComponent } from "../components/navigation-container/navigation-container.component";
-import { MetricsService } from "../services/metrics.service.js";
 import { PolicyService } from "../services/policy.service.js";
 import {UIService} from "../services/ui.service";
 import { ActionsContainerComponent } from "../components/actions-container/actions-container.component";
@@ -89,7 +88,6 @@ export class MainViewComponent implements OnInit, OnDestroy {
         private chatService: ChatService,
         private configService: ConfigService,
         private projectionsService: ProjectionsService,
-        private metricsService: MetricsService,
         private policyService: PolicyService,
         private uiService: UIService,
         private snackBar: MatSnackBar,

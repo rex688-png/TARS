@@ -44,3 +44,17 @@ def test_primary_shell_is_tars_specific_and_has_no_character_creation_tab():
     assert "Welcome to COVAS:NEXT" not in menu
     assert ">Characters<" not in menu
     assert "app-character-settings" not in menu
+
+
+def test_tars_shell_does_not_start_upstream_covas_telemetry():
+    main_view = (
+        REPO_ROOT / "ui" / "src" / "app" / "main-view"
+        / "main-view.component.ts"
+    ).read_text(encoding="utf-8")
+    welcome = (
+        REPO_ROOT / "ui" / "src" / "app" / "components" / "settings-menu"
+        / "settings-menu.component.html"
+    ).read_text(encoding="utf-8")
+
+    assert "MetricsService" not in main_view
+    assert "does not send diagnostics to the upstream COVAS service" in welcome

@@ -32,7 +32,7 @@ Factory model selections are:
 
 - main, agent, and vision: OpenAI `gpt-6-luna`;
 - speech recognition: approved Parakeet provider;
-- voice: approved Pocket-TTS provider;
+- voice: approved Pocket-TTS 0.0.17-tarsfix provider;
 - semantic memory: approved Gemma Embedding provider;
 - voice and speed: `en-US-AvaMultilingualNeural`, `1.2`.
 
