@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, filter, Observable } from "rxjs";
 import { BaseCommand, type BaseMessage, TauriService } from "./tauri.service";
-import { ModelProviderDefinition, PluginModelProvidersMessage, PluginSettings, PluginSettingsMessage } from "./plugin-settings";
+import { ModelProviderDefinition, PluginModelProvidersMessage, PluginSettings, PluginSettingsMessage, ProviderInstallStatusMessage } from "./plugin-settings";
 import { ScreenInfo } from "../models/screen-info";
 
 export interface ConfigMessage extends BaseMessage {
@@ -218,6 +218,11 @@ export class ConfigService {
     public plugin_model_providers$ = this.plugin_model_providers_subject
         .asObservable();
 
+    private provider_install_status_subject = new BehaviorSubject<
+        ProviderInstallStatusMessage | null
+    >(null);
+    public provider_install_status$ = this.provider_install_status_subject.asObservable();
+
     constructor(private tauriService: TauriService) {
         // Subscribe to config messages from the TauriService
         this.tauriService.output$.pipe(
@@ -229,15 +234,17 @@ export class ConfigService {
                 | SystemInfoMessage
                 | PluginSettingsMessage
                 | PluginModelProvidersMessage
+                | ProviderInstallStatusMessage
                 | KeybindsMessages =>
                 message.type === "config" ||
                 message.type === "running_config" ||
                 message.type === "system" ||
                 message.type === "plugin_settings_configs" ||
                 message.type === "plugin_model_providers" ||
+                message.type === "provider_install_status" ||
                 message.type === "keybinds"
             ),
-        ).subscribe((message: ConfigMessage | RunningConfigMessage | SystemInfoMessage | PluginSettingsMessage | PluginModelProvidersMessage | KeybindsMessages) => {
+        ).subscribe((message: ConfigMessage | RunningConfigMessage | SystemInfoMessage | PluginSettingsMessage | PluginModelProvidersMessage | ProviderInstallStatusMessage | KeybindsMessages) => {
             if (message.type === "config") {
                 this.configSubject.next(message.config);
             } else if (message.type === "running_config") {
@@ -263,6 +270,8 @@ export class ConfigService {
                 this.plugin_settings_message_subject.next(message);
             } else if (message.type === "plugin_model_providers") {
                 this.plugin_model_providers_subject.next(message.providers);
+            } else if (message.type === "provider_install_status") {
+                this.provider_install_status_subject.next(message);
             } else if (message.type === "keybinds") {
                 this.keybinds_subject.next(message);
             }

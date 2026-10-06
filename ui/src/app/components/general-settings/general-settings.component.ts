@@ -285,7 +285,7 @@ export class GeneralSettingsComponent implements OnDestroy {
         const counts = this.actionIssueCounts;
         const parts: string[] = [];
         if (counts.missing > 0) {
-            parts.push(`${counts.missing} missing`);
+            parts.push(`${counts.missing} missing keybinds`);
         }
         if (counts.conflicts > 0) {
             parts.push(`${counts.conflicts} conflicts`);

@@ -147,12 +147,15 @@ def install_provider(
     *,
     root: Path | None = None,
     progress: Callable[[int, int], None] | None = None,
+    state: Callable[[str], None] | None = None,
     opener=urllib.request.urlopen,
 ) -> Path:
     install_root = (root or provider_root()).resolve()
     install_root.mkdir(parents=True, exist_ok=True)
     target = provider_path(spec, install_root)
     if installed_provider_path(spec, install_root):
+        if state:
+            state("installed")
         return target
     if target.exists():
         raise RuntimeError(
@@ -167,6 +170,8 @@ def install_provider(
     payload = temporary / "payload"
     try:
         last_error: Exception | None = None
+        if state:
+            state("downloading")
         for attempt in range(3):
             try:
                 digest = hashlib.sha256()
@@ -182,6 +187,8 @@ def install_provider(
                     raise ValueError(
                         f"download size mismatch for {spec.label}: {received} != {spec.size}"
                     )
+                if state:
+                    state("verifying")
                 if digest.hexdigest() != spec.sha256:
                     raise ValueError(f"download checksum mismatch for {spec.label}")
                 last_error = None
@@ -195,6 +202,8 @@ def install_provider(
             raise last_error
 
         payload.mkdir()
+        if state:
+            state("extracting")
         _safe_extract(archive, payload)
         manifest_path = payload / "manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -215,6 +224,8 @@ def install_provider(
             encoding="utf-8",
         )
         os.replace(payload, target)
+        if state:
+            state("installed")
         return target
     finally:
         shutil.rmtree(temporary, ignore_errors=True)

@@ -11,6 +11,7 @@ from lib.TarsProviderRegistry import (
     installed_provider_path,
     provider_root,
 )
+from lib.UI import emit_message
 
 
 TARS_PROVIDER_INSTALLER_GUID = "71be4c2e-4a49-45f7-b968-d70588bdae74"
@@ -63,18 +64,23 @@ class TarsProviderInstallerPlugin(PluginBase):
                 show_chat_message("info", f"{spec.label} installation is already running.")
                 return
             self._installing.add(provider_key)
+        self._publish_status(spec, "downloading", 0, spec.size)
         threading.Thread(
             target=self._install, args=(spec,),
             name=f"install-{provider_key}", daemon=True,
         ).start()
 
     def _install(self, spec):
-        last_percent = -10
+        last_percent = -1
+
+        def state(value: str) -> None:
+            self._publish_status(spec, value)
 
         def progress(received: int, total: int) -> None:
             nonlocal last_percent
             percent = min(100, int(received * 100 / max(1, total)))
-            if percent >= last_percent + 10:
+            self._publish_status(spec, "downloading", received, total)
+            if percent >= last_percent + 10 or percent == 100:
                 last_percent = percent
                 log("info", f"Downloading {spec.label}: {percent}%")
 
@@ -82,16 +88,39 @@ class TarsProviderInstallerPlugin(PluginBase):
             show_chat_message(
                 "info", f"Installing {spec.label}. Keep TARS open during the download."
             )
-            install_provider(spec, progress=progress)
+            install_provider(spec, progress=progress, state=state)
             self.settings_config = self._settings_config()
             show_chat_message(
                 "info", f"{spec.label} installed successfully. Restart TARS to enable it."
             )
         except Exception as exc:
             log("error", f"Failed to install {spec.label}: {exc}")
+            self._publish_status(spec, "failed", error=str(exc))
             show_chat_message(
                 "error", f"{spec.label} installation failed: {exc}. Check the TARS log and retry."
             )
         finally:
             with self._lock:
                 self._installing.discard(spec.key)
+
+    @staticmethod
+    def _publish_status(
+        spec,
+        state: str,
+        received: int = 0,
+        total: int | None = None,
+        error: str | None = None,
+    ) -> None:
+        total_bytes = total if total is not None else spec.size
+        percent = min(100, int(received * 100 / max(1, total_bytes)))
+        emit_message(
+            "provider_install_status",
+            provider_key=spec.key,
+            label=spec.label,
+            state=state,
+            downloaded_bytes=received,
+            total_bytes=total_bytes,
+            percent=100 if state == "installed" else percent,
+            restart_required=(state == "installed"),
+            error=error,
+        )

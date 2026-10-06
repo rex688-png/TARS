@@ -13,11 +13,22 @@
             </mat-expansion-panel-header>
             @if (config) {
                 @for (grid of plugin_settings_config[1].grids; track grid.key) {
+                    @if (providerStatus(grid.key); as status) {
+                        <div class="provider-install-status" [class.provider-install-error]="status.state === 'failed'">
+                            <strong>{{ providerStatusText(status) }}</strong>
+                            @if (status.state === 'downloading') {
+                                <mat-progress-bar mode="determinate" [value]="status.percent"></mat-progress-bar>
+                            } @else if (status.state === 'verifying' || status.state === 'extracting') {
+                                <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                            }
+                        </div>
+                    }
                     <app-settings-grid
                         [grid]="grid"
                         [getValue]="createGetValueFn(plugin_settings_config[0])"
                         [setValue]="createSetValueFn(plugin_settings_config[0])"
                         [onButtonClick]="createButtonClickFn(plugin_settings_config[0])"
+                        [buttonEnabled]="providerButtonEnabled(grid.key)"
                         [headerLevel]="'h2'"
                         [gridClass]="'settings-grid'">
                     </app-settings-grid>

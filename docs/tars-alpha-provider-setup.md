@@ -61,3 +61,43 @@ Automated CI validates registration, interfaces, packaging and deterministic tes
 fixtures. It does not prove physical microphone/speaker operation, live Elite
 telemetry, GPU acceleration or a live vision request. Only after this checklist
 passes should the build be called TARS Alpha 0.1.
+
+## Physical-build rejection and Task 4 repair
+
+The first Task 4 MSI is rejected for product acceptance. All four archives were
+downloaded and verified, but restart loading failed before provider code ran. The
+loader derived dotted import names from the installed directory and entrypoint
+filenames. Official provider names contain hyphens, so imports such as
+`cn-plugin-pocket-tts.cn-plugin-pocket-tts` were not valid package imports; the
+external provider root was also outside the bundled behavior-plugin import root.
+
+The repaired loader imports the already allowlisted and marker-verified
+entrypoint by absolute file path under a synthetic Python package. This retains
+package-relative imports such as `.vendor`, adds only that verified provider and
+its `deps` directory to Python's lookup path, and retains Windows native-DLL
+directory handles. A subprocess regression now performs verified installation,
+process termination/restart, hyphenated entrypoint import, relative import,
+provider registration, and provider lookup.
+
+Provider setup now emits explicit `Downloading`, `Verifying`, `Extracting`,
+`Installed — Restart required`, and failure states. The UI displays downloaded
+MiB, total MiB, percentage, and a determinate progress bar, and disables the
+provider's install control until the operation completes or fails. Installations
+remain temporary until verification and extraction finish, then become visible
+through a single atomic rename. Closing TARS while download, verification, or
+extraction is active requires an explicit cancellation confirmation.
+
+The rejected build's update banner came from the inherited frontend call to the
+upstream COVAS release API. That call and its upstream release dialog path are
+removed from the TARS product. No TARS-specific update source exists yet.
+
+The reported `ACTIONS — 31 missing` state was not 31 absent runtime actions. It
+was the preflight summary shortening the existing Elite keybinding diagnostic to
+the ambiguous word `missing`. Runtime action permissions still match the native
+action registration inventory. The summary now reports `missing keybinds`, and
+the detailed binding names remain visible; no warning is hidden and no action is
+silently enabled.
+
+This repair still requires a fresh physical Windows acceptance pass. It must not
+be called TARS Alpha 0.1 until the restarted providers instantiate against their
+real native dependencies and microphone/speaker/Elite tests pass.

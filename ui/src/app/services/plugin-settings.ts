@@ -99,3 +99,15 @@ export interface PluginModelProvidersMessage extends BaseMessage {
     type: "plugin_model_providers";
     providers: ModelProviderDefinition[];
 }
+
+export interface ProviderInstallStatusMessage extends BaseMessage {
+    type: "provider_install_status";
+    provider_key: string;
+    label: string;
+    state: "downloading" | "verifying" | "extracting" | "installed" | "failed";
+    downloaded_bytes: number;
+    total_bytes: number;
+    percent: number;
+    restart_required: boolean;
+    error: string | null;
+}

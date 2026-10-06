@@ -1,9 +1,11 @@
 import traceback
-import importlib
+import importlib.util
 import json
 import os
+import re
 
 import sys
+import types
 from typing import Self
 
 from lib.Config import Config
@@ -69,15 +71,18 @@ class PluginManager:
         sys.path.insert(0, plugin_folder)
 
     def load_plugin_module(self, manifest: 'PluginManifest', file_path: str) -> 'PluginBase':
-        # Get the module name from file name
-        module_name = os.path.splitext(os.path.basename(file_path))[0]
-        
-        # Add deps folder to sys.path, if it exists
-        plugin_folder = os.path.abspath(os.path.dirname(file_path))
-        plugin_name = os.path.basename(plugin_folder)
-        dotted_module = f"{plugin_name}.{module_name}"
+        """Load a plugin entrypoint from its verified path.
 
-        # sys.path.insert(0, plugin_folder)
+        Provider archives intentionally use hyphens in both their directory and
+        entrypoint names.  Those are valid filesystem names but not importable
+        dotted Python package names.  A synthetic package keeps relative imports
+        (notably ``.vendor`` in the official TTS providers) working without
+        deriving an import name from the archive filename.
+        """
+        plugin_folder = os.path.abspath(os.path.dirname(file_path))
+        if plugin_folder not in sys.path:
+            sys.path.insert(0, plugin_folder)
+
         deps_folder = os.path.join(plugin_folder, self.PLUGIN_DEPENDENCIES_FOLDER)
         if os.path.exists(deps_folder):
             log('debug', f"Adding {deps_folder} to sys.path")
@@ -95,8 +100,30 @@ class PluginManager:
                 for dll_directory in sorted(dll_directories):
                     self._dll_directory_handles.append(os.add_dll_directory(dll_directory))
 
-        # Import module as package. This is better than the old way because it allows for relative imports.
-        module = importlib.import_module(dotted_module)
+        safe_guid = re.sub(r"[^A-Za-z0-9_]", "_", manifest.guid)
+        package_name = f"_tars_plugin_{safe_guid}"
+        module_stem = re.sub(
+            r"[^A-Za-z0-9_]", "_", os.path.splitext(os.path.basename(file_path))[0]
+        )
+        dotted_module = f"{package_name}.{module_stem}"
+
+        package = types.ModuleType(package_name)
+        package.__file__ = os.path.join(plugin_folder, "__init__.py")
+        package.__package__ = package_name
+        package.__path__ = [plugin_folder]
+        sys.modules[package_name] = package
+
+        module_spec = importlib.util.spec_from_file_location(dotted_module, file_path)
+        if module_spec is None or module_spec.loader is None:
+            raise ImportError(f"Unable to create plugin import spec for {file_path}")
+        module = importlib.util.module_from_spec(module_spec)
+        sys.modules[dotted_module] = module
+        try:
+            module_spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(dotted_module, None)
+            sys.modules.pop(package_name, None)
+            raise
 
         # Find a subclass of PluginBase
         from .PluginBase import PluginBase
