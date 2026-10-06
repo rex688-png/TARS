@@ -110,10 +110,13 @@ def test_tars_profile_loads_only_explicitly_installed_provider(
         "version": spec.version, "repository": spec.url,
         "entrypoint": spec.entrypoint,
     }), encoding="utf-8")
-    (approved / MARKER_NAME).write_text(json.dumps({
+    marker = {
         "key": spec.key, "version": spec.version, "sha256": spec.sha256,
         "source_revision": spec.source_revision,
-    }), encoding="utf-8")
+    }
+    if spec.archive_source_revision:
+        marker["archive_source_revision"] = spec.archive_source_revision
+    (approved / MARKER_NAME).write_text(json.dumps(marker), encoding="utf-8")
     arbitrary = provider_root / "arbitrary-provider"
     arbitrary.mkdir()
     (arbitrary / "manifest.json").write_text("{}", encoding="utf-8")
