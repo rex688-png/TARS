@@ -5,22 +5,36 @@ plugins remain immutable installed resources. Mistral remains a built-in cloud
 provider, while local providers are installed only from the explicit registry
 below. TARS never scans arbitrary provider folders.
 
-## Pinned official providers
+## Pinned controlled providers
 
 | Provider | Official release | Download | Installed | Purpose |
 | --- | --- | ---: | ---: | --- |
 | Parakeet STT | `v0.0.10` | 714 MiB | 789 MiB | Local multilingual speech recognition |
-| Pocket-TTS | `v0.0.16` | 177 MiB | 266 MiB | Local speech and reference-voice support |
+| Pocket-TTS | `v0.0.17-tarsfix` | 177 MiB | 266 MiB | Local speech and reference-voice support |
 | Supertonic TTS | `v0.1.5` | 311 MiB | 357 MiB | Local multilingual speech |
 | Gemma Embedding | `v0.0.11` | 416 MiB | 513 MiB | Local semantic-memory embeddings |
 
-These are the official Windows release archives from the corresponding
-`COVAS-Labs/plugin-*` repositories. Each URL, source revision, archive length,
+The large Windows payloads come from the corresponding pinned
+`COVAS-Labs/plugin-*` releases. Each URL, source revision, archive length,
 manifest GUID/version/entrypoint and SHA-256 digest is pinned in
 `src/lib/TarsProviderRegistry.py`.
 
+Pocket-TTS is intentionally different: TARS downloads and verifies the official
+0.0.16 Windows payload for its model, native dependencies and voice assets, then
+applies the small known-good 0.0.17-tarsfix source overlay from
+`TARS-config-reference-@65d343bd3f5f2386031fcb142dbf69add3902cdc`.
+Every overlay file has its own pinned SHA-256 digest and is bundled with Chat.exe;
+the base manifest is validated as 0.0.16 before the overlay and the completed
+manifest is validated as 0.0.17 afterward. Existing installs are replaced only
+when their manifest and marker exactly match the former allowlisted 0.0.16 build.
+The patch lowers generation temperature to 0.3, caps and migrates inference
+passes to 30 tokens, corrects punctuation splitting, hard-splits long clauses,
+and filters empty tokenizer/decoder chunks.
+
 The provider projects do not currently expose a top-level license for their own
-plugin source. TARS therefore does not redistribute those archives. A user starts
+plugin source. TARS therefore does not redistribute those large archives. The
+reference-backed Pocket-TTS overlay is included with its upstream third-party
+notices retained by the downloaded payload. A user starts
 each download from **Plugin Settings → TARS Provider Setup**, directly from the
 official GitHub release. Downloads use a temporary directory, retry up to three
 times, verify the pinned digest, reject unsafe ZIP paths, validate the plugin

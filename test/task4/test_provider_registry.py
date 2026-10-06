@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+from dataclasses import replace
 import subprocess
 import sys
 import textwrap
@@ -44,7 +45,7 @@ def _fixture_spec(payload: bytes, **overrides) -> TarsProviderSpec:
     return TarsProviderSpec(**values)
 
 
-def test_registry_pins_official_windows_releases():
+def test_registry_pins_controlled_windows_releases():
     assert [spec.key for spec in TARS_PROVIDER_SPECS] == [
         "parakeet-stt", "pocket-tts", "supertonic-tts", "gemma-embedding"
     ]
@@ -54,6 +55,89 @@ def test_registry_pins_official_windows_releases():
     ]
     assert all(spec.url.startswith("https://github.com/COVAS-Labs/") for spec in TARS_PROVIDER_SPECS)
     assert all(len(spec.sha256) == 64 and spec.size > 0 for spec in TARS_PROVIDER_SPECS)
+
+    pocket = next(spec for spec in TARS_PROVIDER_SPECS if spec.key == "pocket-tts")
+    assert pocket.version == "0.0.17"
+    assert pocket.base_version == "0.0.16"
+    assert pocket.overlay_dir == "pocket-tts-0.0.17-tarsfix"
+    assert pocket.source_revision == "65d343bd3f5f2386031fcb142dbf69add3902cdc"
+    assert pocket.archive_source_revision == "ba1b2e51913967df5f09b2ec923ecaa243da8b1a"
+    assert dict(pocket.overlay_files) == {
+        "TARS_FIX_NOTES.txt": "a8a51bfd38836d3afebd917d097d0e89a159c7d9c3a6a193d449683e0a4c6a2c",
+        "cn-plugin-pocket-tts.py": "ae9e5b64a462135c1e5430b06bce0c2e856db31f8e4251113e54cca19c59de80",
+        "manifest.json": "61ecfb5ecd25bf7ef11ce3e30106ae0b8f50b52403bd1ddbfcf4201e3583fdc3",
+    }
+
+
+def test_pocket_tts_tarsfix_overlays_verified_base_and_upgrades_0016(tmp_path):
+    registry_spec = next(spec for spec in TARS_PROVIDER_SPECS if spec.key == "pocket-tts")
+    payload = _archive({
+        "guid": registry_spec.guid,
+        "version": registry_spec.base_version,
+        "entrypoint": registry_spec.entrypoint,
+    }, extra_name=registry_spec.entrypoint)
+    spec = replace(
+        registry_spec,
+        url="https://example.invalid/pocket.zip",
+        size=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+        replaces_sha256=hashlib.sha256(payload).hexdigest(),
+    )
+
+    existing = tmp_path / spec.folder
+    existing.mkdir()
+    (existing / spec.entrypoint).write_text("# old provider\n", encoding="utf-8")
+    (existing / "manifest.json").write_text(json.dumps({
+        "guid": spec.guid,
+        "version": spec.replaces_version,
+        "entrypoint": spec.entrypoint,
+    }), encoding="utf-8")
+    (existing / MARKER_NAME).write_text(json.dumps({
+        "key": spec.key,
+        "version": spec.replaces_version,
+        "sha256": spec.replaces_sha256,
+        "source_revision": spec.replaces_source_revision,
+    }), encoding="utf-8")
+
+    installed = install_provider(
+        spec, root=tmp_path, opener=lambda _url, timeout: io.BytesIO(payload)
+    )
+
+    manifest = json.loads((installed / "manifest.json").read_text(encoding="utf-8"))
+    marker = json.loads((installed / MARKER_NAME).read_text(encoding="utf-8"))
+    assert manifest["version"] == "0.0.17"
+    assert "Pocket-TTS stability patch 0.0.17" in (installed / "TARS_FIX_NOTES.txt").read_text()
+    assert hashlib.sha256((installed / spec.entrypoint).read_bytes()).hexdigest() == dict(
+        spec.overlay_files
+    )[spec.entrypoint]
+    assert marker["source_revision"] == spec.source_revision
+    assert marker["archive_source_revision"] == spec.archive_source_revision
+    assert (installed / "model" / "model.bin").read_bytes() == b"fixture"
+
+
+def test_pocket_tts_tarsfix_rejects_unverified_overlay(tmp_path):
+    registry_spec = next(spec for spec in TARS_PROVIDER_SPECS if spec.key == "pocket-tts")
+    payload = _archive({
+        "guid": registry_spec.guid,
+        "version": registry_spec.base_version,
+        "entrypoint": registry_spec.entrypoint,
+    }, extra_name=registry_spec.entrypoint)
+    bad_files = list(registry_spec.overlay_files)
+    bad_files[0] = (bad_files[0][0], "0" * 64)
+    spec = replace(
+        registry_spec,
+        url="https://example.invalid/pocket.zip",
+        size=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+        overlay_files=tuple(bad_files),
+    )
+
+    with pytest.raises(ValueError, match="overlay checksum"):
+        install_provider(
+            spec, root=tmp_path, opener=lambda _url, timeout: io.BytesIO(payload)
+        )
+
+    assert not (tmp_path / spec.folder).exists()
 
 
 def test_install_is_verified_atomic_and_retry_safe(tmp_path):
