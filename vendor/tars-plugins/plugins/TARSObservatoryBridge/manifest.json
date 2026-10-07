@@ -1,0 +1,8 @@
+{
+  "guid": "5a80ff76-201c-49c7-a632-6f00d671a99a",
+  "name": "TARS Observatory Bridge",
+  "version": "0.1.0",
+  "author": "TARS / COVAS:NEXT",
+  "description": "Relays live Elite Observatory facts to TARS with persistent cursor and historical-event protection.",
+  "entrypoint": "TARSObservatoryBridge.py"
+}
