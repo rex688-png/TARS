@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 680" role="img" aria-label="TARS stacked logo">
+  <defs><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#20242A"/><stop offset="0.55" stop-color="#535A63"/><stop offset="1" stop-color="#24282E"/></linearGradient></defs>
+  <g transform="translate(220 0)">
+    <path d="M55 32 L244 12 L282 44 L282 370 L245 404 L64 390 L36 356 L36 66 Z" fill="url(#metal)" stroke="#8B929B" stroke-width="4"/>
+    <path d="M52 68 L77 52 L77 354 L52 340 Z" fill="#101216"/>
+    <path d="M61 86 L67 82 L67 180 L61 184 Z M61 218 L67 214 L67 325 L61 329 Z" fill="#FF8A00"/>
+    <path d="M94 48 L94 126 M186 34 L186 126 M94 300 L94 382 M186 300 L186 394 M245 35 L245 132 M245 294 L245 384" stroke="#111318" stroke-width="8"/>
+    <rect x="91" y="126" width="154" height="174" rx="3" fill="#080A0D" stroke="#1F2328" stroke-width="4"/>
+    <path d="M112 171 h42 v16 h-42 z M180 171 h42 v16 h-42 z" fill="#62B8FF"/>
+    <g fill="#D8E6FF"><rect x="116" y="175" width="7" height="8"/><rect x="128" y="175" width="7" height="8"/><rect x="140" y="175" width="7" height="8"/><rect x="184" y="175" width="7" height="8"/><rect x="196" y="175" width="7" height="8"/><rect x="208" y="175" width="7" height="8"/></g>
+    <rect x="112" y="226" width="110" height="58" fill="#11151A" stroke="#676F78" stroke-width="3"/><path d="M167 226 v58" stroke="#676F78" stroke-width="3"/>
+  </g>
+  <g transform="translate(20 475)" fill="#A8AFB8">
+    <path d="M20 20 H170 V52 H111 V160 H79 V52 H20 Z"/>
+    <path fill-rule="evenodd" d="M188 160 L252 20 H292 L356 160 H317 L303 126 H240 L226 160 Z M252 96 H291 L272 50 Z"/>
+    <path fill-rule="evenodd" d="M378 20 H486 C523 20 545 39 545 72 C545 95 534 111 514 119 L558 160 H510 L473 124 H416 V160 H378 Z M416 52 V94 H477 C495 94 504 87 504 73 C504 59 495 52 477 52 Z"/>
+    <path d="M585 20 H700 V52 H620 C609 52 604 56 604 64 C604 72 609 76 620 76 H665 C697 76 713 91 713 118 C713 145 696 160 664 160 H578 V128 H661 C671 128 676 124 676 116 C676 108 671 104 661 104 H617 C584 104 567 89 567 62 C567 35 584 20 585 20 Z"/>
+  </g>
+  <rect x="277" y="608" width="31" height="8" rx="4" fill="#FF8A00"/><path d="M527 616 L545 635 H530 L512 617 Z" fill="#FF8A00"/><rect x="696" y="603" width="31" height="7" rx="3.5" fill="#FF8A00"/>
+</svg>
