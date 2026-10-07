@@ -476,11 +476,12 @@ export class TauriService {
             (e) => this.processBackendLifecycle(e),
         );
         if (this.transport.isRemote) {
-            await this.requestRemoteRuntimeState();
+            await this.requestRuntimeState();
         }
     }
 
-    private async requestRemoteRuntimeState(): Promise<void> {
+    /** Request the existing backend's config and projection snapshot. */
+    public async requestRuntimeState(): Promise<void> {
         await this.transport.invoke("send_json_line", {
             jsonLine: JSON.stringify({
                 type: "init_overlay",
