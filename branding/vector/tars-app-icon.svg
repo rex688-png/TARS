@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="TARS app icon">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0A0C0F"/><stop offset="1" stop-color="#171A20"/></linearGradient><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#20242A"/><stop offset="0.55" stop-color="#535A63"/><stop offset="1" stop-color="#24282E"/></linearGradient></defs>
+  <rect x="32" y="32" width="960" height="960" rx="208" fill="url(#bg)" stroke="#FF8A00" stroke-width="18"/>
+  <g transform="translate(162 52) scale(2.18)">
+    <path d="M55 32 L244 12 L282 44 L282 370 L245 404 L64 390 L36 356 L36 66 Z" fill="url(#metal)" stroke="#8B929B" stroke-width="4"/>
+    <path d="M52 68 L77 52 L77 354 L52 340 Z" fill="#101216"/>
+    <path d="M61 86 L67 82 L67 180 L61 184 Z M61 218 L67 214 L67 325 L61 329 Z" fill="#FF8A00"/>
+    <path d="M94 48 L94 126 M186 34 L186 126 M94 300 L94 382 M186 300 L186 394 M245 35 L245 132 M245 294 L245 384" stroke="#111318" stroke-width="8"/>
+    <rect x="91" y="126" width="154" height="174" rx="3" fill="#080A0D" stroke="#1F2328" stroke-width="4"/>
+    <path d="M112 171 h42 v16 h-42 z M180 171 h42 v16 h-42 z" fill="#62B8FF"/>
+    <g fill="#D8E6FF"><rect x="116" y="175" width="7" height="8"/><rect x="128" y="175" width="7" height="8"/><rect x="140" y="175" width="7" height="8"/><rect x="184" y="175" width="7" height="8"/><rect x="196" y="175" width="7" height="8"/><rect x="208" y="175" width="7" height="8"/></g>
+    <rect x="112" y="226" width="110" height="58" fill="#11151A" stroke="#676F78" stroke-width="3"/><path d="M167 226 v58" stroke="#676F78" stroke-width="3"/>
+  </g>
+</svg>
