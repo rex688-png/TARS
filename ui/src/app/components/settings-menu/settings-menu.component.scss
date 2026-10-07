@@ -147,3 +147,12 @@ mat-slide-toggle {
   min-height: 0;
   overflow: hidden;
 }
+.provider-install-status {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0.5rem 0 1rem;
+}
+
+.provider-install-error {
+    color: var(--mat-sys-error);
+}

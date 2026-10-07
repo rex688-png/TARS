@@ -240,7 +240,6 @@ export class MainViewComponent implements OnInit, OnDestroy {
 
         // Initialize the main view
         this.tauri.runExe();
-        this.tauri.checkForUpdates();
     }
 
     ngOnDestroy(): void { // Implement ngOnDestroy

@@ -627,7 +627,12 @@ class BackendService {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: config.backend_cwd,
       env: {
-        ...buildBackendEnvironment(process.env, tarsRuntimeProfile, process.resourcesPath),
+        ...buildBackendEnvironment(
+          process.env,
+          tarsRuntimeProfile,
+          process.resourcesPath,
+          tarsApplicationPaths?.userData,
+        ),
         // set unbuffered python
         PYTHONUNBUFFERED: 1,
       }
