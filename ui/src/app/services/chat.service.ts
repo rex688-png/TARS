@@ -1,7 +1,6 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, filter } from "rxjs";
 import { BaseMessage, TauriService } from "./tauri.service";
-import { UIService } from "./ui.service";
 
 export interface ChatMessage extends BaseMessage {
     type: "chat";
@@ -55,7 +54,7 @@ export class ChatService {
     private readonly activeToolActionMessages = new Map<string, ChatMessage>();
     private readonly completedSyntheticActionMessages = new Set<string>();
 
-    constructor(private tauriService: TauriService, private uiService: UIService) {
+    constructor(private tauriService: TauriService) {
         // Subscribe to log messages from the TauriService
         this.tauriService.output$.pipe(
             filter((message): message is ChatMessage =>
@@ -88,13 +87,13 @@ export class ChatService {
             
             if (webSearchRequestIndex !== -1 && toolEvent.results[webSearchRequestIndex]) {
                 this.searchResultSubject.next(toolEvent.results[webSearchRequestIndex]);
-                this.uiService.showTab('search');
             }
         });
     }
 
     public clearChat(): void {
         this.chatHistorySubject.next([]);
+        this.searchResultSubject.next(null);
         this.activeToolActionMessages.clear();
         this.completedSyntheticActionMessages.clear();
     }

@@ -1,0 +1,13 @@
+<header class="storage-heading"><p>ELITE / INVENTORY</p><h1>Storage</h1><span>Materials and cargo from the current journal state</span></header>
+<div class="material-summary">
+  @for (group of groups; track group) {
+    <section><h2>{{ group }}</h2><strong>{{ count(group) }}</strong><p>{{ types(group) }} material types recorded</p></section>
+  }
+</div>
+<section class="cargo-summary"><h2>Cargo</h2>
+  @if (cargo) {
+    <p>{{ cargoCount() }} items @if (cargo.Capacity) { / {{ cargo.Capacity }} capacity }</p>
+    <ul>@for (item of cargoItems(); track item.Name) { <li><span>{{ item.Name_Localised || item.Name }}</span><strong>{{ item.Count }}</strong></li> }</ul>
+  } @else { <p>No cargo projection received yet.</p> }
+</section>
+<details class="storage-detail"><summary>Detailed materials, locker and engineering inventory</summary><app-storage-container></app-storage-container></details>

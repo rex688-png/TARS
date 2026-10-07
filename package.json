@@ -49,6 +49,9 @@
     "directories": {
       "buildResources": "electron"
     },
+    "win": {
+      "icon": "electron/icon.ico"
+    },
     "extraResources": [
       {
         "from": "dist/Chat",

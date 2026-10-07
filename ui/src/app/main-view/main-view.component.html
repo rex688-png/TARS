@@ -1,167 +1,119 @@
-@if (isLoading) {
-    <mat-progress-bar mode="indeterminate" class="toolbar-progress"></mat-progress-bar>
+@if (runMode === 'starting' || runMode === 'restarting') {
+  <mat-progress-bar mode="indeterminate" class="toolbar-progress"></mat-progress-bar>
 }
-
 <main class="app" [class.red]="isInCombat">
-    @if (!showRuntimeView) {
-        <div class="settings-container">
-            <app-settings-menu (questEditorVisibilityChange)="onQuestEditorVisibilityChange($event)"></app-settings-menu>
-        </div>
-    } @else {
-        <div class="runtime-container">
-            <mat-tab-group [selectedIndex]="selectedTabIndex">
-                <mat-tab>
-                    <ng-template mat-tab-label>
-                        <mat-icon class="tab-label-icon">forum</mat-icon>
-                        Chat
-                    </ng-template>
-                    <div class="tab-content-container">
-                        <div class="chat-container">
-                            <app-chat-container></app-chat-container>
-                        </div>
-                    </div>
-                    <!--          <app-input-container class="input-container"></app-input-container>-->
-                </mat-tab>
-                @if (!isShipIdentUnknown) {
-                    <mat-tab>
-                        <ng-template mat-tab-label>
-                            <mat-icon class="tab-label-icon">{{ currentGameModeIcon }}</mat-icon>
-                            {{ currentGameModeLabel }}
-                        </ng-template>
-                        <div class="tab-content-container">
-                            <div class="status-container-tab">
-                                <app-status-container></app-status-container>
-                            </div>
-                        </div>
-                        <app-chat-container class="small" [limit]="2"></app-chat-container>
-                    </mat-tab>
-                }
-                <mat-tab>
-                    <ng-template mat-tab-label>
-                        <mat-icon class="tab-label-icon">explore</mat-icon>
-                        Navigation
-                    </ng-template>
-                    <div class="tab-content-container">
-                        <div class="navigation-container-tab">
-                            <app-navigation-container></app-navigation-container>
-                        </div>
-                    </div>
-                    <app-chat-container class="small" [limit]="2"></app-chat-container>
-                </mat-tab>
-                @if (!isShipIdentUnknown) {
-                    <mat-tab>
-                        <ng-template mat-tab-label>
-                            <mat-icon class="tab-label-icon">inventory_2</mat-icon>
-                            Storage
-                        </ng-template>
-                        <div class="tab-content-container">
-                            <div class="storage-container-tab">
-                                <app-storage-container></app-storage-container>
-                            </div>
-                        </div>
-                        <app-chat-container class="small" [limit]="2"></app-chat-container>
-                    </mat-tab>
-                    <mat-tab>
-                        <ng-template mat-tab-label>
-                            <mat-icon class="tab-label-icon">assignment</mat-icon>
-                            Tasks
-                        </ng-template>
-                        <div class="tab-content-container">
-                            <div class="tasks-container-tab">
-                                <app-tasks-container></app-tasks-container>
-                            </div>
-                        </div>
-                        <app-chat-container class="small" [limit]="2"></app-chat-container>
-                    </mat-tab>
-                    @if (isDockedAtStation) {
-                        <mat-tab>
-                            <ng-template mat-tab-label>
-                                <mat-icon class="tab-label-icon">anchor</mat-icon>
-                                Station
-                            </ng-template>
-                            <div class="tab-content-container">
-                                <div class="station-container-tab">
-                                    <app-station-container></app-station-container>
-                                </div>
-                            </div>
-                            <app-chat-container class="small" [limit]="2"></app-chat-container>
-                        </mat-tab>
-                    }
-                }
-                @if (hasLogbook) {
-                    <mat-tab>
-                        <ng-template mat-tab-label>
-                            <mat-icon class="tab-label-icon">auto_stories</mat-icon>
-                            Logbook
-                        </ng-template>
-                        <div class="tab-content-container">
-                            <app-memories-container></app-memories-container>
-                        </div>
-                        <app-chat-container class="small" [limit]="2"></app-chat-container>
-                    </mat-tab>
-                }
-
-                <mat-tab>
-                    <ng-template mat-tab-label>
-                        <mat-icon class="tab-label-icon">travel_explore</mat-icon>
-                        Search
-                    </ng-template>
-                    <div class="tab-content-container">
-                        <app-search-results-container></app-search-results-container>
-                    </div>
-                    <app-chat-container class="small" [limit]="2"></app-chat-container>
-                </mat-tab>
-
-                <mat-tab>
-                    <ng-template mat-tab-label>
-                        <mat-icon class="tab-label-icon">smart_button</mat-icon>
-                        Actions
-                    </ng-template>
-                    <div class="tab-content-container actions-container">
-                        <app-actions-container></app-actions-container>
-                    </div>
-                </mat-tab>
-
-                @if (false) {
-                    <mat-tab label="Logs">
-                        <div class="tab-content-container">
-                            <div class="log-container">
-                                <app-log-container></app-log-container>
-                            </div>
-                        </div>
-                        <app-chat-container class="small" [limit]="2"></app-chat-container>
-                    </mat-tab>
-                }
-            </mat-tab-group>
-            <app-input-container class="input-container"></app-input-container>
-        </div>
-    }
-
-    <div class="floating-action-container" [style.display]="isQuestEditorOpen ? 'none' : 'flex'">
-        @if (!showRuntimeView) {
-            @if (isLoading) {
-                <button mat-fab color="primary" aria-label="Starting" [disabled]="true">
-                    <mat-icon>hourglass_empty</mat-icon>
-                </button>
-            } @else if (!usageDisclaimerAccepted) {
-                <button mat-fab color="primary" aria-label="Accept Policy" (click)="focusPolicy()">
-                    <mat-icon>info</mat-icon>
-                </button>
-            } @else {
-                <button mat-fab class="hud-accent-fab ai-toggle-fab" aria-label="Start AI Assistant" (click)="start()" [disabled]="isLoading">
-                    <mat-icon>play_arrow</mat-icon>
-                </button>
-            }
-        } @else {
-            @if (isLoading) {
-                <button mat-fab color="warn" aria-label="Stopping" [disabled]="true">
-                    <mat-icon>hourglass_empty</mat-icon>
-                </button>
-            } @else {
-                <button mat-fab class="ai-toggle-fab" color="warn" aria-label="Stop AI Assistant" (click)="stop()" [disabled]="isLoading">
-                    <mat-icon>stop</mat-icon>
-                </button>
-            }
-        }
+  <aside class="shell-rail" aria-label="TARS navigation">
+    <img class="brand-lockup" [src]="logoUrl" alt="TARS" />
+    <nav class="primary-navigation" aria-label="Primary">
+      <button type="button" [class.active]="selectedView === 'tars'" [attr.aria-current]="selectedView === 'tars' ? 'page' : null" (click)="selectView('tars')"><mat-icon>forum</mat-icon><span>TARS</span></button>
+      <button type="button" [class.active]="selectedView === 'exploration'" [attr.aria-current]="selectedView === 'exploration' ? 'page' : null" (click)="selectView('exploration')"><mat-icon>travel_explore</mat-icon><span>Exploration</span></button>
+      <button type="button" [class.active]="selectedView === 'storage'" [attr.aria-current]="selectedView === 'storage' ? 'page' : null" (click)="selectView('storage')"><mat-icon>inventory_2</mat-icon><span>Storage</span></button>
+      <button type="button" [class.active]="selectedView === 'settings'" [attr.aria-current]="selectedView === 'settings' ? 'page' : null" (click)="selectView('settings')"><mat-icon>tune</mat-icon><span>Settings</span></button>
+    </nav>
+    <div class="rail-footer">
+      <span class="state-dot" [class.online]="runMode === 'running'"></span>
+      <span>TARS {{ runMode === 'running' ? 'ONLINE' : runMode === 'error' ? 'ERROR' : 'OFFLINE' }}</span>
     </div>
+  </aside>
+
+  <div class="shell-content">
+    <section class="view-panel tars-view" data-view="tars" [class.is-hidden]="selectedView !== 'tars'" aria-label="TARS conversation">
+      <header class="view-heading">
+        <div><p class="eyebrow">COPILOT / ELITE DANGEROUS</p><h1>TARS</h1></div>
+        <div class="phase" aria-live="polite">
+          @if (runtime.interactionState$ | async; as interaction) {
+            <span class="state-dot" [class.online]="runMode === 'running'"></span>{{ runMode === 'running' ? interaction.phase : runMode }}
+          }
+        </div>
+      </header>
+      <div class="conversation-layout">
+        <div class="conversation-column">
+          <div class="conversation-scroll">
+            @if (runMode !== 'running' && runMode !== 'error') {
+              <div class="readiness" aria-live="polite">
+                <div class="tars-avatar avatar-frame" role="img" aria-label="TARS avatar"><img [src]="avatarUrl" alt="" /></div>
+                <div>
+                  <p class="eyebrow">SYSTEM / STANDBY</p>
+                  <h2>TARS OFFLINE</h2>
+                  <p>The console is ready. Configure anything missing under Settings, then start TARS.</p>
+                  @if (runtime.configuration$ | async; as configuration) {
+                    <div class="readiness-grid">
+                      <span>AI</span><strong>{{ configuration.llm.configured ? configuration.llm.model : 'Setup needed' }}</strong>
+                      <span>Speech</span><strong>{{ configuration.stt.configured ? configuration.stt.provider : 'Setup needed' }}</strong>
+                      <span>Voice</span><strong>{{ configuration.tts.configured ? configuration.tts.provider : 'Setup needed' }}</strong>
+                      <span>Memory</span><strong>{{ configuration.memory.enabled ? configuration.memory.provider : 'Disabled' }}</strong>
+                    </div>
+                  }
+                  @if (keybinds$ | async; as keybinds) {
+                    @if (keybinds.missing.length) {
+                      <button class="keybind-warning" type="button" (click)="openActionDiagnostics()">{{ keybinds.missing.length }} missing keybinds · Review actions</button>
+                    }
+                  }
+                  <button mat-flat-button class="start-button" type="button" (click)="start()" [disabled]="runMode === 'starting' || runMode === 'restarting'">{{ usageDisclaimerAccepted ? 'START TARS' : 'COMPLETE SETUP' }}</button>
+                </div>
+              </div>
+            }
+            @if (runMode === 'error') {
+              <div class="error-notice">TARS could not start. Check Settings and diagnostics before retrying. <button type="button" (click)="stop()">Restart backend</button></div>
+            }
+            <app-chat-container></app-chat-container>
+          </div>
+          <div class="composer">
+            @if (runMode === 'running') {
+              <div class="composer-status">
+                <mat-icon>mic</mat-icon>
+                @if (runtime.configuration$ | async; as configuration) {
+                  <span>{{ configuration.pttMode === 'voice_activation' ? 'Voice activation' : 'Microphone controlled by configured PTT key' }}</span>
+                }
+                <button type="button" (click)="selectView('settings')" aria-label="Configure microphone and push to talk">Configure PTT</button>
+              </div>
+              <app-input-container class="input-container"></app-input-container>
+            } @else {
+              <p class="composer-offline">Text and voice input become available when TARS is online.</p>
+            }
+          </div>
+        </div>
+        <aside class="context-column" aria-label="Live context">
+          @if (runMode === 'running') {
+            @if (runtime.interactionState$ | async; as interaction) {
+              <div class="context-avatar avatar-frame" [class.speaking]="interaction.phase === 'speaking'" [class.thinking]="interaction.phase === 'thinking'" [class.acting]="interaction.phase === 'acting'" role="img" aria-label="TARS avatar"><img [src]="avatarUrl" alt="" /></div>
+            }
+          }
+          <h2>CONTEXT</h2>
+          @if (runtime.eliteContext$ | async; as elite) {
+            <div class="context-list">
+              <span>Elite</span><strong>{{ elite.available ? 'State received' : 'No state yet' }}</strong>
+              @if (elite.systemName) { <span>System</span><strong>{{ elite.systemName }}</strong> }
+              @if (elite.bodyName) { <span>Body</span><strong>{{ elite.bodyName }}</strong> }
+              @if (elite.shipType) { <span>Ship</span><strong>{{ elite.shipType }}</strong> }
+            </div>
+          }
+          @if (runtime.health$ | async; as health) {
+            <h2>SYSTEMS</h2>
+            <div class="health-list">
+              @for (item of health; track item.component) {
+                @if (item.component === 'backend' || item.component === 'models' || item.component === 'stt' || item.component === 'tts' || item.component === 'memory' || item.component === 'elite-journal') {
+                  <div><span>{{ item.component }}</span><strong [class.ready]="item.status === 'ready'">{{ item.status }}</strong></div>
+                }
+              }
+            </div>
+          }
+          @if (keybinds$ | async; as keybinds) {
+            @if (keybinds.missing.length) { <button class="keybind-warning" type="button" (click)="openActionDiagnostics()">{{ keybinds.missing.length }} missing keybinds</button> }
+          }
+          @if (runMode === 'running') { <button type="button" class="stop-button" (click)="stop()">Stop TARS</button> }
+        </aside>
+      </div>
+    </section>
+
+    <section class="view-panel" data-view="exploration" [class.is-hidden]="selectedView !== 'exploration'" aria-label="Exploration">
+      @if (selectedView === 'exploration') { <app-tars-exploration></app-tars-exploration> }
+    </section>
+    <section class="view-panel" data-view="storage" [class.is-hidden]="selectedView !== 'storage'" aria-label="Storage">
+      @if (selectedView === 'storage') { <app-tars-storage></app-tars-storage> }
+    </section>
+    <section class="view-panel settings-panel" data-view="settings" [class.is-hidden]="selectedView !== 'settings'" aria-label="Settings and diagnostics">
+      <app-settings-menu (questEditorVisibilityChange)="onQuestEditorVisibilityChange($event)"></app-settings-menu>
+    </section>
+  </div>
 </main>

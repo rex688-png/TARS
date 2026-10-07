@@ -7,6 +7,18 @@
   word-wrap: break-word;
   text-shadow: 0 0 10px rgba(255, 157, 0, 0.18);
 }
+.chat-entry.tars-message, .chat-entry.commander-message { padding: 14px 16px; margin: 10px 0; border-left: 2px solid #506879; background: #161c22; border-radius: 2px; }
+.chat-entry.tars-message { border-left-color: var(--hud-orange); background: #1b1d1e; }
+.chat-entry.commander-message { border-left-color: #7398a8; }
+.chat-entry.tars-message .prefix { color: var(--hud-orange) !important; }
+.chat-entry.commander-message .prefix { color: #9fc8d6 !important; }
+
+.search-result-card { margin: 18px 0; border: 1px solid #39434b; background: #141a20; }
+.search-result-card summary { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.search-result-card summary span { color: var(--hud-orange); font-size: 10px; letter-spacing: .12em; }
+.search-result-card summary strong { color: #e1e7eb; font-size: 13px; font-weight: 500; }
+.search-result-card summary em { margin-left: auto; color: #9fc5d3; font-size: 11px; font-style: normal; }
+.search-result-card pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; border-top: 1px solid #39434b; margin: 0; color: #bac7d0; font: 12px/1.55 var(--hud-font); }
 
 .timestamp {
   color: var(--hud-muted);

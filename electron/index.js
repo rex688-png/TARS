@@ -23,6 +23,7 @@ import {
   selectOverlayDisplay,
 } from './desktop-overlay-lifecycle.js';
 import { buildBackendEnvironment, configureTarsApplication } from './tars-runtime-profile.js';
+import { resolveAppUiAssetPath } from './app-ui-assets.js';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 const isLinux = process.platform === 'linux';
@@ -766,6 +767,7 @@ function createMainWindow() {
     width: 1024,
     height: 768,
     title: tarsRuntimeProfile ? 'TARS' : 'COVAS:NEXT',
+    icon: path.join(import.meta.dirname, 'icon.png'),
     webPreferences: {
       preload: overlayPreloadPath
     }
@@ -1337,14 +1339,9 @@ function getRemoteInterfaceState() {
 app.whenReady().then(async ()=>{
 
   protocol.handle('app', (request) => {
-    const requestUrl = new URL(request.url);
-    const resolved = url.pathToFileURL(path.join(import.meta.dirname, './ui/', requestUrl.pathname)).toString()
-    //logger.info(request.url, '->', resolved)
-    // if file is directory, return index.html
-    if (requestUrl.pathname.endsWith('/')) {
-      return net.fetch(url.pathToFileURL(path.join(import.meta.dirname, './ui/index.html')).toString())
-    }
-    return net.fetch(resolved)
+    const filePath = resolveAppUiAssetPath(path.join(import.meta.dirname, 'ui'), request.url);
+    if (!filePath) return new Response('Invalid asset path', { status: 400 });
+    return net.fetch(url.pathToFileURL(filePath).toString());
   })
 
   const backend = new BackendService();

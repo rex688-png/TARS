@@ -1,0 +1,16 @@
+:host { display: block; padding: 24px clamp(20px, 3vw, 42px); color: #e3e8ed; }
+.storage-heading { border-bottom: 1px solid #343b42; padding-bottom: 14px; }
+.storage-heading p { margin: 0 0 6px; color: #8e9da6; letter-spacing: .18em; font-size: 10px; }
+.storage-heading h1 { margin: 0; font-size: 25px; }
+.storage-heading span { color: #9ba8b1; font-size: 12px; }
+.material-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 22px 0; }
+.material-summary section, .cargo-summary { padding: 18px; border: 1px solid #363d44; background: #151b20; }
+h2 { color: var(--hud-orange); letter-spacing: .1em; font-size: 11px; text-transform: uppercase; margin: 0 0 12px; }
+.material-summary strong { font-size: 26px; font-weight: 500; }
+p { color: #aab5bd; font-size: 12px; }
+.cargo-summary ul { margin: 12px 0 0; padding: 0; list-style: none; max-width: 520px; }
+.cargo-summary li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #343b42; font-size: 12px; }
+.storage-detail { border-top: 1px solid #343b42; margin-top: 28px; }
+.storage-detail summary { cursor: pointer; padding: 14px 0; color: #b9cbd2; }
+.storage-detail app-storage-container { display: block; min-height: 500px; }
+@media (max-width: 800px) { .material-summary { grid-template-columns: 1fr; } }

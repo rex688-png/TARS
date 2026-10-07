@@ -19,6 +19,8 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
   @Input() limit?: number;
 
   chat: ChatMessage[] = [];
+  searchDetails: string | null = null;
+  searchTitle = "Search details";
   private fullChat: ChatMessage[] = [];
   private readonly filteredEventNames = new Set([
     "materials",
@@ -63,6 +65,17 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
       if (this.chat.length > previousLength) {
         this.shouldScroll = true;
       }
+    });
+    this.chatService.searchResult$.subscribe((result) => {
+      if (!result) {
+        this.searchDetails = null;
+        return;
+      }
+      const content = typeof result.content === "string" ? result.content.trim() : JSON.stringify(result, null, 2);
+      this.searchDetails = content || null;
+      const firstLine = content.split("\n", 1)[0].replace(/^#+\s*/, "");
+      this.searchTitle = firstLine.length > 90 ? `${firstLine.slice(0, 87)}…` : firstLine || "Search details";
+      this.shouldScroll = true;
     });
     
     // Subscribe to character changes
@@ -158,8 +171,10 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
 
   public getDisplayName(msg: ChatMessage): string {
     if (msg.role?.toLowerCase() === "plugin") {
-      return msg.plugin_event_name === "EdCoPilotEvent" ? "EDCoPilot" : msg.plugin_event_name || "plugin";
+      return "TARS";
     }
+    if (msg.role?.toLowerCase() === "covas") return "TARS";
+    if (msg.role?.toLowerCase() === "cmdr") return "COMMANDER";
     return msg.display_name || msg.role;
   }
 
