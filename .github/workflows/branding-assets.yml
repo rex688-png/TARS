@@ -1,0 +1,31 @@
+name: Build TARS brand assets
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'branding/**'
+      - '.github/workflows/branding-assets.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export-brand-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install branding export dependencies
+        run: python -m pip install -r branding/requirements.txt
+      - name: Export PNG and ICO derivatives
+        run: python branding/export_assets.py
+      - name: Upload production brand assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: tars-brand-assets
+          path: branding/dist/
+          retention-days: 30
+          if-no-files-found: error
