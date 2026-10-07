@@ -131,8 +131,8 @@ export interface ResetCharacterEventsMessage extends BaseCommand {
     providedIn: "root",
 })
 export class CharacterService {
-    static readonly DEFAULT_AVATAR_URL = "assets/cn_avatar_default.svg";
-    static readonly DEFAULT_AVATAR_MIME = "image/svg+xml";
+    static readonly DEFAULT_AVATAR_URL = "assets/Obraz ChatGPT 28 wrz 2026, 21_39_52.png";
+    static readonly DEFAULT_AVATAR_MIME = "image/png";
     private characterSubject = new BehaviorSubject<Character | null>(null);
     public character$ = this.characterSubject.asObservable();
     private activeCharacterIndex: number | null = null;
