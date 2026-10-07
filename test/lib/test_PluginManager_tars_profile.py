@@ -9,7 +9,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from lib.PluginManager import PluginManager
-from plugins.TARSObservatoryBridge import TARS_OBSERVATORY_BRIDGE_GUID
 
 
 def _write_plugin(root: Path, folder_name: str, position: int) -> None:
@@ -49,9 +48,7 @@ def test_tars_profile_loads_only_required_plugins_in_fixed_order(tmp_path):
 
     assert loaded == list(PluginManager.TARS_PLUGIN_ORDER)
     assert len(manager.plugin_list) == 7
-    assert len(manager.builtin_plugin_guids) == 2
-    assert TARS_OBSERVATORY_BRIDGE_GUID in manager.plugin_list
-    assert list(manager.plugin_list)[-1] == TARS_OBSERVATORY_BRIDGE_GUID
+    assert len(manager.builtin_plugin_guids) == 1
 
     manager.register_settings()
     assert {provider["kind"] for provider in manager.plugin_model_providers} == {
@@ -59,35 +56,12 @@ def test_tars_profile_loads_only_required_plugins_in_fixed_order(tmp_path):
     }
 
 
-def test_tars_profile_loads_observatory_bridge_settings(tmp_path):
-    for position, name in enumerate(PluginManager.TARS_PLUGIN_ORDER):
-        _write_plugin(tmp_path, name, position)
-
-    config = {
-        "plugin_settings": {
-            TARS_OBSERVATORY_BRIDGE_GUID: {
-                "enabled": False,
-                "events_path": r"C:\custom\events.jsonl",
-            }
-        }
-    }
-    manager = PluginManager(config, tars_profile=True, plugin_folder=str(tmp_path))
-    manager.load_plugin_module = lambda manifest, entrypoint: SimpleNamespace(
-        plugin_manifest=manifest
-    )
-    manager.load_plugins()
-
-    bridge = manager.plugin_list[TARS_OBSERVATORY_BRIDGE_GUID]
-    assert bridge.settings["enabled"] is False
-    assert bridge.settings["events_path"] == r"C:\custom\events.jsonl"
-
-
 def test_tars_profile_fails_clearly_when_required_plugin_is_missing(tmp_path):
     for position, name in enumerate(PluginManager.TARS_PLUGIN_ORDER[:-1]):
         _write_plugin(tmp_path, name, position)
 
     manager = PluginManager({}, tars_profile=True, plugin_folder=str(tmp_path))
-    with pytest.raises(RuntimeError, match="TARSExpedition/manifest.json"):
+    with pytest.raises(RuntimeError, match="TARSObservatoryBridge/manifest.json"):
         manager.load_plugins()
 
 
@@ -128,7 +102,7 @@ def test_tars_profile_selects_pinned_external_checkout_in_order():
         capture_output=True,
         text=True,
     ).stdout.strip()
-    assert sha == "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
+    assert sha == "67b1a1cab5a67d675372477dbcde061697e80bf5"
 
     manager = PluginManager(
         {}, tars_profile=True, plugin_folder=str(plugins_root / "plugins")
