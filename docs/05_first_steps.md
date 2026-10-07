@@ -29,10 +29,10 @@ For a full list of actions and their required keyboard buttons, see the [Actions
 
 ## Avatars
 
-Avatars allow you to give the AI a face. You provide a 2×2 grid with equal sections; each section shows the same styled character in one of four attitudes:
-
-| <img src="../ui/src/assets/Obraz%20ChatGPT%2028%20wrz%202026,%2021_39_52.png" alt="Default TARS avatar grid" width="120" /> | **Top-left:** TARS is listening<br>**Top-right:** TARS is speaking<br>**Bottom-left:** TARS is thinking<br>**Bottom-right:** TARS is performing searches or actions |
-|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+The default TARS avatar is one complete image, displayed without cropping or
+modification and with its original aspect ratio. It is not an expression grid.
+Existing custom 2×2 sprite avatars and SVG avatars remain supported for
+compatibility; their old four-state rendering does not apply to the TARS image.
 
 ## Plugins
 
@@ -40,4 +40,7 @@ Explore [Plugins](./plugins/index.md) to enhance your experience: fast, on-devic
 
 ## Upgrading the AI
 
-You will automatically receive a notification when a new version of the AI is available during the launch of the application. After downloading the new version, run the MSI installer. The one-click installer updates your existing installation; your configuration and conversations are migrated automatically.
+TARS does not contact the COVAS update channel. Obtain reviewed TARS packages
+from this repository, back up your local profile privately, and follow the
+[installation guide](./tars-installation.md). Do not use upstream COVAS installers
+to update TARS. Physical acceptance of the current build remains pending.

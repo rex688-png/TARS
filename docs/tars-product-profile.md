@@ -14,11 +14,12 @@ transcribed. API keys, commander identity, personal paths, plugin credentials,
 and plugin data were not copied.
 
 The authoritative identity prompt is the prompt from `TARS-Plugins` revision
-`685e16a19d5a5cd83f16297b90ee4c58ba8e11b5`. The reference prompt and the
+`67b1a1cab5a67d675372477dbcde061697e80bf5`. The reference prompt and the
 immutable bundled prompt are byte-identical (SHA-256
 `802f042ac643da3583f0e0595caefb6d5a072746a8c0c0d17f64ec9dc29af4d7`). TARS
-loads that bundled prompt; the product profile does not maintain a competing
-copy.
+uses that bundled prompt for fresh profiles and explicit reset. A saved edit
+lives in the active TARS character's `character` field in `config.json`, the
+same field read by the runtime. No second editable prompt file is maintained.
 
 ## Clean profile
 
@@ -35,11 +36,28 @@ Factory model selections are:
 - voice: approved Pocket-TTS 0.0.17-tarsfix provider;
 - semantic memory: approved Gemma Embedding provider;
 - voice and speed: `en-US-AvaMultilingualNeural`, `1.2`.
+- main/agent tuning: reasoning `none`, temperature `0.3`, agent max tries `7`.
 
 Credentials remain empty. Local providers remain explicit downloads, and their
 status is shown as requiring installation until verified provider registration
 completes after restart. The existing GPT-6 request behavior remains responsible
 for omitting temperature and forwarding the configured reasoning effort.
+
+## Migration and prompt persistence
+
+`tars_profile_version=1` records the one-time product migration. Before that
+marker, recognized inherited OpenAI defaults (`gpt-4.1-mini`, `gpt-5.4-nano`,
+`gpt-5.4-mini`) move to `gpt-6-luna`; other models/providers remain unchanged.
+After migration even a deliberate selection of those older model names is
+retained. Old configs have no model-choice provenance, so the listed exact
+names are the narrowly defined legacy-default heuristic, not a startup mandate.
+Explicit reasoning, temperature, retries, keys, audio and plugin settings are
+preserved, even when their values equal old defaults.
+
+The prompt editor offers Save, Reload saved (discard unsaved edits) and Reset
+to TARS Default. Successful saves are acknowledged only after atomic config
+replacement. Prompt changes apply to the next runtime session. Updates do not
+overwrite an edited prompt. Reaction reset uses the exact TARS event map.
 
 ## Product UI
 

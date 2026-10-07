@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, filter, Observable } from "rxjs";
+import { BehaviorSubject, filter, firstValueFrom, Observable, timeout } from "rxjs";
 import { BaseCommand, type BaseMessage, TauriService } from "./tauri.service";
 import { ModelProviderDefinition, PluginModelProvidersMessage, PluginSettings, PluginSettingsMessage, ProviderInstallStatusMessage } from "./plugin-settings";
 import { ScreenInfo } from "../models/screen-info";
@@ -32,6 +32,25 @@ export interface PluginSettingsButtonMessage extends BaseCommand {
 
 export interface RefreshSystemInfoMessage extends BaseCommand {
     type: "refresh_system_info";
+}
+
+export interface SetTarsPromptMessage extends BaseCommand {
+    type: "set_tars_prompt";
+    prompt: string;
+    request_id: string;
+}
+
+export interface ResetTarsPromptMessage extends BaseCommand {
+    type: "reset_tars_prompt";
+    request_id: string;
+}
+
+interface TarsPromptResult extends BaseMessage {
+    type: "tars_prompt_result";
+    request_id: string;
+    success: boolean;
+    prompt?: string;
+    error?: string;
 }
 
 export interface KeybindsMessages extends BaseMessage {
@@ -75,6 +94,7 @@ export interface Config {
     api_key: string;
     commander_name: string;
     config_version: number;
+    tars_profile_version?: number;
     // Stored characters
     characters: unknown[];
     active_character_index: number;
@@ -416,5 +436,43 @@ export class ConfigService {
         };
 
         await this.tauriService.send_command(message);
+    }
+
+    public async setTarsPrompt(prompt: string): Promise<string> {
+        const message: SetTarsPromptMessage = {
+            type: "set_tars_prompt",
+            timestamp: new Date().toISOString(),
+            prompt,
+            request_id: this.promptRequestId(),
+        };
+        return this.sendPromptCommand(message);
+    }
+
+    public async resetTarsPrompt(): Promise<string> {
+        const message: ResetTarsPromptMessage = {
+            type: "reset_tars_prompt",
+            timestamp: new Date().toISOString(),
+            request_id: this.promptRequestId(),
+        };
+        return this.sendPromptCommand(message);
+    }
+
+    private promptRequestId(): string {
+        // Remote LAN UI can run over HTTP, where randomUUID is unavailable.
+        // This is a correlation token, not an authorization credential.
+        return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    private async sendPromptCommand(message: SetTarsPromptMessage | ResetTarsPromptMessage): Promise<string> {
+        const response = firstValueFrom(this.tauriService.output$.pipe(
+            filter((value): value is TarsPromptResult =>
+                value.type === 'tars_prompt_result' && (value as TarsPromptResult).request_id === message.request_id),
+            timeout(10000),
+        ));
+        const [, result] = await Promise.all([this.tauriService.send_command(message), response]);
+        if (!result.success || typeof result.prompt !== 'string') {
+            throw new Error(result.error ?? 'TARS prompt was not saved');
+        }
+        return result.prompt;
     }
 }

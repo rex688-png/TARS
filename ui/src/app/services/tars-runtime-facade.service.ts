@@ -203,12 +203,12 @@ export class TarsRuntimeFacade {
         const values = [commander, location, ship, target];
         return {
             available: values.some((value) => Object.keys(value).length > 0),
-            ...this.optionalString("commanderName", commander.Commander ?? commander.Name),
-            ...this.optionalString("systemName", location.StarSystem ?? location.SystemName),
-            ...this.optionalString("bodyName", location.Body ?? location.BodyName),
-            ...this.optionalString("shipType", ship.Ship ?? ship.ShipType),
-            ...this.optionalString("shipIdent", ship.ShipIdent),
-            ...this.optionalString("targetName", target.Name ?? target.Ship),
+            ...this.optionalString("commanderName", commander["Commander"] ?? commander["Name"]),
+            ...this.optionalString("systemName", location["StarSystem"] ?? location["SystemName"]),
+            ...this.optionalString("bodyName", location["Body"] ?? location["BodyName"]),
+            ...this.optionalString("shipType", ship["Ship"] ?? ship["ShipType"]),
+            ...this.optionalString("shipIdent", ship["ShipIdent"]),
+            ...this.optionalString("targetName", target["Name"] ?? target["Ship"]),
         };
     }
 

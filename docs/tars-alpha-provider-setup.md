@@ -1,6 +1,6 @@
 # TARS Alpha provider setup
 
-TARS keeps behavior plugins and model providers separate. The five behavior
+TARS keeps behavior plugins and model providers separate. The six official
 plugins remain immutable installed resources. Mistral remains a built-in cloud
 provider, while local providers are installed only from the explicit registry
 below. TARS never scans arbitrary provider folders.

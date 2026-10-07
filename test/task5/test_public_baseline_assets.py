@@ -1,0 +1,32 @@
+"""Public stabilization asset and product-boundary regressions."""
+import hashlib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+AVATAR = "Obraz ChatGPT 28 wrz 2026, 21_39_52.png"
+
+
+def test_canonical_avatar_bytes_and_original_filename_are_preserved():
+    asset = ROOT / "ui/src/assets" / AVATAR
+    assert hashlib.sha256(asset.read_bytes()).hexdigest() == "4e0103a45a548ef7e700b1c015b42039250d4aad470c4d5d0826b59be5e29143"
+    assert AVATAR in (ROOT / "ui/src/app/services/character.service.ts").read_text()
+    assert not list((ROOT / "ui/src/assets").glob("cn_avatar_default*"))
+
+
+def test_canonical_avatar_uses_whole_image_in_settings_and_overlay():
+    general = ROOT / "ui/src/app/components/general-settings"
+    overlay = ROOT / "ui/src/app/overlay-view"
+    for directory, component in ((general, "general-settings"), (overlay, "overlay-view")):
+        assert '[class.canonical-tars-avatar]="isCanonicalTarsAvatar"' in (directory / f"{component}.component.html").read_text()
+    assert "object-fit: contain" in (general / "general-settings.component.css").read_text()
+    assert "background-size: contain" in (overlay / "overlay-view.component.css").read_text()
+
+
+def test_prompt_editor_has_save_reload_reset_and_backend_acknowledgement():
+    template = (ROOT / "ui/src/app/components/general-settings/general-settings.component.html").read_text()
+    assert "saveTarsPrompt()" in template
+    assert "reloadTarsPrompt()" in template
+    assert "resetTarsPrompt()" in template
+    service = (ROOT / "ui/src/app/services/config.service.ts").read_text()
+    assert "tars_prompt_result" in service
+    assert "request_id" in service

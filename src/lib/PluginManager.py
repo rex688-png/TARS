@@ -36,6 +36,7 @@ class PluginManager:
         "TARSGalaxy",
         "TARSChatter",
         "TARSExpedition",
+        "TARSObservatoryBridge",
     )
     TARS_PROVIDER_PLUGINS = ("mistral",)
 

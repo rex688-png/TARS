@@ -183,4 +183,4 @@ def test_native_finder_schema_tripwires(dump_module):
 def test_baseline_commits_are_pinned(baseline, dump_module):
     assert baseline["metadata"]["tars_sha"] == "f0153840016e33c498eafd5ea197963bcf776987"
     assert baseline["metadata"]["tars_plugins_sha"] == "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
-    assert dump_module._git_is_ancestor(dump_module.TARS_ROOT, dump_module.TARS_BASELINE)
+    assert dump_module._git_is_ancestor(dump_module.TARS_ROOT, dump_module.PUBLIC_TARS_BASELINE)

@@ -94,6 +94,9 @@ def main() -> int:
             assert config["embedding_provider"].endswith(":gemma-embedding")
             assert config["api_key"] == config["llm_api_key"] == ""
             assert marker.read_text(encoding="utf-8") == "do not modify"
+            # The sixth official plugin must be imported/registered by the
+            # packaged backend, not merely present as a file in resources.
+            assert "5a80ff76-201c-49c7-a632-6f00d671a99a" in settings_message["plugin_settings_configs"]
             installer = settings_message["plugin_settings_configs"][
                 "71be4c2e-4a49-45f7-b968-d70588bdae74"
             ]

@@ -24,8 +24,7 @@ def test_bundled_payload_matches_pinned_checkout_when_present():
     if not (source / ".git").is_dir():
         import pytest
         pytest.skip("requires the separate pinned TARS-Plugins checkout")
-    assert verify_tars_bundle.source_sha(source) == verify_tars_bundle.PINNED_SHA
-    assert verify_tars_bundle.payload_files(source) == verify_tars_bundle.payload_files(
+    assert verify_tars_bundle.source_payload(source) == verify_tars_bundle.payload_files(
         verify_tars_bundle.BUNDLE_ROOT
     )
 
@@ -73,7 +72,6 @@ def test_existing_tars_config_is_not_overwritten_but_runtime_identity_is_fixed(m
     existing["characters"][0]["character"] = "Keep this prompt"
     config_module.save_config(existing)
     config_path = tmp_path / "config.json"
-    before = config_path.read_bytes()
     monkeypatch.setenv("TARS_RUNTIME_PROFILE", "1")
     monkeypatch.setenv(
         "TARS_BUNDLED_RESOURCES", str(verify_tars_bundle.BUNDLE_ROOT)
@@ -82,7 +80,6 @@ def test_existing_tars_config_is_not_overwritten_but_runtime_identity_is_fixed(m
     config = config_module.load_config()
 
     assert [character["name"] for character in config["characters"]] == ["TARS"]
-    assert config["characters"][0]["character"] == (
-        verify_tars_bundle.BUNDLE_ROOT / "prompt" / "prompt.txt"
-    ).read_text(encoding="utf-8")
-    assert config_path.read_bytes() == before
+    assert config["characters"][0]["character"] == "Keep this prompt"
+    assert json.loads(config_path.read_text())["tars_profile_version"] == 1
+    assert config["commander_name"] == "Existing Commander"

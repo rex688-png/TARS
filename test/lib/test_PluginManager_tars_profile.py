@@ -49,7 +49,7 @@ def test_tars_profile_loads_only_required_plugins_in_fixed_order(monkeypatch, tm
     manager.load_plugins()
 
     assert loaded == list(PluginManager.TARS_PLUGIN_ORDER)
-    assert len(manager.plugin_list) == 7
+    assert len(manager.plugin_list) == 8
     assert len(manager.builtin_plugin_guids) == 2
 
     manager.register_settings()
@@ -70,7 +70,7 @@ def test_tars_profile_fails_clearly_when_required_plugin_is_missing(monkeypatch,
         _write_plugin(tmp_path, name, position)
 
     manager = PluginManager({}, tars_profile=True, plugin_folder=str(tmp_path))
-    with pytest.raises(RuntimeError, match="TARSExpedition/manifest.json"):
+    with pytest.raises(RuntimeError, match="TARSObservatoryBridge/manifest.json"):
         manager.load_plugins()
 
 
@@ -160,17 +160,12 @@ def test_default_profile_retains_existing_loader(monkeypatch, tmp_path):
     assert called == ["builtins"]
 
 
-def test_tars_profile_selects_pinned_external_checkout_in_order():
-    plugins_root = Path(__file__).resolve().parents[3] / "TARS-Plugins"
-    if not (plugins_root / ".git").exists():
-        pytest.skip("requires the separate pinned TARS-Plugins checkout")
-    sha = subprocess.run(
-        ["git", "-C", str(plugins_root), "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    assert sha == "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
+def test_tars_profile_selects_verified_bundled_plugins_in_order():
+    from tools.verify_tars_bundle import BUNDLE_ROOT, MANIFEST_PATH, PINNED_SHA, payload_files
+    plugins_root = BUNDLE_ROOT
+    provenance = json.loads(MANIFEST_PATH.read_text())
+    assert provenance['source_revision'] == PINNED_SHA
+    assert payload_files(BUNDLE_ROOT) == provenance['files']
 
     manager = PluginManager(
         {}, tars_profile=True, plugin_folder=str(plugins_root / "plugins")

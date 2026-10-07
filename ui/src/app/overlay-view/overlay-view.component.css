@@ -125,6 +125,12 @@
   }
 }
 
+/* Preserve the original TARS image and its aspect ratio in every activity state. */
+.overlay-pngtuber.canonical-tars-avatar {
+  background-size: contain;
+  background-position: center;
+}
+
 /* Inline SVG: state classes on this wrapper drive selectors inside the SVG (e.g. .listening .eye-base) */
 .overlay-svg-tuber {
   display: flex;

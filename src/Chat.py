@@ -43,6 +43,7 @@ from lib.Config import (
     validate_config,
     update_character,
     reset_game_events,
+    handle_tars_prompt_command,
 )
 from lib.PluginManager import PluginManager
 from lib.ActionManager import ActionManager
@@ -1026,6 +1027,8 @@ def read_stdin(chat: Chat):
                         chat.tts.set_output_volume_multiplier(
                             float(chat.config.get("output_volume_multiplier", 1.0))
                         )
+            if data.get("type") in ("set_tars_prompt", "reset_tars_prompt"):
+                chat.config = handle_tars_prompt_command(chat.config, data)
             if data.get("type") == "submit_input":
                 chat.submit_input(data["input"])
             if data.get("type") == "run_action":
@@ -1198,6 +1201,8 @@ if __name__ == "__main__":
                     )
                 if data.get("type") == "change_character":
                     config = update_character(config, data)
+                if data.get("type") in ("set_tars_prompt", "reset_tars_prompt"):
+                    config = handle_tars_prompt_command(config, data)
                 if data.get("type") == "reset_game_events":
                     config = reset_game_events(config, data["character_index"])
                 if data.get("type") == "clear_history":

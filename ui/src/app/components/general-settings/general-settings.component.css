@@ -311,6 +311,26 @@ mat-slide-toggle {
   line-height: 1.35;
 }
 
+.tars-prompt-editor {
+    width: 100%;
+}
+
+.tars-prompt-editor mat-form-field {
+    width: 100%;
+}
+
+.tars-prompt-editor textarea {
+    resize: vertical;
+    min-height: 12rem;
+}
+
+.tars-prompt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
 .covas-character-select {
   margin-bottom: 0.75rem;
 }
@@ -372,6 +392,14 @@ mat-slide-toggle {
 
 .minimal-avatar-image.acting {
   transform: translate(-50%, -50%);
+}
+
+/* The canonical TARS image is one complete image, not a four-state sprite. */
+.minimal-avatar-image.canonical-tars-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: none;
 }
 
 .minimal-avatar-svg {

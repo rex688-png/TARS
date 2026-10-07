@@ -74,6 +74,10 @@
       &.default-avatar-card {
         border-color: var(--mat-color-accent, #ff9800);
         background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 152, 0, 0.05));
+
+        .avatar-image-container:hover .avatar-image {
+          transform: none;
+        }
         
         .avatar-filename {
           font-weight: 600;

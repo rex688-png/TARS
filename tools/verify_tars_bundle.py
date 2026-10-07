@@ -10,13 +10,14 @@ from pathlib import Path
 import subprocess
 
 
-PINNED_SHA = "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
+PINNED_SHA = "67b1a1cab5a67d675372477dbcde061697e80bf5"
 PLUGIN_NAMES = (
     "TARSExplorer",
     "TARSNavigator",
     "TARSGalaxy",
     "TARSChatter",
     "TARSExpedition",
+    "TARSObservatoryBridge",
 )
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_ROOT = REPO_ROOT / "vendor" / "tars-plugins"
@@ -39,13 +40,19 @@ def payload_files(root: Path) -> dict[str, str]:
     return files
 
 
-def source_sha(source: Path) -> str:
-    return subprocess.run(
-        ["git", "-C", str(source), "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def source_payload(source: Path) -> dict[str, str]:
+    """Read the exact pinned Git objects without changing a reference checkout."""
+    paths = subprocess.run(
+        ['git', '-C', str(source), 'ls-tree', '-r', '--name-only', PINNED_SHA,
+         *(f'plugins/{name}' for name in PLUGIN_NAMES), 'prompt'],
+        check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    if not paths:
+        raise ValueError('Pinned plugin source payload is missing')
+    return {path: hashlib.sha256(subprocess.run(
+        ['git', '-C', str(source), 'show', f'{PINNED_SHA}:{path}'],
+        check=True, capture_output=True,
+    ).stdout).hexdigest() for path in paths}
 
 
 def main() -> int:
@@ -66,12 +73,7 @@ def main() -> int:
             raise SystemExit("bundled TARS payload differs from provenance.json")
 
     if args.source:
-        if source_sha(args.source) != PINNED_SHA:
-            raise SystemExit(f"source checkout is not pinned at {PINNED_SHA}")
-        source_payload = {
-            **payload_files(args.source),
-        }
-        if actual["files"] != source_payload:
+        if actual["files"] != source_payload(args.source):
             raise SystemExit("bundled TARS payload differs from pinned source checkout")
     print(f"verified {len(actual['files'])} files from TARS-Plugins@{PINNED_SHA}")
     return 0

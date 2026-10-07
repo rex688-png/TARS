@@ -195,7 +195,7 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
 
     async onConfigChange(partialConfig: Partial<Config>) {
         if (this.config) {
-            console.log("Sending config update to backend:", partialConfig);
+            // Backups/config updates can contain API keys; never log their values.
 
             try {
                 await this.configService.changeConfig(partialConfig);

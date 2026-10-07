@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BehaviorSubject, firstValueFrom } from "rxjs";
+import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
 
 import { TarsApplicationCoordinator } from "../../ui/src/app/services/tars-application-coordinator.service";
 import { TarsRuntimeFacade } from "../../ui/src/app/services/tars-runtime-facade.service";
+import { TarsProviderRegistry } from "../../ui/src/app/services/tars-provider-registry";
+import { ConfigService } from "../../ui/src/app/services/config.service";
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -186,4 +188,58 @@ test("health remains honest and leaves external integrations empty", async () =>
     assert.equal(journal?.evidence, "not-exposed");
     assert.equal(plugins?.status, "unknown");
     assert.deepEqual(await firstValueFrom(facade.externalIntegrations$), []);
+});
+
+test("TARS provider registry filters inherited UI clutter centrally", () => {
+    assert.deepEqual(
+        TarsProviderRegistry.options("llm").map((option) => option.value),
+        ["openai", "openrouter"],
+    );
+    assert.deepEqual(
+        TarsProviderRegistry.options("stt").map((option) => option.value),
+        ["openai", "none"],
+    );
+    assert.equal(TarsProviderRegistry.options("tts").some((option) => option.value === "edge-tts"), true);
+    assert.equal(TarsProviderRegistry.options("embedding").some((option) => option.value === "google-ai-studio"), false);
+
+    const legacy = TarsProviderRegistry.options("stt", "custom-multi-modal");
+    assert.equal(legacy.at(-1)?.value, "custom-multi-modal");
+    assert.equal(legacy.at(-1)?.legacy, true);
+});
+
+test("TARS provider registry accepts only controlled plugin providers", () => {
+    const providers = [
+        { kind: "stt", id: "parakeet-stt", label: "Parakeet STT", plugin_guid: "b77dec4f-8993-4213-8d44-caf902dabc6d", settings_config: [], is_builtin: true },
+        { kind: "stt", id: "arbitrary", label: "Arbitrary", plugin_guid: "not-approved", settings_config: [], is_builtin: false },
+    ] as const;
+    assert.deepEqual(
+        TarsProviderRegistry.filterPluginProviders(providers, "stt").map((provider) => provider.id),
+        ["parakeet-stt"],
+    );
+});
+
+test("missing local provider stays visible until real registration", () => {
+    const current = "plugin:b77dec4f-8993-4213-8d44-caf902dabc6d:parakeet-stt";
+    assert.match(TarsProviderRegistry.options("stt", current).at(-1)!.label, /not registered/);
+    const registered = [{ kind: "stt" as const, id: "parakeet-stt", label: "Parakeet", plugin_guid: "b77dec4f-8993-4213-8d44-caf902dabc6d", settings_config: [], is_builtin: false }];
+    assert.equal(TarsProviderRegistry.options("stt", current, registered).some(p => p.value === current), false);
+    assert.equal(TarsProviderRegistry.filterPluginProviders(registered, "stt").length, 1);
+});
+
+test("prompt save waits for its backend acknowledgement and propagates disk failure", async () => {
+    const output$ = new Subject<any>();
+    const commands: any[] = [];
+    const service: ConfigService = Object.assign(Object.create(ConfigService.prototype), {
+        tauriService: { output$, send_command: async (message: any) => { commands.push(message); } },
+    });
+    let finished = false;
+    const saving = service.setTarsPrompt("Saved prompt").then(value => { finished = true; return value; });
+    output$.next({ type: "tars_prompt_result", request_id: "another-window", success: true, prompt: "Wrong" });
+    await flush();
+    assert.equal(finished, false);
+    output$.next({ type: "tars_prompt_result", request_id: commands[0].request_id, success: true, prompt: "Saved prompt" });
+    assert.equal(await saving, "Saved prompt");
+    const resetting = service.resetTarsPrompt();
+    output$.next({ type: "tars_prompt_result", request_id: commands[1].request_id, success: false, error: "Unable to save" });
+    await assert.rejects(resetting, /Unable to save/);
 });
