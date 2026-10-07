@@ -9,6 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from lib.PluginManager import PluginManager
+from plugins.TARSObservatoryBridge import TARS_OBSERVATORY_BRIDGE_GUID
 
 
 def _write_plugin(root: Path, folder_name: str, position: int) -> None:
@@ -47,13 +48,38 @@ def test_tars_profile_loads_only_required_plugins_in_fixed_order(tmp_path):
     manager.load_plugins()
 
     assert loaded == list(PluginManager.TARS_PLUGIN_ORDER)
-    assert len(manager.plugin_list) == 6
-    assert len(manager.builtin_plugin_guids) == 1
+    assert len(manager.plugin_list) == 7
+    assert len(manager.builtin_plugin_guids) == 2
+    assert TARS_OBSERVATORY_BRIDGE_GUID in manager.plugin_list
+    assert list(manager.plugin_list)[-1] == TARS_OBSERVATORY_BRIDGE_GUID
 
     manager.register_settings()
     assert {provider["kind"] for provider in manager.plugin_model_providers} == {
         "llm", "vlm", "embedding", "stt", "tts"
     }
+
+
+def test_tars_profile_loads_observatory_bridge_settings(tmp_path):
+    for position, name in enumerate(PluginManager.TARS_PLUGIN_ORDER):
+        _write_plugin(tmp_path, name, position)
+
+    config = {
+        "plugin_settings": {
+            TARS_OBSERVATORY_BRIDGE_GUID: {
+                "enabled": False,
+                "events_path": r"C:\custom\events.jsonl",
+            }
+        }
+    }
+    manager = PluginManager(config, tars_profile=True, plugin_folder=str(tmp_path))
+    manager.load_plugin_module = lambda manifest, entrypoint: SimpleNamespace(
+        plugin_manifest=manifest
+    )
+    manager.load_plugins()
+
+    bridge = manager.plugin_list[TARS_OBSERVATORY_BRIDGE_GUID]
+    assert bridge.settings["enabled"] is False
+    assert bridge.settings["events_path"] == r"C:\custom\events.jsonl"
 
 
 def test_tars_profile_fails_clearly_when_required_plugin_is_missing(tmp_path):
