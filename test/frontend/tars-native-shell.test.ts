@@ -44,6 +44,8 @@ test("only four TARS destinations are primary and chat retains an inline result 
     assert.doesNotMatch(shell, /<mat-tab/);
     assert.match(shell, /app-settings-menu/);
     assert.match(shell, /app-chat-container/);
+    assert.match(shell, /<app-actions-container>/);
+    assert.match(shell, /<app-memories-container>/);
     assert.match(shell, /\[class\.is-hidden\]="selectedView !== 'tars'"/);
     assert.doesNotMatch(shell, /showRuntimeView/);
 });

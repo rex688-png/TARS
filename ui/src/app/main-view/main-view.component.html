@@ -114,6 +114,21 @@
     </section>
     <section class="view-panel settings-panel" data-view="settings" [class.is-hidden]="selectedView !== 'settings'" aria-label="Settings and diagnostics">
       <app-settings-menu (questEditorVisibilityChange)="onQuestEditorVisibilityChange($event)"></app-settings-menu>
+      <div class="secondary-tools">
+        <h2>DIAGNOSTICS</h2>
+        <details (toggle)="diagnosticsOpen = $any($event.target).open"><summary>Manual Elite actions</summary>
+          @if (diagnosticsOpen) {
+            @if (runMode === 'running') { <app-actions-container></app-actions-container> }
+            @else { <p>Start TARS to use manual action controls. Keybind settings above remain available while offline.</p> }
+          }
+        </details>
+        <details (toggle)="logbookOpen = $any($event.target).open"><summary>Memory logbook</summary>
+          @if (logbookOpen) { <app-memories-container></app-memories-container> }
+        </details>
+        <details (toggle)="logsOpen = $any($event.target).open"><summary>Session logs</summary>
+          @if (logsOpen) { <app-log-container></app-log-container> }
+        </details>
+      </div>
     </section>
   </div>
 </main>

@@ -54,6 +54,12 @@
 .stop-button { width: 100%; padding: 8px; background: transparent; color: #b9c3cb; border: 1px solid #40474e; cursor: pointer; }
 .stop-button:hover { border-color: var(--hud-orange); color: white; }
 .settings-panel app-settings-menu { display: flex; min-height: 100%; }
+.secondary-tools { padding: 24px 30px 50px; border-top: 1px solid #343b42; }
+.secondary-tools h2 { color: var(--hud-orange); font-size: 11px; letter-spacing: .14em; }
+.secondary-tools details { border-bottom: 1px solid #343b42; }
+.secondary-tools summary { padding: 14px 4px; color: #c3cbd2; cursor: pointer; }
+.secondary-tools p { color: #9ba8b1; font-size: 12px; }
+.secondary-tools app-actions-container, .secondary-tools app-memories-container, .secondary-tools app-log-container { display: block; min-height: 200px; max-height: 65vh; overflow: auto; padding: 12px; }
 .toolbar-progress { position: fixed; top: 0; left: 0; width: 100%; z-index: 30; }
 .app.red { --hud-orange: #e57661; }
 @media (max-width: 850px) { .conversation-layout { grid-template-columns: minmax(0,1fr); } .context-column { display: none; } }

@@ -5,6 +5,8 @@ start, active conversation, and stop. Its primary destinations are TARS,
 Exploration, Storage, and Settings. `TarsApplicationCoordinator` still owns the
 existing backend and overlay sequencing. Settings retains provider installation,
 prompt editing, reaction configuration, keybind diagnostics, and advanced tools.
+Manual Elite actions, the memory logbook, and session logs are available from
+the expandable Diagnostics area under Settings.
 
 Chat remains mounted when another destination is selected. A completed
 `web_search_agent` result is retained as an expandable detail card below the

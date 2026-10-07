@@ -6,7 +6,10 @@ import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { Subscription } from "rxjs";
 
 import { ChatContainerComponent } from "../components/chat-container/chat-container.component";
+import { ActionsContainerComponent } from "../components/actions-container/actions-container.component";
 import { InputContainerComponent } from "../components/input-container/input-container.component";
+import { MemoriesContainerComponent } from "../components/memories-container/memories-container.component";
+import { LogContainerComponent } from "../components/log-container/log-container.component";
 import { SettingsMenuComponent } from "../components/settings-menu/settings-menu.component";
 import { TarsExplorationComponent } from "../components/tars-exploration/tars-exploration.component";
 import { TarsStorageComponent } from "../components/tars-storage/tars-storage.component";
@@ -24,6 +27,7 @@ import { TarsShellView, viewForUiCommand } from "./tars-shell-navigation";
     standalone: true,
     imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressBarModule,
         ChatContainerComponent, InputContainerComponent, SettingsMenuComponent,
+        ActionsContainerComponent, MemoriesContainerComponent, LogContainerComponent,
         TarsExplorationComponent, TarsStorageComponent],
     templateUrl: "./main-view.component.html",
     styleUrl: "./main-view.component.css",
@@ -39,6 +43,9 @@ export class MainViewComponent implements OnInit, OnDestroy {
     runMode: TarsApplicationState = "starting";
     usageDisclaimerAccepted = false;
     isQuestEditorOpen = false;
+    diagnosticsOpen = false;
+    logbookOpen = false;
+    logsOpen = false;
     isInCombat = false;
     private readonly subscriptions = new Subscription();
 
