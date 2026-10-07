@@ -13,13 +13,21 @@ def test_canonical_avatar_bytes_and_original_filename_are_preserved():
     assert not list((ROOT / "ui/src/assets").glob("cn_avatar_default*"))
 
 
-def test_canonical_avatar_uses_whole_image_in_settings_and_overlay():
+def test_canonical_avatar_displays_one_state_in_settings_and_overlay():
     general = ROOT / "ui/src/app/components/general-settings"
     overlay = ROOT / "ui/src/app/overlay-view"
     for directory, component in ((general, "general-settings"), (overlay, "overlay-view")):
         assert '[class.canonical-tars-avatar]="isCanonicalTarsAvatar"' in (directory / f"{component}.component.html").read_text()
-    assert "object-fit: contain" in (general / "general-settings.component.css").read_text()
-    assert "background-size: contain" in (overlay / "overlay-view.component.css").read_text()
+    settings_css = (general / "general-settings.component.css").read_text()
+    overlay_css = (overlay / "overlay-view.component.css").read_text()
+    # The original PNG is a 2x2 state sheet. The UI selects one state with CSS;
+    # it must not show all four portraits at once or create derived image files.
+    assert "width: 200%" in settings_css
+    assert "transform: translate(-50%, -50%)" in settings_css
+    assert "background-size: 200%" in overlay_css
+    assert "background-position: 100% 100%" in overlay_css
+    assert ".minimal-avatar-image.canonical-tars-avatar" not in settings_css
+    assert ".overlay-pngtuber.canonical-tars-avatar" not in overlay_css
 
 
 def test_prompt_editor_has_save_reload_reset_and_backend_acknowledgement():
