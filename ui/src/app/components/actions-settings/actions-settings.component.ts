@@ -131,7 +131,7 @@ export class ActionsSettingsComponent {
 
     async onConfigChange(partialConfig: Partial<Config>) {
         if (this.config) {
-            console.log("Sending config update to backend:", partialConfig);
+            // Configuration payloads can contain credentials; do not log them.
 
             try {
                 await this.configService.changeConfig(partialConfig);

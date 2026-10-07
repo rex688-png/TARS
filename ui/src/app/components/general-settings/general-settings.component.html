@@ -1,7 +1,7 @@
 <div class="general-dashboard">
     @if (config) {
             <section class="preflight-shell" aria-labelledby="ai-preflight-heading">
-                <h2 id="ai-preflight-heading" class="preflight-heading">Preflight Check</h2>
+                <h2 id="ai-preflight-heading" class="preflight-heading">TARS SYSTEMS</h2>
                 <div class="preflight-layout">
                     <div #preflightList class="preflight-list">
                         <button
@@ -15,8 +15,8 @@
                             <mat-icon class="preflight-kind-icon">badge</mat-icon>
                             <mat-icon class="preflight-status-icon">{{ commanderReady ? 'check' : 'priority_high' }}</mat-icon>
                             <span class="preflight-category-copy">
-                                <span>CMDR Info</span>
-                                <strong>{{ commanderName }}</strong>
+                                <span>AI</span>
+                                <strong>{{ aiSummary }}</strong>
                             </span>
                         </button>
 
@@ -31,7 +31,7 @@
                             <mat-icon class="preflight-kind-icon">mic</mat-icon>
                             <mat-icon class="preflight-status-icon">{{ soundInputReady ? 'check' : 'priority_high' }}</mat-icon>
                             <span class="preflight-category-copy">
-                                <span>Sound Input</span>
+                                <span>Speech</span>
                                 <strong>{{ soundInputSummary }}</strong>
                             </span>
                         </button>
@@ -47,22 +47,40 @@
                             <mat-icon class="preflight-kind-icon">volume_up</mat-icon>
                             <mat-icon class="preflight-status-icon">{{ soundOutputReady ? 'check' : 'priority_high' }}</mat-icon>
                             <span class="preflight-category-copy">
-                                <span>Sound Output</span>
+                                <span>Voice</span>
                                 <strong>{{ soundOutputSummary }}</strong>
                             </span>
                         </button>
 
                         <button
                             type="button"
-                            class="preflight-item ready"
+                            class="preflight-item"
+                            [class.ready]="memoryReady"
+                            [class.needs-attention]="!memoryReady"
+                            [class.active]="activePreflightItem === 'memory'"
+                            (mouseenter)="setActivePreflightItem('memory')"
+                            (focusin)="setActivePreflightItem('memory')">
+                            <mat-icon class="preflight-kind-icon">memory</mat-icon>
+                            <mat-icon class="preflight-status-icon">{{ memoryReady ? 'check' : 'priority_high' }}</mat-icon>
+                            <span class="preflight-category-copy">
+                                <span>Memory</span>
+                                <strong>{{ memorySummary }}</strong>
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="preflight-item"
+                            [class.ready]="eliteReady"
+                            [class.needs-attention]="!eliteReady"
                             [class.active]="activePreflightItem === 'overlay'"
                             (mouseenter)="setActivePreflightItem('overlay')"
                             (focusin)="setActivePreflightItem('overlay')">
                             <mat-icon class="preflight-kind-icon">picture_in_picture_alt</mat-icon>
-                            <mat-icon class="preflight-status-icon">check</mat-icon>
+                            <mat-icon class="preflight-status-icon">{{ eliteReady ? 'check' : 'priority_high' }}</mat-icon>
                             <span class="preflight-category-copy">
-                                <span>Overlay</span>
-                                <strong>{{ overlayModeLabel }}</strong>
+                                <span>Elite</span>
+                                <strong>{{ eliteSummary }}</strong>
                             </span>
                         </button>
 
@@ -91,8 +109,8 @@
                             <mat-icon class="preflight-kind-icon">smart_toy</mat-icon>
                             <mat-icon class="preflight-status-icon">check</mat-icon>
                             <span class="preflight-category-copy">
-                                <span>Character</span>
-                                <strong>{{ characterName }}</strong>
+                                <span>TARS</span>
+                                <strong>PROFILE LOADED</strong>
                             </span>
                         </button>
                     </div>
@@ -107,13 +125,9 @@
                                            (ngModelChange)="onConfigChange({commander_name: $event})">
                                 </mat-form-field>
 
-                                <p class="preflight-helper-text">Enter your API key from
-                                    <a target="_blank" rel="noopener noreferrer" href="https://platform.openai.com/api-keys">OpenAI</a>,
-                                    <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/app/apikey">Google AI Studio</a>, or
-                                    <a target="_blank" rel="noopener noreferrer" href="https://openrouter.ai/settings/keys">OpenRouter</a>.
-                                    The system will automatically detect the key type and configure settings.</p>
+                                <p class="preflight-helper-text">Enter an <a target="_blank" rel="noopener noreferrer" href="https://platform.openai.com/api-keys">OpenAI API key</a> for the GPT-6 Luna language, agent, and vision defaults. The key stays in your local TARS profile.</p>
                                 <mat-form-field>
-                                    <mat-label>Main API Key (OpenAI/Openrouter/Google AI Studio)</mat-label>
+                                    <mat-label>OpenAI API Key</mat-label>
                                     <input required matInput [type]="hideApiKey ? 'password' : 'text'" [(ngModel)]="config.api_key"
                                            (ngModelChange)="onApiKeyChange($event)"
                                            pattern="^[A-Za-z0-9_.-]+$"
@@ -122,7 +136,7 @@
                                             (mouseleave)="hideApiKey = true">
                                         <mat-icon>{{ hideApiKey ? 'visibility_off' : 'visibility' }}</mat-icon>
                                     </button>
-                                    <mat-hint *ngIf="apiKeyType">Detected: {{ apiKeyType }} - Advanced settings have been configured automatically</mat-hint>
+                                    <mat-hint *ngIf="apiKeyType">Detected: {{ apiKeyType }} - Select providers separately; existing settings are preserved</mat-hint>
                                     <mat-error *ngIf="preflightApiKeyInput.errors?.['pattern']">
                                         API key can only contain letters, numbers, underscores, dots, and hyphens
                                     </mat-error>
@@ -135,17 +149,14 @@
                                     <mat-select panelClass="provider-panel"
                                                 [(ngModel)]="config.stt_provider"
                                                 (ngModelChange)="onConfigChange({stt_provider: $event})">
-                                        <mat-option value="openai">OpenAI</mat-option>
-                                        <mat-option value="google-ai-studio">Google AI Studio (Multi-Modal)</mat-option>
-                                        <mat-option value="local-ai-server">Local AIServer</mat-option>
+                                        @for (option of providerOptions('stt', config.stt_provider); track option.value) {
+                                            <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                                        }
                                         @for (provider of pluginSTTProviders; track provider.id) {
                                             @if (provider.is_builtin) {
                                                 <mat-option [value]="'plugin:' + provider.plugin_guid + ':' + provider.id">{{ provider.label }}</mat-option>
                                             }
                                         }
-                                        <mat-option value="custom">Custom</mat-option>
-                                        <mat-option value="custom-multi-modal">Custom Multi-Modal</mat-option>
-                                        <mat-option value="none">None</mat-option>
                                         @if (hasInstalledPluginProviders(pluginSTTProviders)) {
                                             <mat-optgroup label="Plugins">
                                                 @for (provider of pluginSTTProviders; track provider.id) {
@@ -225,7 +236,7 @@
                                     <p class="preflight-helper-text">
                                         STT is disabled.
                                         @if (!config.api_key.trim()) {
-                                            Insert a main API key to automatically detect and configure the provider.
+                                            Enter an API key, then select the provider. Existing settings are preserved.
                                         } @else {
                                             Select an STT provider to enable speech-to-text.
                                         }
@@ -239,16 +250,14 @@
                                     <mat-select panelClass="provider-panel"
                                                 [(ngModel)]="config.tts_provider"
                                                 (ngModelChange)="onConfigChange({tts_provider: $event})">
-                                        <mat-option value="openai">OpenAI</mat-option>
-                                        <mat-option value="edge-tts">Edge TTS</mat-option>
-                                        <mat-option value="local-ai-server">Local AIServer</mat-option>
+                                        @for (option of providerOptions('tts', config.tts_provider); track option.value) {
+                                            <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                                        }
                                         @for (provider of pluginTTSProviders; track provider.id) {
                                             @if (provider.is_builtin) {
                                                 <mat-option [value]="'plugin:' + provider.plugin_guid + ':' + provider.id">{{ provider.label }}</mat-option>
                                             }
                                         }
-                                        <mat-option value="custom">Custom</mat-option>
-                                        <mat-option value="none">None</mat-option>
                                         @if (hasInstalledPluginProviders(pluginTTSProviders)) {
                                             <mat-optgroup label="Plugins">
                                                 @for (provider of pluginTTSProviders; track provider.id) {
@@ -306,7 +315,7 @@
                                     <p class="preflight-helper-text">
                                         TTS is disabled.
                                         @if (!config.api_key.trim()) {
-                                            Insert a main API key to automatically detect and configure the provider.
+                                            Enter an API key, then select the provider. Existing settings are preserved.
                                         } @else {
                                             Select a TTS provider to enable text-to-speech.
                                         }
@@ -314,7 +323,13 @@
                                 }
                             }
 
+                            @case ('memory') {
+                                <p class="preflight-helper-text"><strong>{{ memorySummary }}</strong></p>
+                                <p class="preflight-helper-text">Gemma Embedding is the TARS local-memory default. Install it explicitly from Plugins → TARS Provider Setup; large model assets are not bundled in the base installer.</p>
+                            }
+
                             @case ('overlay') {
+                                <p class="preflight-helper-text"><strong>{{ eliteSummary }}</strong> Journal, Status.json, and action keybind readiness are handled by the retained Elite runtime.</p>
                                 <div class="overlay-controls">
                                     <div class="overlay-primary-controls">
                                         <mat-form-field>
@@ -550,16 +565,6 @@
                             }
 
                             @case ('covas') {
-                                <mat-form-field class="covas-character-select">
-                                    <mat-label>Active Character</mat-label>
-                                    <mat-select [ngModel]="activeCharacterIndex"
-                                                (ngModelChange)="onCharacterSelect($event)">
-                                        @for (character of characterList; track $index) {
-                                            <mat-option [value]="$index">{{ character.name || ('Character ' + ($index + 1)) }}</mat-option>
-                                        }
-                                    </mat-select>
-                                </mat-form-field>
-
                                 <div class="covas-character-panel">
                                     <div class="covas-avatar-wrap">
                                         <div class="minimal-character-avatar">
@@ -576,12 +581,36 @@
                                                     [src]="avatarUrl"
                                                     [alt]="characterName + ' avatar'"
                                                     class="minimal-avatar-image"
+                                                    [class.canonical-tars-avatar]="isCanonicalTarsAvatar"
                                                     [ngClass]="avatarPreviewStateClass">
                                             }
                                         </div>
                                         <span class="covas-character-name">{{ characterName }}</span>
                                     </div>
-                                    <p class="covas-prompt-bubble">{{ characterPrompt }}</p>
+                                    <div class="tars-prompt-editor">
+                                        <mat-form-field appearance="outline">
+                                            <mat-label>TARS Prompt</mat-label>
+                                            <textarea
+                                                matInput
+                                                rows="10"
+                                                [disabled]="promptBusy"
+                                                [ngModel]="promptDraft"
+                                                (ngModelChange)="onPromptInput($event)"
+                                                aria-label="Editable TARS prompt"></textarea>
+                                            <mat-hint>Saved locally in your TARS profile. Changes apply to the next TARS session.</mat-hint>
+                                        </mat-form-field>
+                                        <div class="tars-prompt-actions">
+                                            <button mat-raised-button color="primary" type="button"
+                                                    [disabled]="promptBusy || !promptDirty || !promptDraft.trim()"
+                                                    (click)="saveTarsPrompt()">Save</button>
+                                            <button mat-stroked-button type="button"
+                                                    [disabled]="promptBusy || !promptDirty"
+                                                    (click)="reloadTarsPrompt()">Reload saved</button>
+                                            <button mat-stroked-button color="warn" type="button"
+                                                    [disabled]="promptBusy"
+                                                    (click)="resetTarsPrompt()">Reset to TARS Default</button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="covas-event-summary">
@@ -637,13 +666,10 @@
                                         color="warn"
                                         type="button"
                                         class="preflight-clear-conversation"
-                                        matTooltip="Clear current conversation history. Useful after changing character so the AI starts with a blank slate."
+                                        matTooltip="Clear current TARS conversation history while keeping game state and projections."
                                         (click)="onClearHistory()">
                                         <mat-icon>delete_sweep</mat-icon>
                                         Clear Conversation
-                                    </button>
-                                    <button mat-raised-button color="primary" type="button" class="preflight-advanced-link" (click)="openTarget('character')">
-                                        Go to character settings
                                     </button>
                                 }
                             }

@@ -4,16 +4,12 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { MatDialogModule } from "@angular/material/dialog";
-import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatSnackBarModule } from "@angular/material/snack-bar";
-import { TauriService } from "../services/tauri.service";
-import { LoggingService } from "../services/logging.service";
 import { LogContainerComponent } from "../components/log-container/log-container.component";
 import { SettingsMenuComponent } from "../components/settings-menu/settings-menu.component";
 import { InputContainerComponent } from "../components/input-container/input-container.component";
 import {Config, ConfigService} from "../services/config.service";
 import { Subscription } from "rxjs";
-import { ChatService } from "../services/chat.service.js";
 import { MatTabsModule } from "@angular/material/tabs";
 import { ChatContainerComponent } from "../components/chat-container/chat-container.component.js";
 import { StatusContainerComponent } from "../components/status-container/status-container.component";
@@ -24,10 +20,13 @@ import { ProjectionsService } from "../services/projections.service";
 import { MemoriesContainerComponent } from "../components/memories-container/memories-container.component";
 import { SearchResultsComponent } from "../components/search-results-container/search-results-container.component";
 import { NavigationContainerComponent } from "../components/navigation-container/navigation-container.component";
-import { MetricsService } from "../services/metrics.service.js";
 import { PolicyService } from "../services/policy.service.js";
 import {UIService} from "../services/ui.service";
 import { ActionsContainerComponent } from "../components/actions-container/actions-container.component";
+import {
+    TarsApplicationCoordinator,
+    TarsApplicationState,
+} from "../services/tars-application-coordinator.service";
 
 @Component({
     selector: "app-main-view",
@@ -59,7 +58,7 @@ import { ActionsContainerComponent } from "../components/actions-container/actio
 export class MainViewComponent implements OnInit, OnDestroy {
     @ViewChild(SettingsMenuComponent) private settingsMenu?: SettingsMenuComponent;
 
-    runMode: "starting" | "configuring" | "running" | "error" = "starting";
+    runMode: TarsApplicationState = "starting";
     isLoading = true;
     isRunning = false;
     showRuntimeView = false;
@@ -78,21 +77,17 @@ export class MainViewComponent implements OnInit, OnDestroy {
     private inCombatSubscription!: Subscription;
     private currentStatusSubscription!: Subscription;
     private shipInfoSubscription!: Subscription;
-    private hasAutoStarted = false;
+    private applicationStateSubscription!: Subscription;
     public usageDisclaimerAccepted = false;
     public isQuestEditorOpen = false;
     private systemSubscription?: Subscription;
 
     constructor(
-        private tauri: TauriService,
-        private loggingService: LoggingService,
-        private chatService: ChatService,
+        private applicationCoordinator: TarsApplicationCoordinator,
         private configService: ConfigService,
         private projectionsService: ProjectionsService,
-        private metricsService: MetricsService,
         private policyService: PolicyService,
         private uiService: UIService,
-        private snackBar: MatSnackBar,
     ) {
         this.policyService.usageDisclaimerAccepted$.subscribe(
             (accepted) => {
@@ -123,25 +118,16 @@ export class MainViewComponent implements OnInit, OnDestroy {
         this.configSubscription = this.configService.config$.subscribe(
             (config) => {
                 this.config = config ?? undefined;
-                if (
-                    this.config && this.config.cn_autostart &&
-                    !this.isRunning && !this.hasAutoStarted
-                ) {
-                    console.log("Started automatically.");
-                    this.start();
-                    this.hasAutoStarted = true;
-                }
-
                 this.hasLogbook = this.config?.embedding_provider != 'none';
             },
         );
 
         // Subscribe to the running state
-        this.tauri.runMode$.subscribe(
+        this.applicationStateSubscription = this.applicationCoordinator.state$.subscribe(
             (mode) => {
                 this.runMode = mode;
                 this.isRunning = mode === "running";
-                this.isLoading = mode === "starting";
+                this.isLoading = mode === "starting" || mode === "restarting";
                 this.showRuntimeView = mode === "running" || mode === "error";
                 if (mode === "error") {
                     this.selectedTabIndex = 0;
@@ -239,8 +225,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
             });
 
         // Initialize the main view
-        this.tauri.runExe();
-        this.tauri.checkForUpdates();
+        void this.applicationCoordinator.initialize();
     }
 
     ngOnDestroy(): void { // Implement ngOnDestroy
@@ -261,6 +246,9 @@ export class MainViewComponent implements OnInit, OnDestroy {
         }
         if (this.shipInfoSubscription) {
             this.shipInfoSubscription.unsubscribe();
+        }
+        if (this.applicationStateSubscription) {
+            this.applicationStateSubscription.unsubscribe();
         }
     }
 
@@ -335,72 +323,11 @@ export class MainViewComponent implements OnInit, OnDestroy {
     }
 
     async start(): Promise<void> {
-        try {
-            if(
-                this.config
-                && this.config.overlay_mode !== "disabled"
-                && (this.config.overlay_show_avatar || this.config.overlay_show_chat || this.config.overlay_show_hud)
-            ) {
-                await this.createOverlay();
-            }
-
-            this.isLoading = true;
-            this.loggingService.clearLogs(); // Clear logs when starting
-            this.chatService.clearChat(); // Clear chat when starting
-            await this.tauri.send_start_signal();
-        } catch (error) {
-            console.error("Failed to start:", error);
-        }
+        await this.applicationCoordinator.startAssistant();
     }
 
     async stop(): Promise<void> {
-        try {
-            this.isLoading = true;
-            await this.destroyOverlay();
-            await this.tauri.restart_process();
-        } catch (error) {
-            console.error("Failed to stop:", error);
-        }
-    }
-
-    async createOverlay(): Promise<void> {
-        try {
-            if (this.config?.overlay_mode === "disabled") {
-                return;
-            }
-
-            const screenId = this.config?.overlay_screen_id ?? -1; // -1 for primary screen
-
-            await this.tauri.createOverlay({
-                alwaysOnTop: true,
-                screenId: screenId,
-                mode: this.config?.overlay_mode ?? "desktop",
-                standaloneTransparent: this.config?.overlay_standalone_transparent ?? true,
-                standaloneBackgroundColor: this.config?.overlay_standalone_background_color ?? "#000000",
-                vrSizeMeters: this.config?.overlay_vr_size_meters ?? 0.9,
-                vrAnchor: this.config?.overlay_vr_anchor ?? "head",
-                vrHorizontalOffset: this.config?.overlay_vr_horizontal_offset ?? 0,
-                vrVerticalOffset: this.config?.overlay_vr_vertical_offset ?? 0,
-                vrDistanceOffset: this.config?.overlay_vr_distance_offset ?? 0,
-                vrTiltDegrees: this.config?.overlay_vr_tilt_degrees ?? 0,
-                vrCurvature: this.config?.overlay_vr_curvature ?? 0,
-            });
-        } catch (error) {
-            console.error("Failed to create overlay:", error);
-            this.snackBar.open(
-                error instanceof Error ? error.message : "The overlay could not be created.",
-                "OK",
-                { duration: 7000 },
-            );
-        }
-    }
-
-    async destroyOverlay(): Promise<void> {
-        try {
-            await this.tauri.destroyOverlay();
-        } catch (error) {
-            console.error("Failed to create overlay:", error);
-        }
+        await this.applicationCoordinator.returnToConfiguration();
     }
 
     onQuestEditorVisibilityChange(isOpen: boolean): void {

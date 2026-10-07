@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, filter, Observable } from "rxjs";
+import { BehaviorSubject, filter, firstValueFrom, Observable, timeout } from "rxjs";
 import { BaseCommand, type BaseMessage, TauriService } from "./tauri.service";
-import { ModelProviderDefinition, PluginModelProvidersMessage, PluginSettings, PluginSettingsMessage } from "./plugin-settings";
+import { ModelProviderDefinition, PluginModelProvidersMessage, PluginSettings, PluginSettingsMessage, ProviderInstallStatusMessage } from "./plugin-settings";
 import { ScreenInfo } from "../models/screen-info";
 
 export interface ConfigMessage extends BaseMessage {
@@ -34,8 +34,28 @@ export interface RefreshSystemInfoMessage extends BaseCommand {
     type: "refresh_system_info";
 }
 
+export interface SetTarsPromptMessage extends BaseCommand {
+    type: "set_tars_prompt";
+    prompt: string;
+    request_id: string;
+}
+
+export interface ResetTarsPromptMessage extends BaseCommand {
+    type: "reset_tars_prompt";
+    request_id: string;
+}
+
+interface TarsPromptResult extends BaseMessage {
+    type: "tars_prompt_result";
+    request_id: string;
+    success: boolean;
+    prompt?: string;
+    error?: string;
+}
+
 export interface KeybindsMessages extends BaseMessage {
     type: "keybinds";
+    bindings_file?: string | null;
     missing: string[];
     collisions: [string,string][];
     unsupported: string[];
@@ -74,6 +94,7 @@ export interface Config {
     api_key: string;
     commander_name: string;
     config_version: number;
+    tars_profile_version?: number;
     // Stored characters
     characters: unknown[];
     active_character_index: number;
@@ -218,6 +239,11 @@ export class ConfigService {
     public plugin_model_providers$ = this.plugin_model_providers_subject
         .asObservable();
 
+    private provider_install_status_subject = new BehaviorSubject<
+        ProviderInstallStatusMessage | null
+    >(null);
+    public provider_install_status$ = this.provider_install_status_subject.asObservable();
+
     constructor(private tauriService: TauriService) {
         // Subscribe to config messages from the TauriService
         this.tauriService.output$.pipe(
@@ -229,15 +255,17 @@ export class ConfigService {
                 | SystemInfoMessage
                 | PluginSettingsMessage
                 | PluginModelProvidersMessage
+                | ProviderInstallStatusMessage
                 | KeybindsMessages =>
                 message.type === "config" ||
                 message.type === "running_config" ||
                 message.type === "system" ||
                 message.type === "plugin_settings_configs" ||
                 message.type === "plugin_model_providers" ||
+                message.type === "provider_install_status" ||
                 message.type === "keybinds"
             ),
-        ).subscribe((message: ConfigMessage | RunningConfigMessage | SystemInfoMessage | PluginSettingsMessage | PluginModelProvidersMessage | KeybindsMessages) => {
+        ).subscribe((message: ConfigMessage | RunningConfigMessage | SystemInfoMessage | PluginSettingsMessage | PluginModelProvidersMessage | ProviderInstallStatusMessage | KeybindsMessages) => {
             if (message.type === "config") {
                 this.configSubject.next(message.config);
             } else if (message.type === "running_config") {
@@ -263,6 +291,8 @@ export class ConfigService {
                 this.plugin_settings_message_subject.next(message);
             } else if (message.type === "plugin_model_providers") {
                 this.plugin_model_providers_subject.next(message.providers);
+            } else if (message.type === "provider_install_status") {
+                this.provider_install_status_subject.next(message);
             } else if (message.type === "keybinds") {
                 this.keybinds_subject.next(message);
             }
@@ -406,5 +436,43 @@ export class ConfigService {
         };
 
         await this.tauriService.send_command(message);
+    }
+
+    public async setTarsPrompt(prompt: string): Promise<string> {
+        const message: SetTarsPromptMessage = {
+            type: "set_tars_prompt",
+            timestamp: new Date().toISOString(),
+            prompt,
+            request_id: this.promptRequestId(),
+        };
+        return this.sendPromptCommand(message);
+    }
+
+    public async resetTarsPrompt(): Promise<string> {
+        const message: ResetTarsPromptMessage = {
+            type: "reset_tars_prompt",
+            timestamp: new Date().toISOString(),
+            request_id: this.promptRequestId(),
+        };
+        return this.sendPromptCommand(message);
+    }
+
+    private promptRequestId(): string {
+        // Remote LAN UI can run over HTTP, where randomUUID is unavailable.
+        // This is a correlation token, not an authorization credential.
+        return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    private async sendPromptCommand(message: SetTarsPromptMessage | ResetTarsPromptMessage): Promise<string> {
+        const response = firstValueFrom(this.tauriService.output$.pipe(
+            filter((value): value is TarsPromptResult =>
+                value.type === 'tars_prompt_result' && (value as TarsPromptResult).request_id === message.request_id),
+            timeout(10000),
+        ));
+        const [, result] = await Promise.all([this.tauriService.send_command(message), response]);
+        if (!result.success || typeof result.prompt !== 'string') {
+            throw new Error(result.error ?? 'TARS prompt was not saved');
+        }
+        return result.prompt;
     }
 }

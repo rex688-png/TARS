@@ -149,6 +149,53 @@ def test_pre_gpt_6_responses_request_preserves_temperature_and_omits_none_reason
     assert "reasoning" not in request
 
 
+def test_gpt_6_preserves_vision_content_and_function_calling() -> None:
+    model = create_llm_model("openai", {
+        "api_key": "test-key",
+        "llm_model_name": "gpt-6-luna",
+        "llm_temperature": 0.3,
+        "llm_reasoning_effort": "low",
+    })
+    assert isinstance(model, OpenAIResponsesLLMModel)
+    response = MagicMock(
+        error=None,
+        usage=None,
+        output_text="",
+        output=[{
+            "type": "function_call", "call_id": "call_visual",
+            "name": "describeSystem", "arguments": '{"system":"Sol"}',
+        }],
+    )
+    model.client.responses.with_raw_response.create = MagicMock(
+        return_value=RawResponse(response)
+    )
+
+    text, tool_calls, _ = model.generate(
+        [{"role": "user", "content": [
+            {"type": "text", "text": "Inspect this frame"},
+            {"type": "image_url", "image_url": {
+                "url": "data:image/png;base64,fixture", "detail": "high"
+            }},
+        ]}],
+        tools=[{"type": "function", "function": {
+            "name": "describeSystem", "description": "Describe a system",
+            "parameters": {"type": "object", "properties": {}},
+        }}],
+        tool_choice={"type": "function", "function": {"name": "describeSystem"}},
+    )
+
+    request = model.client.responses.with_raw_response.create.call_args.kwargs
+    assert request["input"][0]["content"][1] == {
+        "type": "input_image", "image_url": "data:image/png;base64,fixture",
+        "detail": "high",
+    }
+    assert request["tools"][0]["name"] == "describeSystem"
+    assert request["tool_choice"] == {"type": "function", "name": "describeSystem"}
+    assert "temperature" not in request
+    assert text is None
+    assert tool_calls and tool_calls[0].function.name == "describeSystem"
+
+
 def test_chat_completion_extracts_visible_text_from_structured_content() -> None:
     model = MistralLLMModel(
         base_url="https://api.mistral.ai/v1",

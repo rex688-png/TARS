@@ -1,17 +1,17 @@
 {
   "name": "tars",
   "version": "0.0.0",
-  "description": "[Getting Started](https://ratherrude.github.io/Elite-Dangerous-AI-Integration/) | [Join our Discord](https://discord.gg/9c58jxVuAT) | [Download latest version](https://github.com/RatherRude/Elite-Dangerous-AI-Integration/releases)",
-  "homepage": "https://github.com/RatherRude/Elite-Dangerous-AI-Integration#readme",
+  "description": "TARS cockpit assistant for Elite Dangerous, built on the mature COVAS:NEXT runtime.",
+  "homepage": "https://github.com/rex688-png/TARS#readme",
   "bugs": {
-    "url": "https://github.com/RatherRude/Elite-Dangerous-AI-Integration/issues"
+    "url": "https://github.com/rex688-png/TARS/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RatherRude/Elite-Dangerous-AI-Integration.git"
+    "url": "git+https://github.com/rex688-png/TARS.git"
   },
   "license": "ISC",
-  "author": "ratherrude",
+  "author": "TARS contributors; based on COVAS:NEXT by RatherRude",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -34,7 +34,8 @@
     "package:run": "run-script-os",
     "package:run:win32": "cd dist/win-unpacked/ && start TARS.exe",
     "package:run:linux": "cd dist/linux-unpacked/ && ./covas-next",
-    "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js"
+    "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js",
+    "test:frontend-foundation": "node --test test/frontend/run-tests.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",

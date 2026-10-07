@@ -1,8 +1,5 @@
 <div class="plugin-settings-stack">
-    <p class="plugins-info-link">
-        Learn more about plugins:
-        <a href="https://ratherrude.github.io/Elite-Dangerous-AI-Integration/plugins/" target="_blank" rel="noopener noreferrer">Documentation</a>.
-    </p>
+    <p class="plugins-info-link">Install only the TARS-approved providers listed here. Large downloads begin only when you select Install.</p>
     @for (plugin_settings_config of plugin_settings_configs; track plugin_settings_config[0]) {
         <mat-expansion-panel>
             <mat-expansion-panel-header>
@@ -13,11 +10,22 @@
             </mat-expansion-panel-header>
             @if (config) {
                 @for (grid of plugin_settings_config[1].grids; track grid.key) {
+                    @if (providerStatus(grid.key); as status) {
+                        <div class="provider-install-status" [class.provider-install-error]="status.state === 'failed'">
+                            <strong>{{ providerStatusText(status) }}</strong>
+                            @if (status.state === 'downloading') {
+                                <mat-progress-bar mode="determinate" [value]="status.percent"></mat-progress-bar>
+                            } @else if (status.state === 'verifying' || status.state === 'extracting') {
+                                <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                            }
+                        </div>
+                    }
                     <app-settings-grid
                         [grid]="grid"
                         [getValue]="createGetValueFn(plugin_settings_config[0])"
                         [setValue]="createSetValueFn(plugin_settings_config[0])"
                         [onButtonClick]="createButtonClickFn(plugin_settings_config[0])"
+                        [buttonEnabled]="providerButtonEnabled(grid.key)"
                         [headerLevel]="'h2'"
                         [gridClass]="'settings-grid'">
                     </app-settings-grid>

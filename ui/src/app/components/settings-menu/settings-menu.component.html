@@ -9,18 +9,12 @@
                 <mat-card appearance="outlined" class="welcome-message" [class.highlight]="highlightDisclaimerCard" style="margin-bottom: 20px;">
                     <mat-card-header>
                         <mat-icon mat-card-avatar color="primary">info</mat-icon>
-                        <mat-card-title>Welcome to COVAS:NEXT!</mat-card-title>
+                        <mat-card-title>Welcome to TARS</mat-card-title>
                     </mat-card-header>
                     <mat-card-content>
-                        <p>To get started, please follow our getting started guide <a target="_blank"
-                                                                                      rel="noopener noreferrer"
-                                                                                      href="https://ratherrude.github.io/Elite-Dangerous-AI-Integration/">here</a>.
-                        </p>
+                        <p>Complete the TARS system checks below. Large local speech and memory providers are explicit downloads under Plugins.</p>
                         @if (!usageDisclaimerAccepted) {
-                            <p>In order to improve this project, we collect anonymous usage data. This includes the number of interactions, response times, basic system information
-                                and other information. Learn more about this <a target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        href="https://ratherrude.github.io/Elite-Dangerous-AI-Integration/data-policy.html">here</a>.
+                            <p>Confirm the local-use notice before starting TARS. This TARS profile does not send diagnostics to the upstream COVAS service.</p>
                         }
                     </mat-card-content>
                     @if (!usageDisclaimerAccepted) {
@@ -38,20 +32,8 @@
 
     <mat-tab>
         <ng-template mat-tab-label>
-            <mat-icon class="tab-icon">person</mat-icon>
-            Characters
-        </ng-template>
-        <div class="tab-content">
-            @if (config) {
-                <app-character-settings></app-character-settings>
-            }
-        </div>
-    </mat-tab>
-
-    <mat-tab>
-        <ng-template mat-tab-label>
             <mat-icon class="tab-icon">notifications</mat-icon>
-            Reactions
+            TARS Reactions
         </ng-template>
         <div class="tab-content">
             @if (config) {
@@ -130,4 +112,3 @@
         </div>
     </div>
 }
-

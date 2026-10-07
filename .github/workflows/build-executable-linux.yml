@@ -1,6 +1,15 @@
 name: Build and Test Executable on linux
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
   contents: read
@@ -11,10 +20,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -45,7 +54,8 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: COVAS_NEXT_v${{ github.sha }}_linux
+          retention-days: 7
+          name: TARS_v${{ github.sha }}_linux
           path: ./dist
         # output the upload URL for later use
         id: upload-artifact
@@ -56,16 +66,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: COVAS_NEXT_v${{ github.sha }}_linux
+          name: TARS_v${{ github.sha }}_linux
           path: dist
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: "npm"
@@ -86,11 +96,11 @@ jobs:
 
       - name: Install electron dependencies
         working-directory: .
-        run: npm run install:electron
+        run: npm ci
 
       - name: Install frontend dependencies
         working-directory: .
-        run: npm run install:ui
+        run: npm ci --prefix ui
 
       - name: Replace Commit HASH in environment.prod.ts
         working-directory: ui
@@ -113,10 +123,11 @@ jobs:
       - name: Build Electron App
         run: npm run package:dir
 
-      - name: Upload tauri app zip file
+      - name: Upload Linux Electron package
         uses: actions/upload-artifact@v4
         with:
-          name: COVAS_NEXT_ELECTRON_v${{ github.sha }}_linux
+          retention-days: 7
+          name: TARS_ELECTRON_v${{ github.sha }}_linux
           path: ./dist/linux-unpacked/*
 
   flatpak-bundle:
@@ -125,12 +136,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: COVAS_NEXT_ELECTRON_v${{ github.sha }}_linux
+          name: TARS_ELECTRON_v${{ github.sha }}_linux
           path: dist/linux-unpacked
 
       - name: Install flatpak
@@ -189,7 +200,8 @@ jobs:
       - name: Upload flatpak bundle
         uses: actions/upload-artifact@v4
         with:
-          name: COVAS_NEXT_FLATPAK_v${{ github.sha }}_linux
+          retention-days: 7
+          name: TARS_FLATPAK_v${{ github.sha }}_linux
           path: covas-next-ui-*.flatpak
 
   e2e:
@@ -198,12 +210,12 @@ jobs:
     needs: pyinstaller-build
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: COVAS_NEXT_v${{ github.sha }}_linux
+          name: TARS_v${{ github.sha }}_linux
           path: dist
 
       - name: Run e2e tests
@@ -228,7 +240,7 @@ jobs:
       - name: Download Flatpak artifact
         uses: actions/download-artifact@v4
         with:
-          name: COVAS_NEXT_FLATPAK_v${{ github.sha }}_linux
+          name: TARS_FLATPAK_v${{ github.sha }}_linux
           path: release-assets
 
       - name: Create or update draft release

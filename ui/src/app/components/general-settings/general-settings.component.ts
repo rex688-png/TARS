@@ -31,6 +31,7 @@ import { Character, CharacterService } from "../../services/character.service";
 import { ModelProviderDefinition } from "../../services/plugin-settings";
 import { ConfirmationDialogComponent } from "../confirmation-dialog/confirmation-dialog.component.js";
 import { ChatService } from "../../services/chat.service.js";
+import { TarsProviderKind, TarsProviderRegistry } from "../../services/tars-provider-registry";
 
 export type GeneralSettingsTarget =
     | "commander"
@@ -40,7 +41,7 @@ export type GeneralSettingsTarget =
     | "overlay"
     | "actions";
 type AvatarPreviewStateClass = "listening" | "thinking" | "speaking" | "acting";
-type PreflightChecklistItem = "commander" | "input" | "output" | "overlay" | "actions" | "covas";
+type PreflightChecklistItem = "commander" | "input" | "output" | "memory" | "overlay" | "actions" | "covas";
 
 @Component({
     selector: "app-general-settings",
@@ -101,7 +102,12 @@ export class GeneralSettingsComponent implements OnDestroy {
     keybindsData: KeybindsMessages | null = null;
     pluginSTTProviders: ModelProviderDefinition[] = [];
     pluginTTSProviders: ModelProviderDefinition[] = [];
-    avatarUrl = "assets/cn_avatar_default.svg";
+    pluginEmbeddingProviders: ModelProviderDefinition[] = [];
+    avatarUrl = "assets/Obraz ChatGPT 28 wrz 2026, 21_39_52.png";
+    promptDraft = "";
+    savedPrompt = "";
+    promptDirty = false;
+    promptBusy = false;
     sanitizedAvatarPreviewSvg: SafeHtml | null = null;
     avatarPreviewStateClass: AvatarPreviewStateClass = "listening";
     private configSubscription: Subscription;
@@ -156,6 +162,12 @@ export class GeneralSettingsComponent implements OnDestroy {
         this.characterSubscription = this.characterService.character$.subscribe(
             (character) => {
                 this.activeCharacter = character;
+                const prompt = character?.character ?? "";
+                if (!this.promptDirty) {
+                    this.promptDraft = prompt;
+                }
+                this.savedPrompt = prompt;
+                this.promptDirty = this.promptDraft !== prompt;
             },
         );
         this.characterListSubscription = this.characterService.characterList$.subscribe(
@@ -170,8 +182,9 @@ export class GeneralSettingsComponent implements OnDestroy {
         );
         this.pluginProvidersSubscription = this.configService.plugin_model_providers$.subscribe(
             (providers) => {
-                this.pluginSTTProviders = providers.filter((provider) => provider.kind === "stt");
-                this.pluginTTSProviders = providers.filter((provider) => provider.kind === "tts");
+                this.pluginSTTProviders = TarsProviderRegistry.filterPluginProviders(providers, "stt");
+                this.pluginTTSProviders = TarsProviderRegistry.filterPluginProviders(providers, "tts");
+                this.pluginEmbeddingProviders = TarsProviderRegistry.filterPluginProviders(providers, "embedding");
             },
         );
         this.avatarMimeSubscription = combineLatest([this.characterService.avatarUrl$, this.characterService.avatarMime$]).subscribe(
@@ -187,6 +200,12 @@ export class GeneralSettingsComponent implements OnDestroy {
 
     hasInstalledPluginProviders(providers: ModelProviderDefinition[]): boolean {
         return providers.some(provider => !provider.is_builtin);
+    }
+
+    providerOptions(kind: TarsProviderKind, current?: string | null) {
+        return TarsProviderRegistry.options(kind, current, [
+            ...this.pluginSTTProviders, ...this.pluginTTSProviders, ...this.pluginEmbeddingProviders,
+        ]);
     }
 
     ngOnDestroy() {
@@ -213,6 +232,37 @@ export class GeneralSettingsComponent implements OnDestroy {
 
     get commanderName(): string {
         return this.config?.commander_name?.trim() || "Not set";
+    }
+
+    get aiSummary(): string {
+        const model = this.config?.llm_model_name || "Not configured";
+        return this.commanderReady ? `${model} ✓` : `${model} — setup required`;
+    }
+
+    get memoryReady(): boolean {
+        const provider = this.config?.embedding_provider;
+        if (!provider || provider === "none") return false;
+        if (!this.isPluginProvider(provider)) return true;
+        return this.pluginEmbeddingProviders.some(
+            (item) => provider === `plugin:${item.plugin_guid}:${item.id}`,
+        );
+    }
+
+    get memorySummary(): string {
+        const label = this.providerLabel(this.config?.embedding_provider, this.pluginEmbeddingProviders);
+        return this.memoryReady ? `${label} ✓` : `${label} — install required`;
+    }
+
+    get eliteReady(): boolean {
+        return Boolean(this.keybindsData?.bindings_file);
+    }
+
+    get eliteSummary(): string {
+        return this.eliteReady ? "Bindings file found" : "Elite setup needed — check journal path and controls";
+    }
+
+    get isCanonicalTarsAvatar(): boolean {
+        return this.avatarUrl === CharacterService.DEFAULT_AVATAR_URL;
     }
 
     get inputDeviceName(): string {
@@ -244,15 +294,22 @@ export class GeneralSettingsComponent implements OnDestroy {
     }
 
     get commanderReady(): boolean {
-        return !!this.config?.commander_name?.trim() && !!this.config?.api_key?.trim();
+        return !!this.config?.commander_name?.trim()
+            && !!(this.config?.llm_api_key?.trim() || this.config?.api_key?.trim());
     }
 
     get soundInputReady(): boolean {
-        return !!this.config && this.config.stt_provider !== "none" && !!this.config.input_device_name?.trim();
+        return !!this.config
+            && this.config.stt_provider !== "none"
+            && this.providerIsAvailable(this.config.stt_provider, this.pluginSTTProviders)
+            && !!this.config.input_device_name?.trim();
     }
 
     get soundOutputReady(): boolean {
-        return !!this.config && this.config.tts_provider !== "none" && !!this.config.output_device_name?.trim();
+        return !!this.config
+            && this.config.tts_provider !== "none"
+            && this.providerIsAvailable(this.config.tts_provider, this.pluginTTSProviders)
+            && !!this.config.output_device_name?.trim();
     }
 
     get actionsReady(): boolean {
@@ -285,7 +342,7 @@ export class GeneralSettingsComponent implements OnDestroy {
         const counts = this.actionIssueCounts;
         const parts: string[] = [];
         if (counts.missing > 0) {
-            parts.push(`${counts.missing} missing`);
+            parts.push(`${counts.missing} missing keybinds`);
         }
         if (counts.conflicts > 0) {
             parts.push(`${counts.conflicts} conflicts`);
@@ -329,6 +386,51 @@ export class GeneralSettingsComponent implements OnDestroy {
         return this.activeCharacter?.character?.trim() || "No character prompt configured yet.";
     }
 
+    onPromptInput(prompt: string): void {
+        this.promptDraft = prompt;
+        this.promptDirty = prompt !== this.savedPrompt;
+    }
+
+    reloadTarsPrompt(): void {
+        this.promptDraft = this.savedPrompt;
+        this.promptDirty = false;
+    }
+
+    async saveTarsPrompt(): Promise<void> {
+        const prompt = this.promptDraft;
+        if (!prompt.trim()) {
+            this.snackBar.open("The TARS prompt cannot be empty", "OK", { duration: 4000 });
+            return;
+        }
+        this.promptBusy = true;
+        try {
+            this.savedPrompt = await this.configService.setTarsPrompt(prompt);
+            this.promptDraft = this.savedPrompt;
+            this.promptDirty = false;
+            this.snackBar.open("TARS prompt saved. Restart TARS to use it in a new session.", "OK", { duration: 5000 });
+        } catch (error) {
+            console.error("Error saving TARS prompt:", error);
+            this.snackBar.open("Could not save the TARS prompt", "OK", { duration: 5000 });
+        } finally {
+            this.promptBusy = false;
+        }
+    }
+
+    async resetTarsPrompt(): Promise<void> {
+        this.promptBusy = true;
+        try {
+            this.savedPrompt = await this.configService.resetTarsPrompt();
+            this.promptDraft = this.savedPrompt;
+            this.promptDirty = false;
+            this.snackBar.open("Canonical TARS prompt restored. Restart TARS to use it in a new session.", "OK", { duration: 5000 });
+        } catch (error) {
+            console.error("Error resetting TARS prompt:", error);
+            this.snackBar.open("Could not restore the canonical TARS prompt", "OK", { duration: 5000 });
+        } finally {
+            this.promptBusy = false;
+        }
+    }
+
     get characterName(): string {
         return this.activeCharacter?.name?.trim() || "Not set";
     }
@@ -365,29 +467,28 @@ export class GeneralSettingsComponent implements OnDestroy {
             const match = pluginProviders.find(
                 (pluginProvider) => provider === `plugin:${pluginProvider.plugin_guid}:${pluginProvider.id}`,
             );
-            return match?.label ?? "Plugin";
+            if (match) return match.label;
+            const providerId = provider.split(":").at(-1);
+            return ({
+                "parakeet-stt": "Parakeet",
+                "pocket-tts": "Pocket-TTS",
+                "supertonic-tts": "Supertonic",
+                "gemma-embedding": "Gemma",
+            } as Record<string, string>)[providerId ?? ""] ?? "Provider not installed";
         }
 
-        switch (provider) {
-            case "openai":
-                return "OpenAI";
-            case "openrouter":
-                return "OpenRouter";
-            case "google-ai-studio":
-                return "Google AI Studio";
-            case "edge-tts":
-                return "Edge TTS";
-            case "local-ai-server":
-                return "Local AIServer";
-            case "custom":
-                return "Custom";
-            case "custom-multi-modal":
-                return "Custom Multi-Modal";
-            case "none":
-                return "None";
-            default:
-                return provider;
-        }
+        return TarsProviderRegistry.label(provider);
+    }
+
+    private providerIsAvailable(
+        provider: string | undefined | null,
+        pluginProviders: ModelProviderDefinition[],
+    ): boolean {
+        if (!provider || provider === "none") return false;
+        if (!this.isPluginProvider(provider)) return true;
+        return pluginProviders.some(
+            (item) => provider === `plugin:${item.plugin_guid}:${item.id}`,
+        );
     }
 
     get avatarPreviewUsesInlineSvg(): boolean {
@@ -472,50 +573,9 @@ export class GeneralSettingsComponent implements OnDestroy {
 
     async onApiKeyChange(apiKey: string) {
         if (!this.config) return;
-
         await this.onConfigChange({ api_key: apiKey });
-
-        let providerChanges: Partial<Config> = {};
-
-        if (apiKey.startsWith("AQ") || apiKey.startsWith("AIzaS")) {
-            this.apiKeyType = "Google AI Studio";
-            providerChanges = {
-                llm_provider: "google-ai-studio",
-                agent_llm_provider: "google-ai-studio",
-                stt_provider: "google-ai-studio",
-                vision_provider: "google-ai-studio",
-                tts_provider: "edge-tts",
-                vision_var: true,
-                embedding_provider: "google-ai-studio",
-            };
-        } else if (apiKey.startsWith("sk-or-v1")) {
-            this.apiKeyType = "OpenRouter";
-            providerChanges = {
-                llm_provider: "openrouter",
-                agent_llm_provider: "openrouter",
-                stt_provider: "none",
-                vision_provider: "none",
-                tts_provider: "edge-tts",
-                vision_var: false,
-                embedding_provider: "none",
-            };
-        } else if (apiKey.startsWith("sk-")) {
-            this.apiKeyType = "OpenAI";
-            providerChanges = {
-                llm_provider: "openai",
-                agent_llm_provider: "openai",
-                stt_provider: "openai",
-                vision_provider: "openai",
-                tts_provider: "edge-tts",
-                vision_var: true,
-                embedding_provider: "openai",
-            };
-        } else {
-            this.apiKeyType = null;
-            return;
-        }
-
-        await this.onConfigChange(providerChanges);
+        this.apiKeyType = apiKey.startsWith("sk-or-v1") ? "OpenRouter"
+            : apiKey.startsWith("sk-") ? "OpenAI" : null;
     }
 
     async onAssignPTT(e: Event, index: number) {
@@ -565,7 +625,7 @@ export class GeneralSettingsComponent implements OnDestroy {
             }
         }
         if (this.config) {
-            console.log("Sending config update to backend:", partialConfig);
+            // Never log configuration payloads: they may contain credentials.
 
             try {
                 await this.configService.changeConfig(partialConfig);
@@ -670,7 +730,7 @@ export class GeneralSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Enable overlays in OpenXR applications?",
-                message: "COVAS:NEXT will install a per-user OpenXR integration component. It does not require administrator access, but compatible OpenXR applications must be restarted afterward.",
+                message: "TARS will install a per-user OpenXR integration component. It does not require administrator access, but compatible OpenXR applications must be restarted afterward.",
                 confirmButtonText: "Enable integration",
                 cancelButtonText: "Not now",
             },
@@ -684,7 +744,7 @@ export class GeneralSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Update OpenXR integration?",
-                message: "COVAS:NEXT will replace its per-user OpenXR integration component. Restart any running VR applications afterward.",
+                message: "TARS will replace its per-user OpenXR integration component. Restart any running VR applications afterward.",
                 confirmButtonText: "Update integration",
                 cancelButtonText: "Not now",
             },
@@ -698,7 +758,7 @@ export class GeneralSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Remove OpenXR integration?",
-                message: "This removes COVAS:NEXT's per-user OpenXR integration. Restart any running VR applications afterward.",
+                message: "This removes TARS's per-user OpenXR integration. Restart any running VR applications afterward.",
                 confirmButtonText: "Remove integration",
                 cancelButtonText: "Keep integration",
             },

@@ -1,0 +1,11 @@
+Pocket-TTS stability patch 0.0.17
+
+- Reduces generation temperature from 0.7 to 0.3.
+- Reduces the default maximum inference pass from 50 to 30 tokens.
+- Migrates existing settings above 30 tokens to the safer limit.
+- Correctly identifies sentence and clause punctuation tokens.
+- Hard-splits long punctuation-free clauses instead of only warning.
+- Filters empty decoded/tokenized chunks before ONNX inference.
+
+This patch is intended to address speech that accelerates, slurs, becomes
+unintelligible on longer sentences, or fails with an ONNX zero-length reshape.

@@ -1,5 +1,5 @@
 {
-  "source_revision": "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5",
+  "source_revision": "67b1a1cab5a67d675372477dbcde061697e80bf5",
   "files": {
     "plugins/TARSExplorer/REACTS_QUICK_GUIDE.txt": "901b8e796223b0e8552680217e148950b6b73bc6629449b674986c59babaa2fd",
     "plugins/TARSExplorer/README.txt": "2de3d1bd108453870d3239ae04de73e53d4c0de2e751ce09d3c59684a0982c89",
@@ -24,6 +24,9 @@
     "plugins/TARSExpedition/TARSExpedition.py": "86ed48e4e189631267918bb79519f25154e927a7d3f17b9921a9bac54ecc5fd5",
     "plugins/TARSExpedition/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "plugins/TARSExpedition/manifest.json": "9cb5258d9b0b2e503b9f53df8e20d0c995c9cbab8b21a4a202ec09f9f4b7867c",
+    "plugins/TARSObservatoryBridge/README.txt": "9fd7d2b33d041c499f4283853a58133d2a38bc4e12ddaa425ee907ac95042779",
+    "plugins/TARSObservatoryBridge/TARSObservatoryBridge.py": "4b721c64f763604f9c23922ee1da38eb8287575dbd9dfeff740a8b5a366f15ea",
+    "plugins/TARSObservatoryBridge/manifest.json": "33ee96d5f2cc9cf91ca77a843270b524fa7dd9b7551927761f5dcc2800886185",
     "prompt/prompt.txt": "802f042ac643da3583f0e0595caefb6d5a072746a8c0c0d17f64ec9dc29af4d7"
   }
 }

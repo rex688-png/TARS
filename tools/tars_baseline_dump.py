@@ -33,6 +33,9 @@ TARS_SRC = TARS_ROOT / "src"
 PLUGINS_ROOT = TARS_ROOT.parent / "TARS-Plugins"
 PLUGIN_DIRECTORY = PLUGINS_ROOT / "plugins"
 TARS_BASELINE = "f0153840016e33c498eafd5ea197963bcf776987"
+# Same audit baseline in the already-rewritten public history. Keep the original
+# evidence SHA above in snapshots; never import the old history to satisfy it.
+PUBLIC_TARS_BASELINE = "cd460841c57a29ac0cd9fe670379db6551d55193"
 PLUGINS_BASELINE = "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
 PLUGIN_NAMES = (
     "TARSExplorer",
@@ -441,7 +444,7 @@ def _prompt_fixture(name: str, prompt_generator, states, memory: bool = False) -
 
 
 def build_baseline() -> dict[str, Any]:
-    if not _git_is_ancestor(TARS_ROOT, TARS_BASELINE):
+    if not _git_is_ancestor(TARS_ROOT, PUBLIC_TARS_BASELINE):
         raise RuntimeError("Pinned TARS baseline is not an ancestor of the current checkout")
     if not PLUGINS_ROOT.is_dir():
         raise RuntimeError(

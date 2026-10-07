@@ -1,0 +1,33 @@
+{
+  "source_revision": "65d343bd3f5f2386031fcb142dbf69add3902cdc",
+  "prompt_sha256": "802f042ac643da3583f0e0595caefb6d5a072746a8c0c0d17f64ec9dc29af4d7",
+  "map_sha256": "3e5289a2b0239a6f062ce1c228bc6baf3584f61b73098fada0418299f34d00e0",
+  "reaction_counts": {"on": 85, "off": 207, "hidden": 10},
+  "on": [
+    "LoadGame", "Shutdown", "NewCommander", "Died", "Resurrect",
+    "CombatEntered", "CombatExited", "LegalStateChanged", "BeingInterdicted",
+    "FighterDestroyed", "HeatDamage", "PVPKill", "ShieldState",
+    "CockpitBreached", "CrimeVictim", "SystemsShutdown", "SelfDestruct",
+    "EjectCargo", "ProspectedAsteroid", "RememberLimpets", "ApproachSettlement",
+    "DockingDenied", "DockingTimeout", "InDockingRange", "CrewLaunchFighter",
+    "LaunchFighter", "DockFighter", "FighterRebuilt", "RebootRepair",
+    "LowFuelWarningCleared", "LowFuelWarning", "HighGravityWarning",
+    "NoScoopableStars", "LaunchSRV", "DockSRV", "SRVDestroyed",
+    "LowOxygenWarning", "LowHealthWarning", "ShipyardBuy", "ClearImpound",
+    "PayBounties", "PayFines", "PayLegacyFines", "RedeemVoucher", "CarrierBuy",
+    "CarrierDecommission", "CarrierCancelDecommission", "CarrierNameChanged",
+    "CarrierJumpWarning", "CrewAssign", "CrewFire", "CrewHire",
+    "CrewMemberJoins", "CrewMemberQuits", "CrewMemberRoleChange",
+    "EndCrewSession", "JoinACrew", "KickCrewMember", "QuitACrew", "Promotion",
+    "Friends", "WingAdd", "WingInvite", "WingJoin", "WingLeave",
+    "AppliedToSquadron", "DisbandedSquadron", "InvitedToSquadron",
+    "JoinedSquadron", "KickedFromSquadron", "LeftSquadron", "SquadronCreated",
+    "SquadronDemotion", "SquadronPromotion", "PowerplayDefect", "PowerplayJoin",
+    "PowerplayLeave", "CodexEntry", "Screenshot", "quest", "MissionAbandoned",
+    "MissionAccepted", "MissionCompleted", "MissionFailed", "MissionRedirected"
+  ],
+  "hidden": [
+    "Idle", "WeaponSelected", "BookDropship", "BookTaxi", "CancelDropship",
+    "CancelTaxi", "DropItems", "BackpackChange", "BuyMicroResources", "DropShipDeploy"
+  ]
+}

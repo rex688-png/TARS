@@ -18,6 +18,7 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatProgressBarModule } from "@angular/material/progress-bar";
 import {
   ConfirmationDialogComponent,
   ConfirmationDialogData,
@@ -25,6 +26,7 @@ import {
 import { ConfirmationDialogService } from "../../services/confirmation-dialog.service";
 import {
   PluginSettings,
+  ProviderInstallStatusMessage,
   SettingsGrid,
 } from "../../services/plugin-settings";
 import { SettingsGridComponent } from "../settings-grid/settings-grid.component";
@@ -50,6 +52,7 @@ import { SettingsGridComponent } from "../settings-grid/settings-grid.component"
     MatCheckboxModule,
     MatDialogModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     SettingsGridComponent,
   ],
   templateUrl: "./plugin-settings.component.html",
@@ -59,9 +62,11 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
   config: Config | null = null;
   private configSubscription?: Subscription;
   private plugin_settings_message_subscription?: Subscription;
+  private provider_install_status_subscription?: Subscription;
 
   // Plugin settings
   plugin_settings_configs: [string, PluginSettings][] = [];
+  providerInstallStatuses: Record<string, ProviderInstallStatusMessage> = {};
 
   constructor(
     private configService: ConfigService,
@@ -101,6 +106,16 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
           }
         },
       );
+    this.provider_install_status_subscription = this.configService
+      .provider_install_status$
+      .subscribe((status) => {
+        if (status) {
+          this.providerInstallStatuses = {
+            ...this.providerInstallStatuses,
+            [status.provider_key]: status,
+          };
+        }
+      });
   }
 
   ngOnDestroy() {
@@ -110,6 +125,7 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
     if (this.plugin_settings_message_subscription) {
       this.plugin_settings_message_subscription.unsubscribe();
     }
+    this.provider_install_status_subscription?.unsubscribe();
   }
 
   async onConfigChange(partialConfig: Partial<Config>) {
@@ -159,6 +175,34 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
         this.snackBar.open("Error handling plugin button click", "OK", { duration: 5000 });
       });
     };
+  }
+
+  providerStatus(gridKey: string): ProviderInstallStatusMessage | undefined {
+    return this.providerInstallStatuses[gridKey];
+  }
+
+  providerButtonEnabled(gridKey: string): boolean {
+    const status = this.providerStatus(gridKey);
+    return !status || status.state === "failed";
+  }
+
+  providerStatusText(status: ProviderInstallStatusMessage): string {
+    switch (status.state) {
+      case "downloading":
+        return `Downloading — ${this.toMiB(status.downloaded_bytes)} / ${this.toMiB(status.total_bytes)} MB — ${status.percent}%`;
+      case "verifying":
+        return "Verifying…";
+      case "extracting":
+        return "Extracting…";
+      case "installed":
+        return "Installed ✓ — Restart required";
+      case "failed":
+        return `Installation failed${status.error ? ` — ${status.error}` : ""}`;
+    }
+  }
+
+  private toMiB(bytes: number): string {
+    return (bytes / (1024 * 1024)).toFixed(1);
   }
 
   // Legacy methods kept for backward compatibility

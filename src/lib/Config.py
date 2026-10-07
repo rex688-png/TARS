@@ -1,5 +1,7 @@
 from gc import enable
 import json
+import copy
+import tempfile
 from pathlib import Path
 import platform
 from threading import Semaphore
@@ -364,6 +366,51 @@ def to_event_reactions(source: dict[str, bool], hidden: list[str] | None = None)
 
 
 default_event_reactions = to_event_reactions(game_events, ["Idle"])
+
+TARS_ON_EVENTS = frozenset({
+    "LoadGame", "Shutdown", "NewCommander", "Died", "Resurrect",
+    "CombatEntered", "CombatExited", "LegalStateChanged", "BeingInterdicted",
+    "FighterDestroyed", "HeatDamage", "PVPKill", "ShieldState",
+    "CockpitBreached", "CrimeVictim", "SystemsShutdown", "SelfDestruct",
+    "EjectCargo", "ProspectedAsteroid", "RememberLimpets", "ApproachSettlement",
+    "DockingDenied", "DockingTimeout", "InDockingRange", "CrewLaunchFighter",
+    "LaunchFighter", "DockFighter", "FighterRebuilt", "RebootRepair",
+    "LowFuelWarningCleared", "LowFuelWarning", "HighGravityWarning",
+    "NoScoopableStars", "LaunchSRV", "DockSRV", "SRVDestroyed",
+    "LowOxygenWarning", "LowHealthWarning", "ShipyardBuy", "ClearImpound",
+    "PayBounties", "PayFines", "PayLegacyFines", "RedeemVoucher", "CarrierBuy",
+    "CarrierDecommission", "CarrierCancelDecommission", "CarrierNameChanged",
+    "CarrierJumpWarning", "CrewAssign", "CrewFire", "CrewHire",
+    "CrewMemberJoins", "CrewMemberQuits", "CrewMemberRoleChange",
+    "EndCrewSession", "JoinACrew", "KickCrewMember", "QuitACrew", "Promotion",
+    "Friends", "WingAdd", "WingInvite", "WingJoin", "WingLeave",
+    "AppliedToSquadron", "DisbandedSquadron", "InvitedToSquadron",
+    "JoinedSquadron", "KickedFromSquadron", "LeftSquadron", "SquadronCreated",
+    "SquadronDemotion", "SquadronPromotion", "PowerplayDefect", "PowerplayJoin",
+    "PowerplayLeave", "CodexEntry", "Screenshot", "quest", "MissionAbandoned",
+    "MissionAccepted", "MissionCompleted", "MissionFailed", "MissionRedirected",
+})
+
+TARS_HIDDEN_EVENTS = frozenset({
+    "Idle", "WeaponSelected", "BookDropship", "BookTaxi", "CancelDropship",
+    "CancelTaxi", "DropItems", "BackpackChange", "BuyMicroResources",
+    "DropShipDeploy",
+})
+
+
+def get_tars_event_reactions() -> dict[str, str]:
+    configured = TARS_ON_EVENTS | TARS_HIDDEN_EVENTS
+    unknown = configured - set(game_events)
+    if unknown:
+        raise ValueError(f"TARS factory reaction map contains unknown events: {sorted(unknown)}")
+    return {
+        event: (
+            "hidden" if event in TARS_HIDDEN_EVENTS
+            else "on" if event in TARS_ON_EVENTS
+            else "off"
+        )
+        for event in game_events
+    }
 
 
 default_allowed_actions: dict[str, bool] = {
@@ -883,6 +930,7 @@ class Character(TypedDict, total=False):
 
 class Config(TypedDict):
     config_version: int
+    tars_profile_version: int
     api_key: str
     llm_api_key: str
     llm_endpoint: str
@@ -1438,14 +1486,163 @@ def getTarsDefaultCharacter(config: Config, prompt_path: str) -> Character:
         character['name'] = 'TARS'
         character['character'] = prompt_file.read()
         character['personality_character_inspiration'] = 'TARS'
+        character['personality_preset'] = 'custom'
+        character['personality_confidence'] = 50
+        character['tts_voice'] = 'en-US-AvaMultilingualNeural'
+        character['tts_speed'] = '1.2'
+        character['event_reactions'] = get_tars_event_reactions()
+        character['tts_postprocessing'] = {
+            "volume": 1.0,
+            "effects": {
+                "chorus": {"enabled": False, "delay_ms": 25.0, "depth_ms": 12.0, "rate_hz": 0.25, "mix": 0.5},
+                "reverb": {"enabled": False, "mix": 0.2, "tail": 0.18},
+                "distortion": {"enabled": False, "drive": 2.0, "clip": 0.2, "mix": 1.0, "mode": "tanh"},
+                "lowpass": {"enabled": True, "cutoff": 6500.0},
+                "highpass": {"enabled": True, "cutoff": 140.0},
+                "glitch": {"enabled": False, "probability": 0.04, "repeat_min": 2, "repeat_max": 4, "min_seconds": 0.05, "max_seconds": 0.2, "detune_base": 4.0, "detune_peak": 12.0},
+                "time_pitch": {"enabled": False, "pitch_shift_semitones": 0.0, "time_stretch": 1.0},
+            },
+        }
         return character
 
 class TarsPackagingError(RuntimeError):
     pass
 
+
+def _tars_prompt_path() -> str:
+    prompt_path = os.environ.get('TARS_CANONICAL_PROMPT')
+    bundled_root = os.environ.get('TARS_BUNDLED_RESOURCES')
+    if not prompt_path and bundled_root:
+        prompt_path = os.path.join(bundled_root, 'prompt', 'prompt.txt')
+    if not prompt_path or not os.path.isfile(prompt_path):
+        raise TarsPackagingError('Packaged TARS canonical prompt is missing')
+    return prompt_path
+
+
+def _apply_tars_factory_defaults(config: Config, prompt_path: str) -> Config:
+    config.update({
+        'characters': [getTarsDefaultCharacter(config, prompt_path)],
+        'active_character_index': 0,
+        'llm_provider': 'openai',
+        'llm_model_name': 'gpt-6-luna',
+        'llm_reasoning_effort': 'none',
+        'llm_temperature': 0.3,
+        'agent_llm_provider': 'openai',
+        'agent_llm_model_name': 'gpt-6-luna',
+        'agent_llm_reasoning_effort': 'none',
+        'agent_llm_temperature': 0.3,
+        'agent_llm_max_tries': 7,
+        'vision_var': True,
+        'vision_provider': 'openai',
+        'vision_model_name': 'gpt-6-luna',
+        'stt_provider': 'plugin:b77dec4f-8993-4213-8d44-caf902dabc6d:parakeet-stt',
+        'stt_model_name': 'whisper-1',
+        'tts_provider': 'plugin:b7ddc677-0cfc-4081-af61-b2ebc2af5fe3:pocket-tts',
+        'tts_model_name': '',
+        'embedding_provider': 'plugin:88d3df68-d949-11f0-b7d9-e768d0e4b754:gemma-embedding',
+        'embedding_model_name': 'text-embedding-3-small',
+        'tars_profile_version': 1,
+    })
+    return config
+
+
+def _migrate_tars_profile(config: Config, prompt_path: str) -> bool:
+    """Apply product migrations once without resetting deliberate user choices."""
+    changed = False
+    version = int(config.get('tars_profile_version', 0) or 0)
+    canonical = getTarsDefaultCharacter(config, prompt_path)
+    characters = config.get('characters', [])
+    selected: Character | None = None
+    if characters:
+        active = config.get('active_character_index', 0)
+        if not isinstance(active, int) or active < 0 or active >= len(characters):
+            active = 0
+        candidate = characters[active]
+        if isinstance(candidate, dict) and candidate.get('name') == 'TARS':
+            selected = cast(Character, candidate)
+        else:
+            selected = next(
+                (cast(Character, item) for item in characters if isinstance(item, dict) and item.get('name') == 'TARS'),
+                None,
+            )
+            # A renamed/custom assistant can still contain the user's prompt.
+            # Only the untouched generic Default profile is replaced wholesale.
+            if selected is None and isinstance(candidate, dict) and candidate.get('name') != 'Default':
+                selected = cast(Character, candidate)
+
+    if selected is None:
+        selected = canonical
+        changed = True
+    else:
+        # Fill newly introduced character fields from the canonical profile while
+        # retaining the saved prompt, reaction choices, voice, avatar and tuning.
+        selected = cast(Character, merge_config_data(canonical, selected))
+
+    if selected.get('name') != 'TARS' or len(characters) != 1 or config.get('active_character_index') != 0:
+        changed = True
+    selected['name'] = 'TARS'
+    selected['personality_character_inspiration'] = 'TARS'
+    selected['personality_preset'] = 'custom'
+    config['characters'] = [selected]
+    config['active_character_index'] = 0
+
+    if version < 1:
+        legacy_openai_models = {'gpt-4.1-mini', 'gpt-5.4-nano', 'gpt-5.4-mini'}
+        for provider_key, model_key in (
+            ('llm_provider', 'llm_model_name'),
+            ('agent_llm_provider', 'agent_llm_model_name'),
+            ('vision_provider', 'vision_model_name'),
+        ):
+            if config.get(provider_key) == 'openai' and config.get(model_key) in legacy_openai_models:
+                config[model_key] = 'gpt-6-luna'
+                changed = True
+
+        # Explicit tuning is user data, even when it equals an old default.
+        # New installs receive 0.3/none; upgrades retain saved values.
+        config['tars_profile_version'] = 1
+        changed = True
+
+    return changed
+
+
+def set_tars_prompt(config: Config, prompt: str) -> Config:
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise ValueError('TARS prompt must not be empty')
+    config = copy.deepcopy(config)
+    characters = config.get('characters', [])
+    if not characters:
+        raise ValueError('TARS character is unavailable')
+    characters[0]['character'] = prompt
+    config['active_character_index'] = 0
+    save_config(config)
+    emit_message('config', config=config)
+    return config
+
+
+def reset_tars_prompt(config: Config, prompt_path: str | None = None) -> Config:
+    path = prompt_path or _tars_prompt_path()
+    return set_tars_prompt(config, Path(path).read_text(encoding='utf-8'))
+
+
+def handle_tars_prompt_command(config: Config, data: dict) -> Config:
+    try:
+        if data.get('type') == 'reset_tars_prompt':
+            updated = reset_tars_prompt(config)
+        else:
+            updated = set_tars_prompt(config, data.get('prompt', ''))
+        emit_message('tars_prompt_result', request_id=data.get('request_id'), success=True,
+                     prompt=updated['characters'][0]['character'])
+        return updated
+    except Exception as exc:
+        emit_message('tars_prompt_result', request_id=data.get('request_id'), success=False,
+                     error=f'Unable to save TARS prompt: {type(exc).__name__}')
+        return config
+
 def load_config() -> Config:
+    tars_profile = os.environ.get('TARS_RUNTIME_PROFILE') == '1'
     defaults: Config = {
         'config_version': 20,
+        'tars_profile_version': 0,
         'commander_name': "",
         'characters': [],
         'active_character_index': 0,  # -1 means using the default legacy character
@@ -1540,7 +1737,11 @@ def load_config() -> Config:
         "plugin_settings": {},
         "pngtuber": False
     }
-    defaults['characters'].append(getDefaultCharacter(defaults))
+    if tars_profile:
+        prompt_path = _tars_prompt_path()
+        _apply_tars_factory_defaults(defaults, prompt_path)
+    else:
+        defaults['characters'].append(getDefaultCharacter(defaults))
     
     try:
         print("Loading configuration file")
@@ -1568,30 +1769,43 @@ def load_config() -> Config:
         
         if not config_exists:
             print("Config file not found, creating default configuration")
-            prompt_path = os.environ.get('TARS_CANONICAL_PROMPT')
-            bundled_root = os.environ.get('TARS_BUNDLED_RESOURCES')
-            if not prompt_path and bundled_root:
-                prompt_path = os.path.join(bundled_root, 'prompt', 'prompt.txt')
-            if os.environ.get('TARS_RUNTIME_PROFILE') == '1':
-                if not prompt_path or not os.path.isfile(prompt_path):
-                    raise TarsPackagingError(
-                        'Packaged TARS canonical prompt is missing'
-                    )
-                defaults['characters'] = [getTarsDefaultCharacter(defaults, prompt_path)]
             save_config(defaults)
             return defaults
-            
+
         with open('config.json', 'r', encoding='utf-8') as file:
             data = json.load(file)
-            if data:
+        # Close the read handle before atomic replacement (required on Windows).
+        if data:
+            if tars_profile:
+                original = copy.deepcopy(data)
                 data = migrate(data)
-                merged_config = merge_config_data(defaults, data)
-                
-                print(f"Configuration loaded successfully. Commander: {merged_config.get('commander_name')}, Characters: {len(merged_config.get('characters', []))}, temp {merged_config.get('llm_temperature')}")
-                return cast(Config, merged_config)  # pyright: ignore[reportInvalidCast]
+                # Generic historical migrations must not rewrite explicit
+                # TARS provider, credential, tuning or character settings.
+                for key, value in original.items():
+                    if (key.endswith(('_provider', '_model_name', '_api_key', '_endpoint', '_temperature', '_reasoning_effort'))
+                            or key in ('api_key', 'agent_llm_max_tries', 'plugin_settings', 'allowed_actions')):
+                        data[key] = value
+                for index, character in enumerate(original.get('characters', [])):
+                    if character.get('name') != 'Default':
+                        match = next((item for item in data.get('characters', []) if item.get('name') == character.get('name')), None)
+                        if match is not None:
+                            for key, value in character.items():
+                                if key not in ('game_events', 'disabled_game_events'):
+                                    match[key] = value
             else:
-                print("Empty config file, using defaults")
-                return defaults
+                data = migrate(data)
+            saved_tars_profile_version = int(data.get('tars_profile_version', 0) or 0)
+            merged_config = merge_config_data(defaults, data)
+            if tars_profile:
+                merged_config['tars_profile_version'] = saved_tars_profile_version
+                if _migrate_tars_profile(merged_config, prompt_path):
+                    save_config(merged_config)
+
+            print(f"Configuration loaded successfully. Commander: {merged_config.get('commander_name')}, Characters: {len(merged_config.get('characters', []))}, temp {merged_config.get('llm_temperature')}")
+            return cast(Config, merged_config)  # pyright: ignore[reportInvalidCast]
+        else:
+            print("Empty config file, using defaults")
+            return defaults
     except TarsPackagingError:
         raise
     except Exception as e:
@@ -1603,8 +1817,17 @@ def load_config() -> Config:
 
 def save_config(config: Config):
     config_file = Path("config.json")
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=4)
+    # Keep a failed/interrupted write from truncating the last saved profile.
+    descriptor, temporary = tempfile.mkstemp(prefix='.config-', suffix='.tmp', dir=config_file.parent)
+    try:
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary, config_file)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def assign_ptt(config: Config, controller_manager, index: int = 0):
@@ -1784,6 +2007,15 @@ def cast_int_float(current: dict, data: dict) -> dict:
     return result
 
 def update_config(config: Config, data: dict) -> Config:
+    data = copy.deepcopy(data)
+    tars_profile = os.environ.get('TARS_RUNTIME_PROFILE') == '1'
+    explicit = copy.deepcopy(data)
+    # Provider defaults apply on a deliberate provider switch, never when a
+    # full saved config is imported or the current provider is re-emitted.
+    unchanged_providers = {}
+    for key in ('llm_provider', 'agent_llm_provider', 'vision_provider', 'stt_provider', 'tts_provider', 'embedding_provider'):
+        if tars_profile and key in data and data[key] == config.get(key):
+            unchanged_providers[key] = data.pop(key)
     incoming_version = data.get('config_version')
     if (
         isinstance(incoming_version, int)
@@ -1805,7 +2037,7 @@ def update_config(config: Config, data: dict) -> Config:
     if data.get("llm_provider"):
         if data["llm_provider"] == "openai":
             data["llm_endpoint"] = "https://api.openai.com/v1"
-            data["llm_model_name"] = "gpt-5.4-nano"
+            data["llm_model_name"] = "gpt-6-luna" if tars_profile else "gpt-5.4-nano"
             data["llm_api_key"] = ""
             data["tools_var"] = True
             data["llm_reasoning_effort"] = 'none'
@@ -1841,9 +2073,9 @@ def update_config(config: Config, data: dict) -> Config:
     if data.get("agent_llm_provider"):
         if data["agent_llm_provider"] == "openai":
             data["agent_llm_endpoint"] = "https://api.openai.com/v1"
-            data["agent_llm_model_name"] = "gpt-5.4-mini"
+            data["agent_llm_model_name"] = "gpt-6-luna" if tars_profile else "gpt-5.4-mini"
             data["agent_llm_api_key"] = ""
-            data["agent_llm_reasoning_effort"] = 'low'
+            data["agent_llm_reasoning_effort"] = 'none' if tars_profile else 'low'
 
         elif data["agent_llm_provider"] == "openrouter":
             data["agent_llm_endpoint"] = "https://openrouter.ai/api/v1/"
@@ -1881,7 +2113,7 @@ def update_config(config: Config, data: dict) -> Config:
     if data.get("vision_provider"):
         if data["vision_provider"] == "openai":
             data["vision_endpoint"] = "https://api.openai.com/v1"
-            data["vision_model_name"] = "gpt-5.4-nano"
+            data["vision_model_name"] = "gpt-6-luna" if tars_profile else "gpt-5.4-nano"
             data["vision_api_key"] = ""
             data["vision_var"] = True
 
@@ -2009,9 +2241,19 @@ def update_config(config: Config, data: dict) -> Config:
             data["embedding_api_key"] = ""
 
     # Now merge and save as before
+    if tars_profile:
+        data.update(unchanged_providers)
+        # Explicit imported values take priority over switch defaults. Do not
+        # erase credentials when changing provider (override remains editable).
+        for key, value in explicit.items():
+            if key.endswith(('_model_name', '_api_key', '_endpoint', '_temperature', '_reasoning_effort')):
+                data[key] = value
+        for key in ('llm_api_key', 'agent_llm_api_key', 'vision_api_key', 'stt_api_key', 'tts_api_key', 'embedding_api_key'):
+            if key not in explicit:
+                data[key] = config.get(key, '')
     new_config = cast(Config, {**config, **data})
-    emit_message("config", config=new_config)
     save_config(new_config)
+    emit_message("config", config=new_config)
     return new_config
 
 
@@ -2046,7 +2288,8 @@ def reset_game_events(config: Config, character_index: int|None=None) -> Config:
     if active_index >= 0 and "characters" in config:
         # Reset event reactions for the active character
         if active_index < len(config["characters"]):
-            config["characters"][active_index]["event_reactions"] = {k: v for k, v in default_event_reactions.items()}
+            defaults = get_tars_event_reactions() if os.environ.get('TARS_RUNTIME_PROFILE') == '1' else default_event_reactions
+            config["characters"][active_index]["event_reactions"] = dict(defaults)
     else:
         log('warn', 'Trying to reset character events that does exist')
     

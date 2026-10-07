@@ -1,16 +1,68 @@
-# COVAS: NEXT (E:D AI Integration)
+# TARS — Elite Dangerous AI copilot
 
-[Getting Started](https://ratherrude.github.io/Elite-Dangerous-AI-Integration/)
-|
-[Join our Discord](https://discord.gg/9c58jxVuAT)
-|
-[Download latest version](https://github.com/RatherRude/Elite-Dangerous-AI-Integration/releases)
+TARS is a voice-first companion for Elite Dangerous, built on the mature
+[COVAS:NEXT](https://github.com/RatherRude/Elite-Dangerous-AI-Integration) runtime.
+It combines conversation, game context, actions, search, memory and vision with
+one TARS identity. It is actively evolving; Windows is the primary application
+target. Physical Windows acceptance of the current stabilization build is still
+pending. This is **not an accepted Alpha 0.1 release**.
 
+## Install and configure
 
-[![A Day in the Life of a Bounty Hunter](./docs/screen/video_thumb.png)](https://www.youtube.com/watch?v=nvuCwwixvxw)
+Follow the [TARS installation guide](docs/tars-installation.md). Use only TARS
+MSI/portable packages from this repository's reviewed builds or
+[Releases](https://github.com/rex688-png/TARS/releases), when available. Actions
+artifacts are temporary test builds, not permanent user releases. TARS does not
+query or install upstream COVAS updates.
 
-This integration aims to provide a more intuitive and hands-free experience for commanders, making interactions with the game more seamless and efficient by allowing you to connect Elite:Dangerous with various services for Speech-to-Text, Text-to-Speech and Large Language Models. This creates a continuous conversation between you and the starship's computer via spoken word, as it should be in the 34th century.
+A clean installation uses `%APPDATA%\TARS`, one TARS character and the exact
+302-event factory reaction map. Main/agent/vision defaults are OpenAI GPT-6 Luna;
+you supply your own API credentials. OpenRouter is also supported for LLMs.
+Provider availability and usage costs depend on your account and hardware.
 
-The AI will react to game events, it will react to given commands not just in text but by emulating key presses or game actions. It can decide to take a screenshot or fetch information from Galnet or various APIs about topics, systems and their respective factions and stations.
+Local Parakeet STT, Pocket-TTS **0.0.17-tarsfix**, Supertonic TTS and Gemma
+Embedding are explicit opt-in downloads, not multi-gigabyte MSI payloads.
+Install them from the provider settings, wait for verification/extraction to
+finish, then restart. See [provider setup](docs/tars-alpha-provider-setup.md).
+Existing user settings and saved prompt edits are retained across upgrades;
+**Reset to TARS Default** is an explicit action.
 
-The integration is designed for every commander: it's amazing at roleplaying, can replace third-party websites, can press buttons on command or if necessary provide tutorials and will always assist commanders no matter their role or level of experience.
+## One TARS, six official behavior plugins
+
+The controlled, verified bundle contains TARSExplorer, TARSNavigator, TARSGalaxy,
+TARSChatter, TARSExpedition and TARSObservatoryBridge. They are internal parts of
+one assistant, not separate personas. Source and file hashes are recorded in
+[`vendor/tars-plugins/provenance.json`](vendor/tars-plugins/provenance.json).
+Arbitrary plugin directories are not enabled by the TARS profile.
+
+[Observatory Bridge](docs/elite-observatory-bridge.md) is optional. It consumes
+the external Observatory feed at `%LOCALAPPDATA%\TARS\observatory\events.jsonl`.
+A missing feed is non-fatal; the Observatory-side writer is not bundled here.
+
+## Development and verification
+
+Use Python 3.12 with `requirements.txt`, then `npm ci` and `npm ci --prefix ui`.
+Linux tests additionally need PortAudio development libraries and an X server
+(Xvfb is suitable for CI). Key checks:
+
+```sh
+python -m pytest --timeout 10 test -v --capture=no
+python tools/verify_tars_bundle.py
+node --test test/electron/*.test.js
+npm run test:frontend-foundation
+npm run build:ui
+```
+
+Windows CI builds and tests the Python executable, UI, Electron package and MSI.
+Linux validation remains useful but does not establish Windows/audio/Elite
+acceptance. See [profile behavior](docs/tars-product-profile.md) and
+[security guidance](SECURITY.md). Historical Task 1 evidence deliberately keeps
+its original five-plugin baseline and revision labels.
+
+## Attribution
+
+TARS builds on COVAS:NEXT by RatherRude and contributors. Its journal/Status
+pipeline, model/audio lifecycle, tools, memory, vision, overlays and other mature
+infrastructure remain essential. Preserve the LICENSE and upstream and
+third-party notices. Elite Dangerous belongs to Frontier Developments;
+this is an independent community project.

@@ -4,8 +4,6 @@ import { Injectable, NgZone } from "@angular/core";
 import { type UnlistenFn } from "@tauri-apps/api/event";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject, Observable, ReplaySubject } from "rxjs";
-import { MatDialog } from "@angular/material/dialog";
-import { UpdateDialogComponent } from "../components/update-dialog/update-dialog.component";
 import { environment } from "../../environments/environment";
 import { ScreenInfo } from "../models/screen-info";
 
@@ -391,11 +389,11 @@ export class TauriService {
     private currentIndex = 0;
     private startupErrorPendingExit = false;
     private restartTimer: number | null = null;
+    private activeProviderInstallations = new Set<string>();
     private transport: BackendTransport;
 
     constructor(
         private ngZone: NgZone,
-        private dialog: MatDialog,
         private snackBar: MatSnackBar,
     ) {
         this.transport = window.electronAPI
@@ -478,11 +476,12 @@ export class TauriService {
             (e) => this.processBackendLifecycle(e),
         );
         if (this.transport.isRemote) {
-            await this.requestRemoteRuntimeState();
+            await this.requestRuntimeState();
         }
     }
 
-    private async requestRemoteRuntimeState(): Promise<void> {
+    /** Request the existing backend's config and projection snapshot. */
+    public async requestRuntimeState(): Promise<void> {
         await this.transport.invoke("send_json_line", {
             jsonLine: JSON.stringify({
                 type: "init_overlay",
@@ -593,6 +592,14 @@ export class TauriService {
                 }
                 if (message.type === "startup_error") {
                     this.handleStartupError(message as StartupErrorMessage);
+                }
+                if (message.type === "provider_install_status") {
+                    const activeStates = new Set(["downloading", "verifying", "extracting"]);
+                    if (activeStates.has(message.state)) {
+                        this.activeProviderInstallations.add(message.provider_key);
+                    } else {
+                        this.activeProviderInstallations.delete(message.provider_key);
+                    }
                 }
                 this.pushMessage(message);
             } catch (error) {
@@ -741,97 +748,17 @@ export class TauriService {
         });
     }
 
-    // Update check functionality
-    public async checkForUpdates(): Promise<void> {
-        try {
-            // Get the current commit hash from the Tauri app
-            console.log("Commit hash:", this.commitHash);
-
-            // Skip update check for development builds
-            if (this.commitHash === "development") {
-                console.log("Development build, skipping update check");
-                return;
-            }
-
-            if (this.commitHash === "__COMMIT_HASH_PLACEHOLDER__") {
-                throw new Error(
-                    "__COMMIT_HASH_PLACEHOLDER__ placeholder not correctly resolved. Please check your build configuration.",
-                );
-            }
-
-            // Check for updates from GitHub API
-            console.log("Checking for updates...");
-            const response = await fetch(
-                "https://api.github.com/repos/RatherRude/Elite-Dangerous-AI-Integration/releases",
-            );
-
-            if (response.ok) {
-                const releaseData = await response.json();
-                const tagName = releaseData[0].tag_name;
-                const releaseUrl = releaseData[0].html_url;
-                const releaseName = releaseData[0].name;
-                console.log(
-                    "Latest release:",
-                    releaseName,
-                    "with tag:",
-                    tagName,
-                );
-
-                // Get the commit id for the release tag
-                const tagResponse = await fetch(
-                    `https://api.github.com/repos/RatherRude/Elite-Dangerous-AI-Integration/git/ref/tags/${tagName}`,
-                );
-
-                if (tagResponse.ok) {
-                    const tagData = await tagResponse.json();
-                    const releaseCommit = tagData.object.sha;
-                    console.log("Release commit hash:", releaseCommit);
-
-                    if (
-                        releaseCommit !== this.commitHash
-                    ) {
-                        console.log("Update available, showing prompt");
-                        this.askForUpdate(releaseName, releaseUrl);
-                    } else {
-                        console.log("Application is up to date");
-                    }
-                }
-            }
-        } catch (error) {
-            console.error("Error checking for updates:", error);
-        }
-    }
-
-    private askForUpdate(
-        releaseName: string = "A new release",
-        releaseUrl: string =
-            "https://github.com/RatherRude/Elite-Dangerous-AI-Integration/releases/",
-    ): void {
-        this.ngZone.run(() => {
-            const dialogRef = this.dialog.open(UpdateDialogComponent, {
-                width: "25rem",
-                maxWidth: "calc(100vw - 2rem)",
-                data: { releaseName, releaseUrl },
-            });
-
-            dialogRef.afterClosed().subscribe((result) => {
-                if (result) {
-                    // Open the release URL in a new browser window/tab
-                    const a = document.createElement("a");
-                    a.setAttribute("href", releaseUrl);
-                    a.setAttribute("target", "_blank");
-                    a.setAttribute("rel", "noopener noreferrer");
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }
-            });
-        });
-    }
-
     async onWindowClose(event: Event): Promise<void> {
         console.log('Window close requested, running callbacks');
-        //event.preventDefault();
+        if (this.activeProviderInstallations.size > 0) {
+            const providers = Array.from(this.activeProviderInstallations).join(", ");
+            const shouldClose = window.confirm(
+                `Provider installation is still active (${providers}). Closing now will cancel it. Keep TARS open until installation completes. Close anyway?`,
+            );
+            if (!shouldClose) {
+                return;
+            }
+        }
         // Promise all windowCloseCallbacks
         await Promise.all(this.windowCloseCallbacks.map(callback => callback(event)));
         // confirm close to electron

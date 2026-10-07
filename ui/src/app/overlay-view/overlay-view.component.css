@@ -95,7 +95,7 @@
   aspect-ratio: 1;
   grid-area: pngtuber;
   /* Default fallback image - now handled dynamically in TypeScript based on position */
-  background-image: url('../../assets/cn_avatar_default.svg');
+  background-image: url('../../assets/Obraz ChatGPT 28 wrz 2026, 21_39_52.png');
   background-size: 200%;
   background-position: 0% 0%;
   background-repeat: no-repeat;
@@ -123,6 +123,12 @@
   &.idle {
     background-position: 0% 0%;
   }
+}
+
+/* Preserve the original TARS image and its aspect ratio in every activity state. */
+.overlay-pngtuber.canonical-tars-avatar {
+  background-size: contain;
+  background-position: center;
 }
 
 /* Inline SVG: state classes on this wrapper drive selectors inside the SVG (e.g. .listening .eye-base) */

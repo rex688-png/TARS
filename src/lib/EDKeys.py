@@ -213,6 +213,7 @@ class EDKeys:
 
         emit_message(
             "keybinds",
+            bindings_file=self.latest_bindings_file,
             missing=self.missing_keys,
             collisions=collisions,
             unsupported=self.unsupported_keys,

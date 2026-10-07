@@ -1,6 +1,15 @@
 name: Build and Test Executable
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
   contents: read
@@ -11,10 +20,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -27,6 +36,7 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest --timeout 10 test -v --capture=no
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tools/verify_tars_bundle.py
 
       - name: Install pyinstaller
@@ -43,6 +53,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: TARS_BACKEND_v${{ github.sha }}
           path: ./dist
         # output the upload URL for later use
@@ -54,7 +65,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -63,24 +74,27 @@ jobs:
           path: dist
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: "npm"
           cache-dependency-path: ui/package-lock.json
 
       - name: Setup Python for package validation
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Install electron dependencies
         working-directory: .
-        run: npm run install:electron
+        run: npm ci
 
       - name: Install frontend dependencies
         working-directory: .
-        run: npm run install:ui
+        run: npm ci --prefix ui
+
+      - name: Run Task 6A frontend foundation tests
+        run: npm run test:frontend-foundation
 
       - name: Replace Commit HASH in environment.prod.ts
         working-directory: ui
@@ -96,8 +110,8 @@ jobs:
         env:
           COMMIT_HASH: ${{ github.sha }}
 
-      - name: Run Electron Task 3 tests
-        run: node --test test/electron/tars-runtime-profile.test.js
+      - name: Run Electron regression tests
+        run: node --test test/electron/*.test.js
 
       - name: Build Electron App
         working-directory: .
@@ -106,6 +120,7 @@ jobs:
       - name: Validate clean packaged TARS profile
         run: |
           python tools/verify_tars_bundle.py --bundle .\dist\win-unpacked\resources\tars-plugins
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python e2e/test_TarsPackagedInstall.py .\dist\win-unpacked
 
       - name: Create simple zip with only required files
@@ -122,18 +137,23 @@ jobs:
           $Shortcut = $WshShell.CreateShortcut("TARS.lnk")
           $Shortcut.TargetPath = "%COMSPEC% /C start .\files\TARS.exe"
           $Shortcut.Save()
+          # A real portable ZIP can also be attached to a reviewed draft release.
+          7z a "..\TARS-portable-$SHORT_HASH.zip" .\*
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: TARS_MSI_v${{ github.sha }}
           path: .\dist\*.msi
 
       - name: Upload simple zip file
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: TARS_PORTABLE_v${{ github.sha }}
-          path: .\simple-zip
+          path: .\TARS-portable-*.zip
 
   e2e:
     name: E2E Tests
@@ -143,7 +163,7 @@ jobs:
     needs: pyinstaller-build
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -173,7 +193,18 @@ jobs:
           name: TARS_MSI_v${{ github.sha }}
           path: release-assets
 
+      - name: Download portable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TARS_PORTABLE_v${{ github.sha }}
+          path: release-assets
+
+      - name: Generate release checksums
+        working-directory: release-assets
+        run: sha256sum *.msi *.zip > SHA256SUMS.txt
+
       - name: Create or update draft release
+        # No release is published automatically; physical acceptance is separate.
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

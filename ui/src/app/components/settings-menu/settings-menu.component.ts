@@ -16,7 +16,6 @@ import {
     AdvancedSettingsFocusTarget,
 } from "../advanced-settings/advanced-settings.component";
 import { ActionsSettingsComponent } from "../actions-settings/actions-settings.component";
-import { CharacterSettingsComponent } from "../character-settings/character-settings.component";
 import { EventReactionsSettingsComponent } from "../event-reactions-settings/event-reactions-settings.component";
 import {
     GeneralSettingsComponent,
@@ -64,7 +63,6 @@ import { QuestsSettingsComponent } from "../quests-settings/quests-settings.comp
         PluginSettingsComponent,
         AdvancedSettingsComponent,
         ActionsSettingsComponent,
-        CharacterSettingsComponent,
         EventReactionsSettingsComponent,
         GeneralSettingsComponent,
         ModelUsageAnalyticsComponent,
@@ -123,7 +121,7 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
                 this.focusAdvancedSetting("commander-name");
                 break;
             case "character":
-                this.selectedIndex = 1;
+                this.selectedIndex = 0;
                 break;
             case "audio-input":
                 this.focusAdvancedSetting("stt-input-device");
@@ -135,13 +133,13 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
                 this.focusAdvancedSetting("overlay-mode");
                 break;
             case "actions":
-                this.selectedIndex = 3;
+                this.selectedIndex = 2;
                 break;
         }
     }
 
     private focusAdvancedSetting(target: AdvancedSettingsFocusTarget): void {
-        this.selectedIndex = 4;
+        this.selectedIndex = 3;
         window.setTimeout(() => {
             this.advancedSettings?.focusSetting(target);
         }, 100);
@@ -197,7 +195,7 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
 
     async onConfigChange(partialConfig: Partial<Config>) {
         if (this.config) {
-            console.log("Sending config update to backend:", partialConfig);
+            // Backups/config updates can contain API keys; never log their values.
 
             try {
                 await this.configService.changeConfig(partialConfig);
