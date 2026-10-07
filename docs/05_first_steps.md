@@ -31,7 +31,7 @@ For a full list of actions and their required keyboard buttons, see the [Actions
 
 Avatars allow you to give the AI a face. You provide a 2×2 grid with equal sections; each section shows the same styled character in one of four attitudes:
 
-| <img src="../ui/src/assets/cn_avatar_default.png" alt="Default avatar grid" width="120" /> | **Top-left:** the character is listening<br>**Top-right:** the character is speaking<br>**Bottom-left:** the character is thinking<br>**Bottom-right:** the character is performing searches or actions |
+| <img src="../ui/src/assets/Obraz%20ChatGPT%2028%20wrz%202026,%2021_39_52.png" alt="Default TARS avatar grid" width="120" /> | **Top-left:** TARS is listening<br>**Top-right:** TARS is speaking<br>**Bottom-left:** TARS is thinking<br>**Bottom-right:** TARS is performing searches or actions |
 |----------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 
 ## Plugins

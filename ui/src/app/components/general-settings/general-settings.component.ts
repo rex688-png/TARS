@@ -102,7 +102,7 @@ export class GeneralSettingsComponent implements OnDestroy {
     pluginSTTProviders: ModelProviderDefinition[] = [];
     pluginTTSProviders: ModelProviderDefinition[] = [];
     pluginEmbeddingProviders: ModelProviderDefinition[] = [];
-    avatarUrl = "assets/cn_avatar_default.svg";
+    avatarUrl = "assets/Obraz ChatGPT 28 wrz 2026, 21_39_52.png";
     sanitizedAvatarPreviewSvg: SafeHtml | null = null;
     avatarPreviewStateClass: AvatarPreviewStateClass = "listening";
     private configSubscription: Subscription;
