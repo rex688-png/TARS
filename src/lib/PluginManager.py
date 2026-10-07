@@ -165,7 +165,7 @@ class PluginManager:
         return self
 
     def load_tars_plugins(self) -> Self:
-        """Load approved providers and the required TARS behavior plugins."""
+        """Load approved providers, TARS behavior plugins, and first-party integrations."""
         required: list[tuple[str, str, PluginManifest]] = []
         missing: list[str] = []
         for folder_name in self.TARS_PLUGIN_ORDER:
@@ -200,6 +200,7 @@ class PluginManager:
                 ) from exc
             module_name = f"{manifest.guid}.{manifest.entrypoint[:-3]}"
             self.plugin_list[module_name] = plugin
+        self.load_tars_integrations()
         return self
 
     def load_tars_provider_plugins(self) -> None:
@@ -214,6 +215,22 @@ class PluginManager:
                 "version": "1.0.0",
                 "repository": ""
             })))
+
+    def load_tars_integrations(self) -> None:
+        """Load first-party integrations owned by the main TARS runtime."""
+        from plugins.TARSObservatoryBridge import (
+            TARS_OBSERVATORY_BRIDGE_GUID,
+            TARS_OBSERVATORY_BRIDGE_MANIFEST,
+            TARSObservatoryBridge,
+        )
+
+        manifest = PluginManifest(json.dumps(TARS_OBSERVATORY_BRIDGE_MANIFEST))
+        bridge = TARSObservatoryBridge(manifest)
+        bridge.settings = self.config.get('plugin_settings', {}).get(
+            TARS_OBSERVATORY_BRIDGE_GUID, {}
+        )
+        self.builtin_plugin_guids.add(TARS_OBSERVATORY_BRIDGE_GUID)
+        self.plugin_list[TARS_OBSERVATORY_BRIDGE_GUID] = bridge
     
     def load_default_plugins(self):
         """Load default built-in plugins."""
@@ -427,7 +444,7 @@ class PluginManager:
         
         Args:
             plugin_guid: The GUID of the plugin
-            provider_id: The provider's id within the plugin
+            provider_id: The provider ID within the plugin
             
         Returns:
             The provider definition, or None if not found
