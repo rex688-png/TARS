@@ -31,6 +31,15 @@ def normalize_spoken_quantities(text: str) -> str:
             unit = "light-seconds"
         elif unit.lower() == "cr":
             unit = "credits"
+        if number == 1 and decimal is None:
+            unit = {
+                "credits": "credit",
+                "tonnes": "tonne",
+                "tons": "ton",
+                "jumps": "jump",
+                "light-years": "light-year",
+                "light-seconds": "light-second",
+            }.get(unit.lower(), unit)
         return f"{spoken} {unit}"
 
     return _QUANTITY.sub(replace, text)

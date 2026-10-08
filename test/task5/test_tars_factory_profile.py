@@ -296,6 +296,30 @@ def test_empty_prompt_cannot_destroy_saved_value(monkeypatch, tmp_path):
     assert load_config()["characters"][0]["character"] == config["characters"][0]["character"]
 
 
+def test_corrupted_config_uses_factory_fallback_without_overwriting_file(monkeypatch, tmp_path):
+    broken = tmp_path / "config.json"
+    broken.write_text('{"config_version": 20, "api_key":', encoding="utf-8")
+    config, _ = _load_tars(monkeypatch, tmp_path)
+    assert [character["name"] for character in config["characters"]] == ["TARS"]
+    assert config["api_key"] == ""
+    assert broken.read_text(encoding="utf-8") == '{"config_version": 20, "api_key":'
+
+
+def test_partial_saved_config_keeps_tars_defaults_and_explicit_choices(monkeypatch, tmp_path):
+    (tmp_path / "config.json").write_text(json.dumps({
+        "config_version": 20,
+        "tars_profile_version": 1,
+        "api_key": "fixture-api-key",
+        "llm_model_name": "deliberate-model",
+        "input_device_name": "Fixture microphone",
+    }), encoding="utf-8")
+    config, _ = _load_tars(monkeypatch, tmp_path)
+    assert config["api_key"] == "fixture-api-key"
+    assert config["llm_model_name"] == "deliberate-model"
+    assert config["input_device_name"] == "Fixture microphone"
+    assert config["tts_provider"] != ""
+
+
 def test_migration_closes_read_handle_before_atomic_windows_replace(monkeypatch, tmp_path):
     config, _ = _load_tars(monkeypatch, tmp_path)
     config["tars_profile_version"] = 0

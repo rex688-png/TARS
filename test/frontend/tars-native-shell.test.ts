@@ -9,6 +9,8 @@ import { viewForUiCommand } from "../../ui/src/app/main-view/tars-shell-navigati
 import { ChatService } from "../../ui/src/app/services/chat.service";
 import { eliteDataStatus, tarsActivityStatus } from "../../ui/src/app/main-view/tars-status";
 import { shouldFollowConversation } from "../../ui/src/app/components/chat-container/chat-scroll";
+import { toolPresentation, visibleInNormalChat } from "../../ui/src/app/components/chat-container/chat-presentation";
+import { LoggingService } from "../../ui/src/app/services/logging.service";
 
 test("legacy UI commands map into the persistent four-view shell", () => {
     assert.equal(viewForUiCommand("tars", "search"), "tars");
@@ -51,6 +53,36 @@ test("search cards follow conversation order and internal queries stay out of no
     output$.next({ type: "chat", role: "covas", message: "Petrie's Pride has outfitting.", index: 4, timestamp: "2026-10-08T12:00:03Z" });
     assert.deepEqual(chat.getCurrentChat().map(entry => entry.role), ["cmdr", "search_result", "covas"]);
     assert.equal(chat.getCurrentChat()[1].searchDetails, "**Petrie's Pride**\nOutfitting");
+});
+
+test("raw actions stay diagnostic while results and transient activity stay in Chat", () => {
+    const raw = { type: "chat", role: "action", message: "showUI" } as any;
+    const transient = { type: "chat", role: "action", message: "Finding nearby stations…", synthetic: true, processingText: "In progress" } as any;
+    const result = { type: "chat", role: "search_result", message: "Search result", searchDetails: "Station found" } as any;
+    assert.equal(toolPresentation(raw), "diagnostic");
+    assert.equal(visibleInNormalChat(raw), false);
+    assert.equal(toolPresentation(transient), "transient");
+    assert.equal(visibleInNormalChat(transient), true);
+    assert.equal(toolPresentation(result), "result");
+    assert.equal(visibleInNormalChat(result), true);
+
+    const output$ = new Subject<any>();
+    const diagnostics = new LoggingService({ output$ } as never);
+    output$.next({ type: "event", timestamp: "2026-01-01T00:00:00Z", event: { kind: "tool_processing", name: "showUI", content: { query: "internal" } } });
+    assert.match(diagnostics.getCurrentLogs()[0].message, /showUI/);
+});
+
+test("a failed search remains an inline result and does not navigate", () => {
+    const output$ = new Subject<any>();
+    const chat = new ChatService({ output$ } as never);
+    output$.next({ type: "chat", role: "cmdr", message: "Find a station", index: 1, timestamp: "2026-01-01T00:00:00Z" });
+    output$.next({ type: "event", index: 2, timestamp: "2026-01-01T00:00:01Z", event: {
+        kind: "tool", request: [{ function: { name: "web_search_agent" } }],
+        results: [{ content: "Station lookup unavailable; retry later." }],
+    } });
+    assert.deepEqual(chat.getCurrentChat().map(entry => entry.role), ["cmdr", "search_result"]);
+    assert.match(chat.getCurrentChat()[1].searchDetails!, /unavailable/);
+    assert.equal(viewForUiCommand("tars", "search"), "tars");
 });
 
 test("Elite status does not mistake cached state for live telemetry", () => {

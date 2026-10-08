@@ -1,0 +1,21 @@
+{"timestamp":"2026-01-01T12:00:00Z","event":"Fileheader","part":1,"language":"English/UK","gameversion":"4.2"}
+{"timestamp":"2026-01-01T12:00:01Z","event":"Commander","FID":"F0000000","Name":"Fixture Commander"}
+{"timestamp":"2026-01-01T12:00:02Z","event":"LoadGame","Commander":"Fixture Commander","Ship":"explorer_nx","Ship_Localised":"Caspian Explorer","ShipName":"eXPY","GameMode":"Open"}
+{"timestamp":"2026-01-01T12:00:03Z","event":"Loadout","Ship":"explorer_nx","ShipName":"eXPY","ShipIdent":"FIX-01","UnladenMass":450.0,"CargoCapacity":16,"FuelCapacity":{"Main":32.0,"Reserve":0.63},"MaxJumpRange":48.2,"Modules":[]}
+{"timestamp":"2026-01-01T12:00:04Z","event":"Location","StarSystem":"Sol","SystemAddress":10477373803,"StarPos":[0.0,0.0,0.0],"Docked":true,"StationName":"Galileo"}
+{"timestamp":"2026-01-01T12:00:05Z","event":"Docked","StationName":"Galileo","StationType":"Coriolis","StarSystem":"Sol"}
+{"timestamp":"2026-01-01T12:01:00Z","event":"Undocked","StationName":"Galileo","StarSystem":"Sol"}
+{"timestamp":"2026-01-01T12:01:10Z","event":"SupercruiseEntry","StarSystem":"Sol"}
+{"timestamp":"2026-01-01T12:01:20Z","event":"NavRoute","Route":[{"StarSystem":"Sol","SystemAddress":10477373803,"StarClass":"G"},{"StarSystem":"Alpha Centauri","SystemAddress":12345,"StarClass":"G"}]}
+{"timestamp":"2026-01-01T12:02:00Z","event":"StartJump","JumpType":"Hyperspace","StarSystem":"Alpha Centauri"}
+{"timestamp":"2026-01-01T12:02:30Z","event":"FSDJump","StarSystem":"Alpha Centauri","SystemAddress":12345,"StarPos":[3.03,-0.01,3.16],"JumpDist":4.37,"FuelUsed":2.1,"FuelLevel":24.7}
+{"timestamp":"2026-01-01T12:03:00Z","event":"FSSDiscoveryScan","Progress":0.5,"BodyCount":4,"NonBodyCount":1}
+{"timestamp":"2026-01-01T12:03:10Z","event":"Scan","ScanType":"Detailed","BodyName":"Alpha Centauri A 1","BodyID":1,"PlanetClass":"Water world","TerraformState":"Terraformable"}
+{"timestamp":"2026-01-01T12:03:20Z","event":"SAAScanComplete","BodyName":"Alpha Centauri A 1","BodyID":1,"ProbesUsed":5,"EfficiencyTarget":6}
+{"timestamp":"2026-01-01T12:03:30Z","event":"FSSBodySignals","BodyName":"Alpha Centauri A 1","BodyID":1,"SystemAddress":12345,"Signals":[{"Type":"$SAA_SignalType_Biological;","Type_Localised":"Biological","Count":2}]}
+{"timestamp":"2026-01-01T12:04:00Z","event":"SupercruiseExit","StarSystem":"Alpha Centauri","Body":"Alpha Centauri A 1","BodyType":"Planet"}
+{"timestamp":"2026-01-01T12:04:10Z","event":"Touchdown","PlayerControlled":true,"Latitude":2.5,"Longitude":-3.1,"NearestDestination":"Alpha Centauri A 1"}
+{"timestamp":"2026-01-01T12:04:20Z","event":"LaunchSRV","SRVType":"testbuggy","SRVType_Localised":"Scarab","Loadout":"starter","PlayerControlled":true}
+{"timestamp":"2026-01-01T12:04:30Z","event":"ScanOrganic","ScanType":"Log","Genus":"$Codex_Ent_Bacterial_Genus_Name;","Species":"$Codex_Ent_Bacterial_01_Name;","Species_Localised":"Bacterium Acies"}
+{"timestamp":"2026-01-01T12:04:40Z","event":"ScanOrganic","ScanType":"Sample","Species":"$Codex_Ent_Bacterial_01_Name;","Species_Localised":"Bacterium Acies"}
+{"timestamp":"2026-01-01T12:04:50Z","event":"NavRouteClear"}

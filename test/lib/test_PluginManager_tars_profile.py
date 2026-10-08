@@ -74,6 +74,31 @@ def test_tars_profile_fails_clearly_when_required_plugin_is_missing(monkeypatch,
         manager.load_plugins()
 
 
+def test_plugin_hook_exception_does_not_skip_later_plugins(tmp_path):
+    manager = PluginManager({}, tars_profile=True, plugin_folder=str(tmp_path))
+    calls = []
+    def fail_start(_helper):
+        calls.append("failed-start")
+        raise RuntimeError("fixture failure")
+    def fail_stop(_helper):
+        calls.append("failed-stop")
+        raise RuntimeError("fixture failure")
+    manager.plugin_list = {
+        "broken": SimpleNamespace(
+            plugin_manifest=SimpleNamespace(name="Broken fixture"),
+            on_chat_start=fail_start, on_chat_stop=fail_stop,
+        ),
+        "healthy": SimpleNamespace(
+            plugin_manifest=SimpleNamespace(name="Healthy fixture"),
+            on_chat_start=lambda _helper: calls.append("healthy-start"),
+            on_chat_stop=lambda _helper: calls.append("healthy-stop"),
+        ),
+    }
+    manager.on_chat_start(object())
+    manager.on_chat_stop(object())
+    assert calls == ["failed-start", "healthy-start", "failed-stop", "healthy-stop"]
+
+
 def test_tars_profile_ignores_unapproved_plugin_folder(monkeypatch, tmp_path):
     monkeypatch.setenv("TARS_PROVIDER_ROOT", str(tmp_path / "providers"))
     for position, name in enumerate(PluginManager.TARS_PLUGIN_ORDER):
