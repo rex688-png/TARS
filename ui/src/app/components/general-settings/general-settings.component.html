@@ -600,6 +600,7 @@
                                             <mat-hint>Saved locally in your TARS profile. Changes apply to the next TARS session.</mat-hint>
                                         </mat-form-field>
                                         <div class="tars-prompt-actions">
+                                            <span aria-live="polite">{{ promptBusy ? 'Saving…' : promptDirty ? 'Unsaved changes' : 'Saved' }}</span>
                                             <button mat-raised-button color="primary" type="button"
                                                     [disabled]="promptBusy || !promptDirty || !promptDraft.trim()"
                                                     (click)="saveTarsPrompt()">Save</button>

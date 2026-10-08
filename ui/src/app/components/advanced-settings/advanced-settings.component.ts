@@ -324,16 +324,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
     async setPluginProviderSetting(pluginGuid: string, key: string, value: any): Promise<void> {
         if (!this.config) return;
         
-        const currentPluginSettings = this.config.plugin_settings?.[pluginGuid] ?? {};
-        const updatedPluginSettings = {
-            ...this.config.plugin_settings,
-            [pluginGuid]: {
-                ...currentPluginSettings,
-                [key]: value
-            }
-        };
-        
-        await this.onConfigChange({ plugin_settings: updatedPluginSettings });
+        await this.onConfigChange({ plugin_settings: { [pluginGuid]: { [key]: value } } });
     }
 
     // Create a getValue function for a specific plugin (for use with SettingsGridComponent)

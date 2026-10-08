@@ -11,8 +11,8 @@
       <button type="button" [class.active]="selectedView === 'settings'" [attr.aria-current]="selectedView === 'settings' ? 'page' : null" (click)="selectView('settings')"><mat-icon>tune</mat-icon><span>Settings</span></button>
     </nav>
     <div class="rail-footer">
-      <span class="state-dot" [class.online]="runMode === 'running'"></span>
-      <span>TARS {{ runMode === 'running' ? 'ONLINE' : runMode === 'error' ? 'ERROR' : 'OFFLINE' }}</span>
+      <span class="state-dot" [class.online]="eliteDataLabel === 'ELITE LIVE'"></span>
+      <span>{{ eliteDataLabel }}</span>
     </div>
   </aside>
 
@@ -22,7 +22,7 @@
         <div><p class="eyebrow">COPILOT / ELITE DANGEROUS</p><h1>TARS</h1></div>
         <div class="phase" aria-live="polite">
           @if (runtime.interactionState$ | async; as interaction) {
-            <span class="state-dot" [class.online]="runMode === 'running'"></span>{{ runMode === 'running' ? interaction.phase : runMode }}
+            <span class="state-dot" [class.online]="runMode === 'running'"></span>{{ activityLabel(interaction.phase) }}
           }
         </div>
       </header>
@@ -93,7 +93,7 @@
             <div class="health-list">
               @for (item of health; track item.component) {
                 @if (item.component === 'backend' || item.component === 'models' || item.component === 'stt' || item.component === 'tts' || item.component === 'memory' || item.component === 'elite-journal') {
-                  <div><span>{{ item.component }}</span><strong [class.ready]="item.status === 'ready'">{{ item.status }}</strong></div>
+                  <div><span>{{ item.component }}</span><strong [class.ready]="item.status === 'ready'">{{ item.status === 'unknown' && item.evidence === 'configured' ? 'CONFIGURED' : item.status === 'busy' ? 'STARTING' : item.status }}</strong></div>
                 }
               }
             </div>
@@ -113,9 +113,10 @@
       @if (selectedView === 'storage') { <app-tars-storage></app-tars-storage> }
     </section>
     <section class="view-panel settings-panel" data-view="settings" [class.is-hidden]="selectedView !== 'settings'" aria-label="Settings and diagnostics">
-      <app-settings-menu (questEditorVisibilityChange)="onQuestEditorVisibilityChange($event)"></app-settings-menu>
-      <div class="secondary-tools">
+      <app-settings-menu (questEditorVisibilityChange)="onQuestEditorVisibilityChange($event)" (categoryChange)="settingsCategory = $event"></app-settings-menu>
+      @if (settingsCategory === 4) { <div class="secondary-tools">
         <h2>DIAGNOSTICS</h2>
+        <p>Build: {{ commitHash }}</p>
         <details (toggle)="diagnosticsOpen = $any($event.target).open"><summary>Manual Elite actions</summary>
           @if (diagnosticsOpen) {
             @if (runMode === 'running') { <app-actions-container></app-actions-container> }
@@ -128,7 +129,7 @@
         <details (toggle)="logsOpen = $any($event.target).open"><summary>Session logs</summary>
           @if (logsOpen) { <app-log-container></app-log-container> }
         </details>
-      </div>
+      </div> }
     </section>
   </div>
 </main>

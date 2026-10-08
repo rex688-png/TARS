@@ -19,6 +19,10 @@ import { ProjectionsService } from "../services/projections.service";
 import { TarsApplicationCoordinator, TarsApplicationState } from "../services/tars-application-coordinator.service";
 import { TarsRuntimeFacade } from "../services/tars-runtime-facade.service";
 import { UIService } from "../services/ui.service";
+import { EventService } from "../services/event.service";
+import { TauriService } from "../services/tauri.service";
+import { eliteDataStatus, tarsActivityStatus } from "./tars-status";
+import { interval } from "rxjs";
 import { TarsShellView, viewForUiCommand } from "./tars-shell-navigation";
 
 
@@ -39,6 +43,7 @@ export class MainViewComponent implements OnInit, OnDestroy {
     readonly keybinds$ = this.configService.keybinds$;
     readonly avatarUrl = "assets/Obraz%20ChatGPT%2028%20wrz%202026%2C%2021_39_52.png";
     readonly logoUrl = "assets/tars-logo-horizontal.svg";
+    readonly commitHash = this.tauriService.commitHash;
     selectedView: TarsShellView = "tars";
     runMode: TarsApplicationState = "starting";
     usageDisclaimerAccepted = false;
@@ -46,7 +51,11 @@ export class MainViewComponent implements OnInit, OnDestroy {
     diagnosticsOpen = false;
     logbookOpen = false;
     logsOpen = false;
+    settingsCategory = 0;
     isInCombat = false;
+    eliteDataLabel: "ELITE LIVE" | "LAST KNOWN" | "ELITE OFFLINE" = "ELITE OFFLINE";
+    private lastLiveEliteAt: number | null = null;
+    private hasEliteContext = false;
     private readonly subscriptions = new Subscription();
 
     constructor(
@@ -56,6 +65,8 @@ export class MainViewComponent implements OnInit, OnDestroy {
         private readonly projectionsService: ProjectionsService,
         private readonly policyService: PolicyService,
         private readonly uiService: UIService,
+        private readonly eventService: EventService,
+        private readonly tauriService: TauriService,
     ) {}
 
     ngOnInit(): void {
@@ -72,6 +83,19 @@ export class MainViewComponent implements OnInit, OnDestroy {
         this.subscriptions.add(this.projectionsService.inCombat$.subscribe((value) => {
             this.isInCombat = typeof value === "boolean" ? value : Boolean(value?.InCombat || value?.combat || value?.active);
         }));
+        this.subscriptions.add(this.runtime.eliteContext$.subscribe((context) => {
+            this.hasEliteContext = context.available;
+            this.refreshEliteDataLabel();
+        }));
+        this.subscriptions.add(this.eventService.events$.subscribe((events) => {
+            const recent = events.slice().reverse().find((entry) => entry.event.kind === "game" && !entry.event.historic);
+            if (recent?.event.kind === "game") {
+                const eventTime = Date.parse(recent.event.content.timestamp || recent.event.timestamp);
+                this.lastLiveEliteAt = Number.isFinite(eventTime) ? eventTime : null;
+                this.refreshEliteDataLabel();
+            }
+        }));
+        this.subscriptions.add(interval(15_000).subscribe(() => this.refreshEliteDataLabel()));
         this.subscriptions.add(this.uiService.changeUI$.subscribe((message) => {
             if (message?.scroll) {
                 this.scrollCurrentView(message.scroll);
@@ -83,6 +107,12 @@ export class MainViewComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void { this.subscriptions.unsubscribe(); }
+
+    private refreshEliteDataLabel(): void {
+        this.eliteDataLabel = eliteDataStatus(this.hasEliteContext, this.lastLiveEliteAt);
+    }
+
+    activityLabel(phase: string): string { return tarsActivityStatus(this.runMode, phase); }
 
     selectView(view: TarsShellView): void { this.selectedView = view; }
 

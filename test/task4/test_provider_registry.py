@@ -1,4 +1,5 @@
 import hashlib
+import ast
 import io
 import json
 import os
@@ -22,6 +23,18 @@ from lib.TarsProviderRegistry import (
     install_provider,
     installed_provider_path,
 )
+
+
+def test_pocket_tts_fresh_thread_default_is_two_without_migrating_saved_value():
+    source = (REPO_ROOT / "src" / "tars_provider_overlays" / "pocket-tts-0.0.17-tarsfix"
+              / "cn-plugin-pocket-tts.py").read_text(encoding="utf-8")
+    assignments = [node for node in ast.parse(source).body
+                   if isinstance(node, ast.Assign)
+                   and any(isinstance(target, ast.Name) and target.id == "DEFAULT_ONNX_THREADS"
+                           for target in node.targets)]
+    assert len(assignments) == 1
+    assert ast.literal_eval(assignments[0].value) == 2
+    assert 'settings.get("onnx_threads", DEFAULT_ONNX_THREADS)' in source
 
 
 def _archive(spec_values: dict[str, str], extra_name: str = "provider.py") -> bytes:
@@ -64,7 +77,7 @@ def test_registry_pins_controlled_windows_releases():
     assert pocket.archive_source_revision == "ba1b2e51913967df5f09b2ec923ecaa243da8b1a"
     assert dict(pocket.overlay_files) == {
         "TARS_FIX_NOTES.txt": "a8a51bfd38836d3afebd917d097d0e89a159c7d9c3a6a193d449683e0a4c6a2c",
-        "cn-plugin-pocket-tts.py": "ae9e5b64a462135c1e5430b06bce0c2e856db31f8e4251113e54cca19c59de80",
+        "cn-plugin-pocket-tts.py": "363e52fd72048840a05231f56f540d9fd7aebbcf05ec19745afdd1577100dd42",
         "manifest.json": "61ecfb5ecd25bf7ef11ce3e30106ae0b8f50b52403bd1ddbfcf4201e3583fdc3",
     }
 

@@ -8,6 +8,7 @@ export interface ChatMessage extends BaseMessage {
     message: string;
     processingText?: string;
     synthetic?: boolean;
+    searchDetails?: string;
     tool_call_id?: string;
     actor_id?: string;
     actor_name?: string;
@@ -86,7 +87,16 @@ export class ChatService {
             const webSearchRequestIndex = toolEvent.request.findIndex((r: any) => r.function?.name === 'web_search_agent');
             
             if (webSearchRequestIndex !== -1 && toolEvent.results[webSearchRequestIndex]) {
-                this.searchResultSubject.next(toolEvent.results[webSearchRequestIndex]);
+                const result = toolEvent.results[webSearchRequestIndex];
+                const details = typeof result.content === 'string' ? result.content.trim() : JSON.stringify(result, null, 2);
+                if (details) {
+                    this.chatHistorySubject.next([...this.chatHistorySubject.getValue(), {
+                        type: 'chat', role: 'search_result', message: 'Search result',
+                        timestamp: eventMessage.timestamp, index: eventMessage.index,
+                        searchDetails: details,
+                    }]);
+                }
+                this.searchResultSubject.next(result);
             }
         });
     }
@@ -150,10 +160,9 @@ export class ChatService {
             if (!existing) {
                 continue;
             }
-            const updated: ChatMessage = { ...existing, processingText: undefined };
             this.activeToolActionMessages.delete(toolCallId);
             this.completedSyntheticActionMessages.add(existing.message);
-            this.chatHistorySubject.next(this.chatHistorySubject.getValue().map((item) => item === existing ? updated : item));
+            this.chatHistorySubject.next(this.chatHistorySubject.getValue().filter((item) => item !== existing));
         }
     }
 
@@ -161,25 +170,20 @@ export class ChatService {
         if (typeof content?.internal_tool_name !== 'string') {
             return undefined;
         }
-        const toolName = content.internal_tool_name;
-        const status = typeof content?.status === 'string'
-            ? content.status
-            : 'processing';
-        return `${toolName} ${status}`;
+        return 'In progress';
     }
 
     private formatProcessingMessage(actionName: string, content: any): string {
         if (actionName === 'generate_overlay_ui') {
-            const instruction = typeof content?.instruction === 'string' && content.instruction.trim()
-                ? content.instruction.trim()
-                : 'overlay UI';
-            return `Generating UI: ${instruction}`;
+            return 'Updating display…';
         }
 
-        const query = typeof content?.query === 'string' && content.query.trim()
-            ? content.query.trim()
-            : 'web search';
-        return `Searching: ${query}`;
+        const query = typeof content?.query === 'string' ? content.query.toLowerCase() : '';
+        if (query.includes('fuel')) return 'Checking fuel data…';
+        if (query.includes('ship')) return 'Checking ship status…';
+        if (query.includes('material')) return 'Searching materials…';
+        if (query.includes('station')) return 'Finding nearby stations…';
+        return 'Searching…';
     }
 
     private shouldSuppressCompletedSyntheticAction(chatMessage: ChatMessage): boolean {

@@ -18,7 +18,8 @@
 .search-result-card summary span { color: var(--hud-orange); font-size: 10px; letter-spacing: .12em; }
 .search-result-card summary strong { color: #e1e7eb; font-size: 13px; font-weight: 500; }
 .search-result-card summary em { margin-left: auto; color: #9fc5d3; font-size: 11px; font-style: normal; }
-.search-result-card pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; border-top: 1px solid #39434b; margin: 0; color: #bac7d0; font: 12px/1.55 var(--hud-font); }
+.search-result-content { overflow-wrap: anywhere; padding: 14px; border-top: 1px solid #39434b; color: #bac7d0; font: 12px/1.55 var(--hud-font); }
+.new-messages { position: sticky; bottom: 8px; display: block; margin: 8px auto; border: 1px solid var(--hud-orange); background: #151a1e; color: var(--hud-orange); padding: 6px 12px; cursor: pointer; }
 
 .timestamp {
   color: var(--hud-muted);

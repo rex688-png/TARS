@@ -116,6 +116,22 @@ def test_saved_prompt_survives_restart_and_reset_uses_canonical(monkeypatch, tmp
     assert reset_reloaded["characters"][0]["character"] == canonical_path.read_text(encoding="utf-8")
 
 
+def test_provider_setting_patches_survive_switch_and_restart(monkeypatch, tmp_path):
+    config, _ = _load_tars(monkeypatch, tmp_path)
+    guid = "b7ddc677-0cfc-4081-af61-b2ebc2af5fe3"
+    from lib.Config import update_config
+
+    config = update_config(config, {"plugin_settings": {guid: {"onnx_threads": 1}}})
+    config = update_config(config, {"plugin_settings": {"parakeet-guid": {"language": "en"}}})
+    config = update_config(config, {"tts_provider": "none"})
+    config = update_config(config, {"tts_provider": f"plugin:{guid}:pocket-tts"})
+    reloaded = load_config()
+
+    assert reloaded["plugin_settings"][guid]["onnx_threads"] == 1
+    assert reloaded["plugin_settings"]["parakeet-guid"]["language"] == "en"
+    assert config["plugin_settings"] == reloaded["plugin_settings"]
+
+
 def test_legacy_tars_defaults_migrate_once_without_wiping_unrelated_settings(monkeypatch, tmp_path):
     canonical = REPO_ROOT / "vendor" / "tars-plugins" / "prompt" / "prompt.txt"
     (tmp_path / "config.json").write_text(json.dumps({

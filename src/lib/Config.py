@@ -2010,6 +2010,16 @@ def update_config(config: Config, data: dict) -> Config:
     data = copy.deepcopy(data)
     tars_profile = os.environ.get('TARS_RUNTIME_PROFILE') == '1'
     explicit = copy.deepcopy(data)
+    # UI field edits are patches, not replacements of every provider's saved
+    # settings. Full backup imports carry config_version and remain replacements.
+    if (tars_profile and 'config_version' not in data
+            and isinstance(data.get('plugin_settings'), dict)):
+        settings = copy.deepcopy(config.get('plugin_settings') or {})
+        for guid, patch in data['plugin_settings'].items():
+            if isinstance(patch, dict):
+                saved = settings.get(guid)
+                settings[guid] = {**(saved if isinstance(saved, dict) else {}), **patch}
+        data['plugin_settings'] = settings
     # Provider defaults apply on a deliberate provider switch, never when a
     # full saved config is imported or the current provider is re-emitted.
     unchanged_providers = {}
