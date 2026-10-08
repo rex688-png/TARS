@@ -6,6 +6,7 @@ import { Character, CharacterService } from "../../services/character.service.js
 import { Subscription } from "rxjs";
 import { MarkdownModule } from "ngx-markdown";
 import { shouldFollowConversation } from "./chat-scroll";
+import { visibleInNormalChat } from "./chat-presentation";
 
 @Component({
   selector: "app-chat-container",
@@ -128,7 +129,7 @@ export class ChatContainerComponent implements AfterViewChecked, AfterViewInit, 
 
   private applyLimit(): void {
     const filteredChat = this.fullChat.filter((msg) => !this.isFilteredEvent(msg)
-      && (this.limit || msg.role !== "action" || (msg.synthetic && !!msg.processingText)));
+      && (this.limit || visibleInNormalChat(msg)));
     const limitedRoles = ["covas", "cmdr", "action", "npc_message", "plugin", "search_result"];
 
     if (typeof this.limit === "number" && this.limit > 0) {

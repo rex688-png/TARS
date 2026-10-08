@@ -51,3 +51,6 @@ some upstream-specific instructions are historical and are not TARS product
 recommendations. Current TARS installation/provider/profile guides take priority.
 See [profile behavior](tars-product-profile.md), [actions](20_actions.md) and
 [first steps](05_first_steps.md).
+
+For development and regression work, see the [runtime contracts](runtime-contracts.md)
+and [hardening/coverage audit](runtime-hardening-audit.md).

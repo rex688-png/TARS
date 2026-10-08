@@ -204,6 +204,18 @@ test("provider health uses observed initialization and resets on backend restart
     subscription.unsubscribe();
 });
 
+test("backend loss is an error without reclassifying optional Elite state", () => {
+    const { facade, applicationState$ } = facadeHarness();
+    const reports: any[] = [];
+    const subscription = facade.health$.subscribe((health) => reports.push(health));
+    applicationState$.next("error");
+    const latest = reports.at(-1);
+    assert.equal(latest.find((entry: any) => entry.component === "backend").status, "error");
+    assert.equal(latest.find((entry: any) => entry.component === "elite-journal").status, "unknown");
+    assert.equal(latest.find((entry: any) => entry.component === "plugins").status, "unknown");
+    subscription.unsubscribe();
+});
+
 test("TARS provider registry filters inherited UI clutter centrally", () => {
     assert.deepEqual(
         TarsProviderRegistry.options("llm").map((option) => option.value),
