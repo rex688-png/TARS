@@ -3039,6 +3039,12 @@ class PromptGenerator:
         
         # Create a copy of ship_info so we don't modify the original
         ship_display = dict(ship_info)
+        # The raw Elite identifier is retained in the projection for logic, but
+        # the model-facing summary should use its authoritative display name.
+        if ship_display.get('Model') and ship_display['Model'] != 'Unknown':
+            ship_display.pop('Type', None)
+        else:
+            ship_display.pop('Model', None)
         ship_display.pop('JetConeBoost', None)
         ship_display.pop('DriveMaxFuel', None)
         ship_display.pop('DrivePowerConst', None)

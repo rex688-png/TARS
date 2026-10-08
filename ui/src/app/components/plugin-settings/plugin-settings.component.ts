@@ -66,6 +66,8 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
 
   // Plugin settings
   plugin_settings_configs: [string, PluginSettings][] = [];
+  providerConfigs: [string, PluginSettings][] = [];
+  behaviorConfigs: [string, PluginSettings][] = [];
   providerInstallStatuses: Record<string, ProviderInstallStatusMessage> = {};
 
   constructor(
@@ -95,6 +97,8 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
           this.plugin_settings_configs = Object.entries(
             plugin_settings_message?.plugin_settings_configs || {}
           );
+          this.providerConfigs = this.plugin_settings_configs.filter(([guid]) => !this.isBehaviorPlugin(guid));
+          this.behaviorConfigs = this.plugin_settings_configs.filter(([guid]) => this.isBehaviorPlugin(guid));
 
           if (plugin_settings_message?.plugin_settings_configs) {
             console.log("Plugin settings loaded", {
@@ -116,6 +120,21 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
           };
         }
       });
+  }
+
+  private readonly behaviorIcons: Record<string, string> = {
+    "f8b87f19-f65e-4bf2-bd3f-26d30c128a04": "travel_explore",
+    "348ea6cb-1443-47e9-a3a3-6e8c1c17f523": "public",
+    "5a80ff76-201c-49c7-a632-6f00d671a99a": "sensors",
+    "8d3c25ce-49d4-4526-8041-ed6303510cef": "navigation",
+    "cac18803-add3-4f2d-a07d-306d5704bb7f": "forum",
+    "eeb92d2d-9656-441c-92e9-98513d43cac2": "explore",
+  };
+
+  isBehaviorPlugin(guid: string): boolean { return guid in this.behaviorIcons; }
+
+  iconFor(guid: string, config: PluginSettings): string {
+    return this.behaviorIcons[guid] ?? config.icon ?? "extension";
   }
 
   ngOnDestroy() {
@@ -161,10 +180,7 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
       if (this.config == null) {
         return;
       }
-      this.config.plugin_settings ??= {};
-      this.config.plugin_settings[pluginGuid] ??= {};
-      this.config.plugin_settings[pluginGuid][fieldKey] = value;
-      this.onConfigChange({ plugin_settings: this.config.plugin_settings });
+      void this.onConfigChange({ plugin_settings: { [pluginGuid]: { [fieldKey]: value } } });
     };
   }
 
@@ -223,9 +239,6 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
     if (this.config == null) {
       return;
     }
-    this.config.plugin_settings ??= {};
-    this.config.plugin_settings[pluginGuid] ??= {};
-    this.config.plugin_settings[pluginGuid][fieldKey] = value;
-    this.onConfigChange({ plugin_settings: this.config.plugin_settings });
+    void this.onConfigChange({ plugin_settings: { [pluginGuid]: { [fieldKey]: value } } });
   }
 }

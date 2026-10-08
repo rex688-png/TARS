@@ -29,6 +29,10 @@
   margin-right: 8px;
 }
 
+.plugin-settings-stack > h2 { margin: 20px 0 6px; font-size: 13px; letter-spacing: .12em; color: var(--hud-orange); }
+.plugin-settings-stack > p { color: var(--hud-muted); font-size: 12px; }
+.provider-badge { margin-left: 12px; color: #92c4c8; font-size: 10px; font-weight: 500; text-transform: uppercase; }
+
 .settings-grid {
   display: flex;
   flex-direction: column;

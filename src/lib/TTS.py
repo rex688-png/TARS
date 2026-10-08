@@ -1,6 +1,5 @@
 import queue
 import math
-import re
 import random
 import threading
 import traceback
@@ -19,7 +18,7 @@ import pyaudio
 import samplerate
 import strip_markdown
 from numpy.typing import NDArray
-from num2words import num2words
+from .SpeechText import normalize_spoken_quantities
 
 from .Config import (
     CharacterTTSChorusConfig,
@@ -310,9 +309,8 @@ class TTS:
         postprocessing_override: CharacterTTSPostprocessingConfig | None = None,
         postprocessing_layers: list[CharacterTTSPostprocessingConfig | None] | None = None,
     ):
-        # Fix numberformatting for different providers
-        text = re.sub(r"\d+(,\d{3})*(\.\d+)?", self._number_to_text, text)
         text = strip_markdown.strip_markdown(text)
+        text = normalize_spoken_quantities(text)
         # print('reading:', text)
         start_time = time()
         first_byte_time = None
@@ -585,16 +583,6 @@ class TTS:
                 self._apply_output_gain_pcm16(frame.tobytes()),
                 exception_on_underflow=False,
             )
-
-    def _number_to_text(self, match: re.Match[str]):
-        """Converts numbers like 100,203.12 to one hundred thousand two hundred three point one two"""
-        if len(match.group()) <= 2:
-            return match.group()
-        if isinstance(self.tts_model, OpenAITTSModel):
-            # OpenAI TTS doesn't read large numbers correctly, so we convert them to words
-            return num2words(match.group().replace(",", ""))
-        else:
-            return match.group()
 
     def _apply_time_pitch_effect(
         self,

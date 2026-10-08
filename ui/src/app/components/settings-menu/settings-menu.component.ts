@@ -74,6 +74,8 @@ import { QuestsSettingsComponent } from "../quests-settings/quests-settings.comp
 })
 export class SettingsMenuComponent implements OnInit, OnDestroy {
     @ViewChild(AdvancedSettingsComponent) private advancedSettings?: AdvancedSettingsComponent;
+    @ViewChild(GeneralSettingsComponent) private generalSettings?: GeneralSettingsComponent;
+    @Output() categoryChange = new EventEmitter<number>();
 
     config: Config | null = null;
     has_plugin_settings: boolean = false;
@@ -121,7 +123,7 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
                 this.focusAdvancedSetting("commander-name");
                 break;
             case "character":
-                this.selectedIndex = 0;
+                this.selectedIndex = 2;
                 break;
             case "audio-input":
                 this.focusAdvancedSetting("stt-input-device");
@@ -133,16 +135,21 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
                 this.focusAdvancedSetting("overlay-mode");
                 break;
             case "actions":
-                this.selectedIndex = 2;
+                this.selectedIndex = 4;
                 break;
         }
     }
 
     private focusAdvancedSetting(target: AdvancedSettingsFocusTarget): void {
-        this.selectedIndex = 3;
+        this.selectedIndex = 1;
         window.setTimeout(() => {
             this.advancedSettings?.focusSetting(target);
         }, 100);
+    }
+
+    openPromptEditor(): void {
+        this.selectedIndex = 0;
+        window.setTimeout(() => this.generalSettings?.setActivePreflightItem("covas"), 0);
     }
 
     ngOnInit() {

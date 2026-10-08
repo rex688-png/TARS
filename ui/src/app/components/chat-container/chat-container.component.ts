@@ -1,24 +1,28 @@
-import { AfterViewChecked, Component, ElementRef, Input, OnChanges, SimpleChanges, OnDestroy } from "@angular/core";
+import { AfterViewChecked, AfterViewInit, Component, ElementRef, Input, OnChanges, SimpleChanges, OnDestroy } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatCardModule } from "@angular/material/card";
 import { ChatMessage, ChatService } from "../../services/chat.service.js";
 import { Character, CharacterService } from "../../services/character.service.js";
 import { Subscription } from "rxjs";
+import { MarkdownModule } from "ngx-markdown";
+import { shouldFollowConversation } from "./chat-scroll";
 
 @Component({
   selector: "app-chat-container",
   standalone: true,
-  imports: [CommonModule, MatCardModule],
+  imports: [CommonModule, MatCardModule, MarkdownModule],
   templateUrl: "./chat-container.component.html",
   styleUrl: "./chat-container.component.css",
   host: {
     "[style.display]": "chat.length ? null : 'none'",
   },
 })
-export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDestroy {
+export class ChatContainerComponent implements AfterViewChecked, AfterViewInit, OnChanges, OnDestroy {
   @Input() limit?: number;
 
   chat: ChatMessage[] = [];
+  hasNewMessages = false;
+  private scrollContainer: HTMLElement | null = null;
   private fullChat: ChatMessage[] = [];
   private readonly filteredEventNames = new Set([
     "materials",
@@ -61,7 +65,8 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
       this.applyLimit();
       // Only scroll if new displayable messages were added
       if (this.chat.length > previousLength) {
-        this.shouldScroll = true;
+        this.shouldScroll = !this.scrollContainer || this.isNearBottom();
+        if (!this.shouldScroll) this.hasNewMessages = true;
       }
     });
     
@@ -73,6 +78,33 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
 
   ngOnDestroy(): void {
     this.characterSubscription?.unsubscribe();
+    this.scrollContainer?.removeEventListener("scroll", this.onScroll);
+  }
+
+  ngAfterViewInit(): void {
+    this.scrollContainer = (typeof this.limit === "number" && this.limit > 0)
+      ? this.element.nativeElement : this.element.nativeElement.parentElement;
+    this.scrollContainer?.addEventListener("scroll", this.onScroll, { passive: true });
+  }
+
+  private readonly onScroll = (): void => {
+    if (this.isNearBottom()) this.hasNewMessages = false;
+  };
+
+  private isNearBottom(): boolean {
+    const scroller = this.scrollContainer;
+    return !scroller || shouldFollowConversation(scroller.scrollHeight, scroller.scrollTop, scroller.clientHeight);
+  }
+
+  returnToBottom(): void {
+    this.shouldScroll = true;
+    this.hasNewMessages = false;
+    this.scrollToBottom();
+  }
+
+  searchTitle(details: string): string {
+    const line = details.split("\n", 1)[0].replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
+    return line.length > 90 ? `${line.slice(0, 87)}…` : line || "Search details";
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -95,12 +127,13 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
   }
 
   private applyLimit(): void {
-    const filteredChat = this.fullChat.filter((msg) => !this.isFilteredEvent(msg));
-    const limitedRoles = ["covas", "cmdr", "action", "npc_message", "plugin"];
+    const filteredChat = this.fullChat.filter((msg) => !this.isFilteredEvent(msg)
+      && (this.limit || msg.role !== "action" || (msg.synthetic && !!msg.processingText)));
+    const limitedRoles = ["covas", "cmdr", "action", "npc_message", "plugin", "search_result"];
 
     if (typeof this.limit === "number" && this.limit > 0) {
       this.chat = filteredChat
-        .filter((value) => limitedRoles.includes(value.role))
+        .filter((value) => limitedRoles.includes(value.role) && value.role !== "search_result")
         .slice(-this.limit);
     } else {
       this.chat = filteredChat;
@@ -117,14 +150,9 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
 
   private scrollToBottom(): void {
     try {
-      const hostElement = this.element.nativeElement;
-      const scrollContainer = (typeof this.limit === "number" && this.limit > 0)
-        ? hostElement
-        : hostElement.parentElement;
-
-      scrollContainer?.scrollTo({
-        top: scrollContainer?.scrollHeight ?? 0,
-        behavior: "smooth",
+      this.scrollContainer?.scrollTo({
+        top: this.scrollContainer.scrollHeight,
+        behavior: "instant",
       });
     } catch (err) {}
   }
@@ -158,8 +186,10 @@ export class ChatContainerComponent implements AfterViewChecked, OnChanges, OnDe
 
   public getDisplayName(msg: ChatMessage): string {
     if (msg.role?.toLowerCase() === "plugin") {
-      return msg.plugin_event_name === "EdCoPilotEvent" ? "EDCoPilot" : msg.plugin_event_name || "plugin";
+      return "TARS";
     }
+    if (msg.role?.toLowerCase() === "covas") return "TARS";
+    if (msg.role?.toLowerCase() === "cmdr") return "COMMANDER";
     return msg.display_name || msg.role;
   }
 

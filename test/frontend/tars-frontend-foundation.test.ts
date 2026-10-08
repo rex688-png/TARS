@@ -130,6 +130,7 @@ function facadeHarness() {
         ptt_var: "push_to_talk",
     });
     const provider_install_status$ = new BehaviorSubject<any>(null);
+    const output$ = new Subject<any>();
     const emptyProjection = () => new BehaviorSubject<any>(null);
     const currentStatus$ = new BehaviorSubject<any>({ flags: { Docked: false } });
     const coordinator = {
@@ -152,8 +153,9 @@ function facadeHarness() {
             currentStatus$,
         } as never,
         { logs$: new BehaviorSubject<any[]>([]) } as never,
+        { output$ } as never,
     );
-    return { facade };
+    return { facade, output$, applicationState$ };
 }
 
 test("facade exposes typed interaction and conversation state", async () => {
@@ -188,6 +190,18 @@ test("health remains honest and leaves external integrations empty", async () =>
     assert.equal(journal?.evidence, "not-exposed");
     assert.equal(plugins?.status, "unknown");
     assert.deepEqual(await firstValueFrom(facade.externalIntegrations$), []);
+});
+
+test("provider health uses observed initialization and resets on backend restart", () => {
+    const { facade, output$, applicationState$ } = facadeHarness();
+    const reports: any[] = [];
+    const subscription = facade.health$.subscribe((health) => reports.push(health));
+    output$.next({ type: "runtime_components", models: true, stt: true, tts: false, memory: true });
+    assert.equal(reports.at(-1).find((entry: any) => entry.component === "models").status, "ready");
+    assert.equal(reports.at(-1).find((entry: any) => entry.component === "tts").status, "unavailable");
+    applicationState$.next("restarting");
+    assert.equal(reports.at(-1).find((entry: any) => entry.component === "models").status, "busy");
+    subscription.unsubscribe();
 });
 
 test("TARS provider registry filters inherited UI clutter centrally", () => {

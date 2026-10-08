@@ -1278,6 +1278,15 @@ if __name__ == "__main__":
 
         startup_phase = "assistant_initialization"
         chat = Chat(config, plugin_manager)
+        # A credential-free, observed initialization snapshot for the UI.
+        # Selection in config alone does not prove a provider initialized.
+        emit_message(
+            "runtime_components",
+            models=bool(chat.llmModel and chat.agent_llm_model),
+            stt=chat.sttModel is not None,
+            tts=chat.ttsModel is not None,
+            memory=chat.embeddingModel is not None,
+        )
         # run chat in a thread
         stdin_thread = threading.Thread(target=read_stdin, args=(chat,), daemon=True)
         stdin_thread.start()

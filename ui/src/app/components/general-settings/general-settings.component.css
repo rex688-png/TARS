@@ -394,14 +394,6 @@ mat-slide-toggle {
   transform: translate(-50%, -50%);
 }
 
-/* The canonical TARS image is one complete image, not a four-state sprite. */
-.minimal-avatar-image.canonical-tars-avatar {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transform: none;
-}
-
 .minimal-avatar-svg {
   width: 100%;
   height: 100%;

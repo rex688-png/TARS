@@ -71,7 +71,7 @@ TARS_PROVIDER_SPECS = (
         overlay_dir="pocket-tts-0.0.17-tarsfix",
         overlay_files=(
             ("TARS_FIX_NOTES.txt", "a8a51bfd38836d3afebd917d097d0e89a159c7d9c3a6a193d449683e0a4c6a2c"),
-            ("cn-plugin-pocket-tts.py", "ae9e5b64a462135c1e5430b06bce0c2e856db31f8e4251113e54cca19c59de80"),
+            ("cn-plugin-pocket-tts.py", "363e52fd72048840a05231f56f540d9fd7aebbcf05ec19745afdd1577100dd42"),
             ("manifest.json", "61ecfb5ecd25bf7ef11ce3e30106ae0b8f50b52403bd1ddbfcf4201e3583fdc3"),
         ),
         replaces_version="0.0.16",

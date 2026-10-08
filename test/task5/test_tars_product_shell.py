@@ -38,7 +38,9 @@ def test_primary_shell_is_tars_specific_and_has_no_character_creation_tab():
     assert "TARS SYSTEMS" in overview
     for status in ("AI", "Speech", "Voice", "Memory", "Elite", "Actions", "PROFILE LOADED"):
         assert f">{status}<" in overview
-    assert "Welcome to TARS" in menu
+    assert "TARS setup" in menu
+    for category in ("GENERAL", "AI &amp; VOICE", "PERSONALITY", "PLUGINS", "DIAGNOSTICS"):
+        assert f'label="{category}"' in menu
     assert "Welcome to COVAS:NEXT" not in menu
     assert ">Characters<" not in menu
     assert "app-character-settings" not in menu
@@ -55,4 +57,5 @@ def test_tars_shell_does_not_start_upstream_covas_telemetry():
     ).read_text(encoding="utf-8")
 
     assert "MetricsService" not in main_view
-    assert "does not send diagnostics to the upstream COVAS service" in welcome
+    assert "local-use notice" in welcome
+    assert "MetricsService" not in welcome

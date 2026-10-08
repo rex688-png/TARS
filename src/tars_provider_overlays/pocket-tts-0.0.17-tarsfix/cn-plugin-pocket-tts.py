@@ -50,7 +50,9 @@ LANGUAGE_LABELS = {
     "spanish": "Spanish",
     "spanish_24l": "Spanish (24-layer)",
 }
-DEFAULT_ONNX_THREADS = min(4, max(1, (os.cpu_count() or 1) // 2))
+# Conservative fresh-install default from Windows playback testing. Saved
+# onnx_threads values remain authoritative, including explicit 1 or 4.
+DEFAULT_ONNX_THREADS = 2
 SETTINGS_SCHEMA_VERSION = 2
 
 
