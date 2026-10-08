@@ -269,3 +269,23 @@ test("prompt save waits for its backend acknowledgement and propagates disk fail
     output$.next({ type: "tars_prompt_result", request_id: commands[1].request_id, success: false, error: "Unable to save" });
     await assert.rejects(resetting, /Unable to save/);
 });
+
+test('settings Saved feedback requires the matching backend disk acknowledgement', async () => {
+    const output$ = new Subject<any>();
+    const commands: any[] = [];
+    const service = new ConfigService({ output$, send_command: async (message: any) => { commands.push(message); } } as never);
+    output$.next({ type:'config', config:{api_key:'synthetic-test-value', plugin_settings:{}} });
+    const states: string[] = [];
+    service.saveState$.subscribe(value => states.push(value));
+    const saving = service.changeConfig({plugin_settings:{fixture:{onnx_threads:1}}});
+    assert.equal(states.at(-1), 'Saving…');
+    output$.next({type:'config_save_result',request_id:'unrelated',success:true});
+    assert.equal(states.at(-1), 'Saving…');
+    output$.next({type:'config_save_result',request_id:commands[0].request_id,success:true});
+    await saving;
+    assert.equal(states.at(-1), 'Saved');
+    const failing = service.changeConfig({api_key:'synthetic-other-value'});
+    output$.next({type:'config_save_result',request_id:commands[1].request_id,success:false,error:'Unable to save configuration'});
+    await assert.rejects(failing, /Unable to save/);
+    assert.match(states.at(-1)!, /Error saving/);
+});

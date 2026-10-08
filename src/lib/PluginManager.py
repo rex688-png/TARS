@@ -15,6 +15,7 @@ from .Logger import log
 from .UI import emit_message
 
 from .PluginBase import PluginBase, PluginManifest
+from .ProviderSettings import migrate_provider_settings
 from .Models import LLMModel, STTModel, TTSModel, EmbeddingModel
 from .TarsProviderRegistry import TARS_PROVIDER_SPECS, installed_provider_path, provider_path
 
@@ -133,17 +134,7 @@ class PluginManager:
             if isinstance(obj, type) and issubclass(obj, PluginBase) and obj is not PluginBase:
                 plugin = obj(manifest) # Instantiate and return
                 plugin.settings = self.config.get('plugin_settings', {}).get(manifest.guid, {})
-                previous_settings = dict(plugin.settings)
-                try:
-                    settings_version = max(0, int(plugin.settings.get('settings_version', 0)))
-                except (TypeError, ValueError):
-                    settings_version = 0
-                target_version = max(0, int(plugin.settings_schema_version))
-                while settings_version < target_version:
-                    plugin.migrate_settings(plugin.settings, settings_version)
-                    settings_version += 1
-                    plugin.settings['settings_version'] = settings_version
-                if plugin.settings != previous_settings:
+                if migrate_provider_settings(plugin):
                     self.config.setdefault('plugin_settings', {})[manifest.guid] = plugin.settings
                     self.settings_migrated = True
                 return plugin

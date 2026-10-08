@@ -54,3 +54,5 @@ See [profile behavior](tars-product-profile.md), [actions](20_actions.md) and
 
 For development and regression work, see the [runtime contracts](runtime-contracts.md)
 and [hardening/coverage audit](runtime-hardening-audit.md).
+
+For the latest real-PC fixes, see [Settings/runtime refinement](runtime-refinement.md).

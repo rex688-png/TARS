@@ -1,60 +1,11 @@
 <div class="settings-grid">
+    <p class="save-feedback" aria-live="polite">{{ configService.saveState$ | async }}</p>
     @if (config) {
-        <p>This section allows you to customize advanced settings. It is recommended to leave these settings
-            at their default values unless you know what you are doing.</p>
+        <p>Configure TARS systems. Open a card for tuning; your saved provider settings remain authoritative.</p>
 
         <mat-accordion multi>
-        <mat-expansion-panel
-            [expanded]="expandedPanels.commander"
-            (opened)="expandedPanels.commander = true"
-            (closed)="expandedPanels.commander = false">
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>badge</mat-icon>
-                    Commander and Main API Key
-                </mat-panel-title>
-            </mat-expansion-panel-header>
-
-            <mat-form-field
-                #commanderNameField
-                [class.focus-highlight]="highlightTarget === 'commander-name'">
-                <mat-label>Commander Name</mat-label>
-                <input
-                    #commanderNameInput
-                    required
-                    matInput
-                    [(ngModel)]="config.commander_name"
-                    (ngModelChange)="onConfigChange({commander_name: $event})">
-            </mat-form-field>
-
-            <p>Enter your API key from
-                <a target="_blank" rel="noopener noreferrer" href="https://platform.openai.com/api-keys">OpenAI</a>, or
-                <a target="_blank" rel="noopener noreferrer" href="https://openrouter.ai/settings/keys">OpenRouter</a>.
-                Select providers separately. Saving a key does not reset your models or audio settings.</p>
-            <mat-form-field>
-                <mat-label>Main API Key (OpenAI/OpenRouter)</mat-label>
-                <input required matInput [type]="hideApiKey ? 'password' : 'text'" [(ngModel)]="config.api_key"
-                        (ngModelChange)="onApiKeyChange($event)"
-                        pattern="^[A-Za-z0-9_.-]+$"
-                        #apiKeyInput="ngModel">
-                <button matSuffix mat-icon-button (mousedown)="hideApiKey = false" (mouseup)="hideApiKey = true"
-                        (mouseleave)="hideApiKey = true">
-                    <mat-icon>{{ hideApiKey ? 'visibility_off' : 'visibility' }}</mat-icon>
-                </button>
-                <mat-hint *ngIf="apiKeyType">Detected: {{ apiKeyType }} - Select providers separately; existing settings are preserved</mat-hint>
-                <mat-error *ngIf="apiKeyInput.errors?.['pattern']">
-                    API key can only contain letters, numbers, underscores, dots, and hyphens
-                </mat-error>
-            </mat-form-field>
-        </mat-expansion-panel>
-
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>chat</mat-icon>
-                    Main LLM Settings
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        <section class="tars-setting-card"><header><mat-icon>chat</mat-icon><h3>AI model</h3></header><p>{{ providerDisplay(config.llm_provider) }}</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
         <mat-form-field>
             <mat-label>LLM Provider</mat-label>
             <mat-select panelClass="provider-panel"
@@ -283,14 +234,9 @@
                 }
             }
         }
-        </mat-expansion-panel>
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>travel_explore</mat-icon>
-                    Agent LLM Settings
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        </mat-expansion-panel></section>
+        <section class="tars-setting-card"><header><mat-icon>travel_explore</mat-icon><h3>Research model</h3></header><p>{{ providerDisplay(config.agent_llm_provider) }}</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
         <mat-form-field>
             <mat-label>Agent LLM Provider</mat-label>
             <mat-select panelClass="provider-panel"
@@ -519,18 +465,13 @@
                 Warning: Performing UI changes creates noticeable cost!
             </span>
         </label>
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel
+        <section class="tars-setting-card"><header><mat-icon>mic</mat-icon><h3>Speech / microphone</h3></header><p>{{ providerDisplay(config.stt_provider) }}</p><mat-expansion-panel
             [expanded]="expandedPanels.stt"
             (opened)="expandedPanels.stt = true"
             (closed)="expandedPanels.stt = false">
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>mic</mat-icon>
-                    STT / Microphone Settings
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
         <mat-form-field>
             <mat-label>STT Provider</mat-label>
             <mat-select panelClass="provider-panel"
@@ -740,18 +681,13 @@
                 </div>
             </div>
         }
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel
+        <section class="tars-setting-card"><header><mat-icon>volume_up</mat-icon><h3>Voice / output</h3></header><p>{{ providerDisplay(config.tts_provider) }}</p><mat-expansion-panel
             [expanded]="expandedPanels.tts"
             (opened)="expandedPanels.tts = true"
             (closed)="expandedPanels.tts = false">
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>volume_up</mat-icon>
-                    TTS / Speaker Settings
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
         <mat-form-field>
             <mat-label>TTS Provider</mat-label>
             <mat-select panelClass="provider-panel"
@@ -955,15 +891,10 @@
                 </button>
             </div>
         }
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>visibility</mat-icon>
-                    Vision Settings
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        <section class="tars-setting-card"><header><mat-icon>visibility</mat-icon><h3>Vision</h3></header><p>{{ providerDisplay(config.vision_provider) }}</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
         <mat-form-field>
             <mat-label>Vision Provider</mat-label>
             <mat-select panelClass="provider-panel"
@@ -1062,15 +993,10 @@
                 }
             }
         }
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>manage_search</mat-icon>
-                    Embedding / Logbook Settings
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        <section class="tars-setting-card"><header><mat-icon>manage_search</mat-icon><h3>Memory</h3></header><p>{{ providerDisplay(config.embedding_provider) }}</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
         <mat-form-field>
             <mat-label>Embedding Provider</mat-label>
             <mat-select panelClass="provider-panel"
@@ -1182,18 +1108,16 @@
                 Delete current logbook
             </button>
         </div>
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel
+        <details class="advanced-application-controls" [open]="expandedPanels.overlay">
+            <summary>Advanced application controls — overlays, remote access, accessibility, backup and developer tools</summary>
+            <div class="advanced-controls-grid">
+        <section class="tars-setting-card"><header><mat-icon>picture_in_picture_alt</mat-icon><h3>Overlay</h3></header><p>Application controls and advanced options</p><mat-expansion-panel
             [expanded]="expandedPanels.overlay"
             (opened)="expandedPanels.overlay = true"
             (closed)="expandedPanels.overlay = false">
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>picture_in_picture_alt</mat-icon>
-                    Overlay
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
 
             <div class="overlay-controls">
                 <div class="overlay-primary-controls">
@@ -1394,18 +1318,13 @@
                     </div>
                 </div>
             }
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel
+        <section class="tars-setting-card"><header><mat-icon>public</mat-icon><h3>Remote Web Interface</h3></header><p>Application controls and advanced options</p><mat-expansion-panel
             [expanded]="expandedPanels['remote-interface']"
             (opened)="expandedPanels['remote-interface'] = true"
             (closed)="expandedPanels['remote-interface'] = false">
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>public</mat-icon>
-                    Remote Web Interface
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
             @if (remoteInterfaceUrl) {
                 <div class="remote-interface-running">
                     <div class="remote-interface-share-card">
@@ -1469,15 +1388,10 @@
                     </button>
                 </div>
             }
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>text_fields</mat-icon>
-                    Accessibility
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        <section class="tars-setting-card"><header><mat-icon>text_fields</mat-icon><h3>Accessibility</h3></header><p>Application controls and advanced options</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
             <div class="font-scale-setting">
                 <div>
                     <strong>Application text size</strong>
@@ -1493,31 +1407,11 @@
                 </mat-form-field>
                 <button mat-stroked-button type="button" (click)="resetFontScale()">Reset</button>
             </div>
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        @if (config && (config.commander_name || config.api_key)) {
-            <mat-expansion-panel>
-                <mat-expansion-panel-header>
-                    <mat-panel-title>
-                        <mat-icon>play_circle</mat-icon>
-                        Autostart
-                    </mat-panel-title>
-                </mat-expansion-panel-header>
-                <mat-slide-toggle [(ngModel)]="config.cn_autostart"
-                        (ngModelChange)="onConfigChange({cn_autostart: $event})">
-                        Autostart assistant on application start
-                </mat-slide-toggle>
-            </mat-expansion-panel>
-        }
-        
         @if (isManualEdPathConfigAvailable()) {
-            <mat-expansion-panel>
-                <mat-expansion-panel-header>
-                    <mat-panel-title>
-                        <mat-icon>computer</mat-icon>
-                        {{ getManualEdPathSettingsLabel() }}
-                    </mat-panel-title>
-                </mat-expansion-panel-header>
+            <section class="tars-setting-card"><header><mat-icon>computer</mat-icon><h3>{{ getManualEdPathSettingsLabel() }}</h3></header><p>Application controls and advanced options</p><mat-expansion-panel>
+                <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
             <p>Learn more about this setup <a target="_blank" rel="noopener noreferrer"
                                                 href="https://ratherrude.github.io/Elite-Dangerous-AI-Integration/advanced/linux/">here.</a>
             </p>
@@ -1560,16 +1454,11 @@
                     <mat-hint>⚠️ {{ getManualEdPathPermissionHint() }}</mat-hint>
                 }
             </mat-form-field>
-            </mat-expansion-panel>
+            </mat-expansion-panel></section>
         }
 
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>restart_alt</mat-icon>
-                    State Machine
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        <section class="tars-setting-card"><header><mat-icon>restart_alt</mat-icon><h3>State Machine</h3></header><p>Application controls and advanced options</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
             <div class="state-machine-section">
                 <p>Reset the persisted event history and projection state. Use this only when the derived state machine is stale or inconsistent.</p>
                 <div class="state-machine-buttons">
@@ -1579,15 +1468,10 @@
                     </button>
                 </div>
             </div>
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>backup</mat-icon>
-                    Backup & Restore
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        <section class="tars-setting-card"><header><mat-icon>backup</mat-icon><h3>Backup & Restore</h3></header><p>Application controls and advanced options</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
         <div class="backup-restore-section">
             <p>Export your settings and avatars to a backup file, or restore from a previous backup.</p>
             <div class="backup-buttons">
@@ -1602,15 +1486,10 @@
                 <input #fileInput type="file" accept=".json" style="display: none;" (change)="onImportConfig($event)">
             </div>
         </div>
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
-        <mat-expansion-panel>
-            <mat-expansion-panel-header>
-                <mat-panel-title>
-                    <mat-icon>assignment</mat-icon>
-                    Quest Editor <span style="color: #f44336;">(experimental)</span>
-                </mat-panel-title>
-            </mat-expansion-panel-header>
+        <section class="tars-setting-card"><header><mat-icon>assignment</mat-icon><h3>Quest Editor <span style="color: #f44336;">(experimental)</span></h3></header><p>Application controls and advanced options</p><mat-expansion-panel>
+            <mat-expansion-panel-header><mat-panel-title>Configure / Advanced</mat-panel-title></mat-expansion-panel-header>
             <div class="quest-editor-section">
                 <p>Create and manage quests for you and TARS to share. Quests allow you to define custom, multi-stage objectives with conditions and actions that trigger based on game events.</p>
                 <p>Learn more about the quest editor: <a href="https://ratherrude.github.io/Elite-Dangerous-AI-Integration/advanced/Quests/" target="_blank" rel="noopener noreferrer">Documentation</a></p>
@@ -1621,8 +1500,10 @@
                     </button>
                 </div>
             </div>
-        </mat-expansion-panel>
+        </mat-expansion-panel></section>
 
+            </div>
+        </details>
         </mat-accordion>
     }
 </div>

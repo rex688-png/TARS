@@ -31,10 +31,12 @@ def test_canonical_avatar_displays_one_state_in_settings_and_overlay():
 
 
 def test_prompt_editor_has_save_reload_reset_and_backend_acknowledgement():
-    template = (ROOT / "ui/src/app/components/general-settings/general-settings.component.html").read_text()
-    assert "saveTarsPrompt()" in template
-    assert "reloadTarsPrompt()" in template
-    assert "resetTarsPrompt()" in template
+    template = (ROOT / "ui/src/app/components/tars-prompt-settings/tars-prompt-settings.component.ts").read_text()
+    assert '(click)="save()"' in template
+    assert '(click)="editor.reload()"' in template
+    assert '(click)="reset()"' in template
+    assert "configService.setTarsPrompt" in template
+    assert "configService.resetTarsPrompt" in template
     service = (ROOT / "ui/src/app/services/config.service.ts").read_text()
     assert "tars_prompt_result" in service
     assert "request_id" in service

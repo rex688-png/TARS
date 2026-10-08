@@ -337,3 +337,28 @@ def test_migration_closes_read_handle_before_atomic_windows_replace(monkeypatch,
     monkeypatch.setattr(config_module.os, "replace", windows_replace)
     assert load_config()["tars_profile_version"] == 1
     assert json.loads((tmp_path / "config.json").read_text())["tars_profile_version"] == 1
+
+
+def test_config_save_acknowledges_disk_and_preserves_original_on_failure(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('TARS_RUNTIME_PROFILE', '1')
+    monkeypatch.setenv('TARS_CANONICAL_PROMPT', str(REPO_ROOT / 'vendor/tars-plugins/prompt/prompt.txt'))
+    monkeypatch.setattr(config_module, 'get_default_input_device_name', lambda: '')
+    monkeypatch.setattr(config_module, 'get_default_output_device_name', lambda: '')
+    monkeypatch.setattr(config_module, 'get_input_device_names', lambda: [])
+    monkeypatch.setattr(config_module, 'get_output_device_names', lambda: [])
+    config = load_config()
+    messages = []
+    monkeypatch.setattr(config_module, 'emit_message', lambda kind, **values: messages.append((kind, values)))
+    updated = config_module.handle_config_command(config, {'type':'change_config','request_id':'test-save',
+        'config':{'plugin_settings':{'fixture-provider':{'onnx_threads':1,'gap':300}}}})
+    assert updated['plugin_settings']['fixture-provider']['onnx_threads'] == 1
+    assert messages[-1] == ('config_save_result', {'request_id':'test-save','success':True})
+    assert json.loads(Path('config.json').read_text())['plugin_settings']['fixture-provider']['gap'] == 300
+    monkeypatch.setattr(config_module, 'save_config', lambda _: (_ for _ in ()).throw(OSError('synthetic disk failure')))
+    result = config_module.handle_config_command(updated, {'type':'change_config','request_id':'failure',
+        'config':{'plugin_settings':{'fixture-provider':{'gap':150}}}})
+    assert result is updated
+    assert result['plugin_settings']['fixture-provider']['gap'] == 300
+    assert messages[-1][1]['success'] is False
+    assert 'synthetic disk failure' not in messages[-1][1]['error']

@@ -1,3 +1,5 @@
+import { TarsDiagnosticsComponent } from "../tars-diagnostics/tars-diagnostics.component";
+import { TarsPromptSettingsComponent } from "../tars-prompt-settings/tars-prompt-settings.component";
 import { Component, EventEmitter, OnDestroy, OnInit, Output, ViewChild } from "@angular/core";
 import { MatCardModule } from "@angular/material/card";
 import { MatTabsModule } from "@angular/material/tabs";
@@ -65,6 +67,8 @@ import { QuestsSettingsComponent } from "../quests-settings/quests-settings.comp
         ActionsSettingsComponent,
         EventReactionsSettingsComponent,
         GeneralSettingsComponent,
+        TarsPromptSettingsComponent,
+        TarsDiagnosticsComponent,
         ModelUsageAnalyticsComponent,
         QuestsSettingsComponent,
         MatButtonModule,
@@ -120,7 +124,8 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
     public openSettingsTarget(target: GeneralSettingsTarget): void {
         switch (target) {
             case "commander":
-                this.focusAdvancedSetting("commander-name");
+                this.selectedIndex = 0;
+                window.setTimeout(() => this.generalSettings?.setActivePreflightItem("commander"), 0);
                 break;
             case "character":
                 this.selectedIndex = 2;
@@ -148,8 +153,7 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
     }
 
     openPromptEditor(): void {
-        this.selectedIndex = 0;
-        window.setTimeout(() => this.generalSettings?.setActivePreflightItem("covas"), 0);
+        this.selectedIndex = 2;
     }
 
     ngOnInit() {

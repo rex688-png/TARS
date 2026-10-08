@@ -104,10 +104,6 @@ export class GeneralSettingsComponent implements OnDestroy {
     pluginTTSProviders: ModelProviderDefinition[] = [];
     pluginEmbeddingProviders: ModelProviderDefinition[] = [];
     avatarUrl = "assets/Obraz ChatGPT 28 wrz 2026, 21_39_52.png";
-    promptDraft = "";
-    savedPrompt = "";
-    promptDirty = false;
-    promptBusy = false;
     sanitizedAvatarPreviewSvg: SafeHtml | null = null;
     avatarPreviewStateClass: AvatarPreviewStateClass = "listening";
     private configSubscription: Subscription;
@@ -135,7 +131,7 @@ export class GeneralSettingsComponent implements OnDestroy {
     preflightListHeight = 0;
 
     constructor(
-        private configService: ConfigService,
+        public configService: ConfigService,
         private tauriService: TauriService,
         private snackBar: MatSnackBar,
         private characterService: CharacterService,
@@ -162,12 +158,6 @@ export class GeneralSettingsComponent implements OnDestroy {
         this.characterSubscription = this.characterService.character$.subscribe(
             (character) => {
                 this.activeCharacter = character;
-                const prompt = character?.character ?? "";
-                if (!this.promptDirty) {
-                    this.promptDraft = prompt;
-                }
-                this.savedPrompt = prompt;
-                this.promptDirty = this.promptDraft !== prompt;
             },
         );
         this.characterListSubscription = this.characterService.characterList$.subscribe(
@@ -386,51 +376,6 @@ export class GeneralSettingsComponent implements OnDestroy {
         return this.activeCharacter?.character?.trim() || "No character prompt configured yet.";
     }
 
-    onPromptInput(prompt: string): void {
-        this.promptDraft = prompt;
-        this.promptDirty = prompt !== this.savedPrompt;
-    }
-
-    reloadTarsPrompt(): void {
-        this.promptDraft = this.savedPrompt;
-        this.promptDirty = false;
-    }
-
-    async saveTarsPrompt(): Promise<void> {
-        const prompt = this.promptDraft;
-        if (!prompt.trim()) {
-            this.snackBar.open("The TARS prompt cannot be empty", "OK", { duration: 4000 });
-            return;
-        }
-        this.promptBusy = true;
-        try {
-            this.savedPrompt = await this.configService.setTarsPrompt(prompt);
-            this.promptDraft = this.savedPrompt;
-            this.promptDirty = false;
-            this.snackBar.open("TARS prompt saved. Restart TARS to use it in a new session.", "OK", { duration: 5000 });
-        } catch (error) {
-            console.error("Error saving TARS prompt:", error);
-            this.snackBar.open("Could not save the TARS prompt", "OK", { duration: 5000 });
-        } finally {
-            this.promptBusy = false;
-        }
-    }
-
-    async resetTarsPrompt(): Promise<void> {
-        this.promptBusy = true;
-        try {
-            this.savedPrompt = await this.configService.resetTarsPrompt();
-            this.promptDraft = this.savedPrompt;
-            this.promptDirty = false;
-            this.snackBar.open("Canonical TARS prompt restored. Restart TARS to use it in a new session.", "OK", { duration: 5000 });
-        } catch (error) {
-            console.error("Error resetting TARS prompt:", error);
-            this.snackBar.open("Could not restore the canonical TARS prompt", "OK", { duration: 5000 });
-        } finally {
-            this.promptBusy = false;
-        }
-    }
-
     get characterName(): string {
         return this.activeCharacter?.name?.trim() || "Not set";
     }
@@ -460,23 +405,6 @@ export class GeneralSettingsComponent implements OnDestroy {
     }
 
     providerLabel(provider: string | undefined | null, pluginProviders: ModelProviderDefinition[] = []): string {
-        if (!provider) {
-            return "Not set";
-        }
-        if (this.isPluginProvider(provider)) {
-            const match = pluginProviders.find(
-                (pluginProvider) => provider === `plugin:${pluginProvider.plugin_guid}:${pluginProvider.id}`,
-            );
-            if (match) return match.label;
-            const providerId = provider.split(":").at(-1);
-            return ({
-                "parakeet-stt": "Parakeet",
-                "pocket-tts": "Pocket-TTS",
-                "supertonic-tts": "Supertonic",
-                "gemma-embedding": "Gemma",
-            } as Record<string, string>)[providerId ?? ""] ?? "Provider not installed";
-        }
-
         return TarsProviderRegistry.label(provider);
     }
 

@@ -1,3 +1,5 @@
+from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
+from .ResponsePresentation import ExplorationCalloutDeduper
 import copy
 import json
 import traceback
@@ -801,14 +803,17 @@ class Assistant:
         action_descriptions: list[str | None] = []
         action_results: list[Any] = []
         for action in actions:
+            intent = latest_user_intent(list(self.event_manager.processed) + list(self.event_manager.pending))
+            if not action_intent_allowed(action.function.name, intent):
+                result = {'tool_call_id': action.id, 'role': 'tool', 'name': action.function.name,
+                          'content': 'Not executed: explicit commander intent is required.'}
+                self.event_manager.add_tool_call([action.model_dump()], [result], None)
+                action_results.append(result)
+                continue
             action_input_desc = self.action_manager.getActionDesc(action, projected_states)
             action_descriptions.append(action_input_desc)
             if action_input_desc:
-                spoken_action_desc = (
-                    "Searching"
-                    if self.config.get("mute_search", False) and action.function.name == "web_search_agent"
-                    else action_input_desc
-                )
+                spoken_action_desc = spoken_activity(action.function.name)
                 self.tts.say(
                     spoken_action_desc,
                     context="assistant_acting",
@@ -916,6 +921,9 @@ class Assistant:
             allowed_actions = self.config.get("allowed_actions", {})
             in_station = bool(flags.get("Docked"))
             tool_list = self.action_manager.getToolsList(active_mode, uses_actions, uses_web_actions, uses_ui_actions, allowed_actions, in_station) if use_tools else None
+            intent = latest_user_intent(events)
+            if tool_list:
+                tool_list = [tool for tool in tool_list if action_intent_allowed(tool['function']['name'], intent)]
             predicted_actions = None
             if tool_list and user_input and not tool_uses and self.config["use_action_cache_var"]:
                 predicted_actions = self.action_manager.predict_action(user_input[-1], tool_list)
@@ -949,6 +957,19 @@ class Assistant:
                     show_chat_message('error', 'LLM Error:', str(e))
                     return
 
+            if response_text and not response_actions:
+                from .Event import PluginEvent
+                exploration = any(isinstance(event, PluginEvent) and event.plugin_event_name in
+                    ('TARSExplorerTarget', 'TARSObservatoryFact') for event in new_events)
+                location = get_state_dict(projected_states, 'Location')
+                context = (location.get('StarSystem'), location.get('Body'))
+                if not hasattr(self, '_exploration_callouts'):
+                    self._exploration_callouts = ExplorationCalloutDeduper()
+                response_text = self._exploration_callouts.assemble(response_text,
+                    context=context if context[0] else None, exploration=exploration and not user_input and not tool_uses)
+                if not response_text:
+                    self.event_manager.short_term_memory.replied_before(max_conversation_processed)
+                    self.event_manager.add_assistant_complete_event()
             if response_text and not response_actions:
                 line = self.tts.say(
                     response_text,
@@ -1083,7 +1104,7 @@ class Assistant:
 
         method = action_descriptor.get('method')
         args = {'query': query}
-        spoken_search_text = "Searching" if self.config.get("mute_search", False) else f"Searching: {query}"
+        spoken_search_text = spoken_activity(action_name)
         request = [{
             "id": f"call_{int(datetime.now().timestamp())}",
             "type": "function",

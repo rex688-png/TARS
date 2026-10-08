@@ -151,7 +151,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
     pluginEmbeddingProviders: ModelProviderDefinition[] = [];
 
     constructor(
-        private configService: ConfigService,
+        public configService: ConfigService,
         private characterService: CharacterService,
         private snackBar: MatSnackBar,
         private configBackupService: ConfigBackupService,
@@ -773,6 +773,8 @@ export class AdvancedSettingsComponent implements OnDestroy {
         update[field] = normalized;
         this.onConfigChange(update);
     }
+
+    providerDisplay = TarsProviderRegistry.label;
 
     async onConfigChange(partialConfig: Partial<Config>) {
         if (partialConfig.overlay_mode !== undefined) {

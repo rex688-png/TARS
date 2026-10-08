@@ -40,20 +40,24 @@ export class TarsProviderRegistry {
         ],
     };
 
-    private static readonly approvedPluginGuids = new Set([
-        "d17f20f6-2514-4a1f-9e54-2a3c089f5c2b", // built-in Mistral provider
-        "b77dec4f-8993-4213-8d44-caf902dabc6d", // Parakeet STT
-        "b7ddc677-0cfc-4081-af61-b2ebc2af5fe3", // Pocket-TTS 0.0.17-tarsfix
-        "7fd3d108-4e50-49db-8eb4-f3b4b8d53e66", // Supertonic TTS
-        "88d3df68-d949-11f0-b7d9-e768d0e4b754", // Gemma Embedding
-    ]);
+    private static readonly approvedPlugins: Record<string, { id: string; label: string }> = {
+        "d17f20f6-2514-4a1f-9e54-2a3c089f5c2b": {id: "mistral", label: "Mistral"},
+        "b77dec4f-8993-4213-8d44-caf902dabc6d": {id: "parakeet-stt", label: "Parakeet STT"},
+        "b7ddc677-0cfc-4081-af61-b2ebc2af5fe3": {id: "pocket-tts", label: "PocketTTS"},
+        "7fd3d108-4e50-49db-8eb4-f3b4b8d53e66": {id: "supertonic-tts", label: "Supertonic TTS"},
+        "88d3df68-d949-11f0-b7d9-e768d0e4b754": {id: "gemma-embedding", label: "Gemma Embedding"},
+    };
+
+    static pluginLabel(guid: string, fallback: string): string {
+        return this.approvedPlugins[guid]?.label ?? fallback;
+    }
 
     static options(kind: TarsProviderKind, current?: string | null, registered: readonly ModelProviderDefinition[] = []): TarsProviderOption[] {
         const options = this.builtin[kind].map((option) => ({ ...option }));
         if (current?.startsWith("plugin:") && !registered.some(
             provider => provider.kind === kind && current === `plugin:${provider.plugin_guid}:${provider.id}`,
         )) {
-            options.push({ value: current, label: `${current.split(":").at(-1)} — not registered; install/restart required` });
+            options.push({ value: current, label: `${this.label(current)} — not registered; install/restart required` });
         }
         if (current && !current.startsWith("plugin:") && !options.some((option) => option.value === current)) {
             options.push({
@@ -70,12 +74,16 @@ export class TarsProviderRegistry {
         kind: TarsProviderKind,
     ): ModelProviderDefinition[] {
         return providers.filter(
-            (provider) => provider.kind === kind && this.approvedPluginGuids.has(provider.plugin_guid),
+            (provider) => provider.kind === kind && Object.hasOwn(this.approvedPlugins, provider.plugin_guid),
         );
     }
 
     static label(provider: string | null | undefined): string {
         if (!provider) return "Not set";
+        if (provider.startsWith("plugin:")) {
+            const [, guid, id] = provider.split(":");
+            return this.approvedPlugins[guid]?.label ?? Object.values(this.approvedPlugins).find(item => item.id === id)?.label ?? "Local provider";
+        }
         const known = Object.values(this.builtin)
             .flat()
             .find((option) => option.value === provider);

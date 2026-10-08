@@ -20,9 +20,10 @@
     </mat-tab>
     <mat-tab label="PERSONALITY">
         <div class="tab-content">
-            <p>One TARS: edit the system prompt from General, or tune event reactions here.</p>
-            <button mat-stroked-button type="button" (click)="openPromptEditor()">Edit TARS prompt</button>
+            <app-tars-prompt-settings></app-tars-prompt-settings>
+            <details class="reaction-details"><summary>Configure event reactions</summary>
             @if (config) { <app-event-reactions-settings></app-event-reactions-settings> }
+            </details>
         </div>
     </mat-tab>
     <mat-tab label="PLUGINS">
@@ -32,10 +33,13 @@
     </mat-tab>
     <mat-tab label="DIAGNOSTICS">
         <div class="tab-content usage-tab-content">
-            <h2>Action and keybind diagnostics</h2>
+            <app-tars-diagnostics></app-tars-diagnostics>
+            <details><summary>Action and keybind diagnostics</summary>
             @if (config) { <app-actions-settings></app-actions-settings> }
-            <h2>Model usage</h2>
+            </details>
+            <details><summary>Model usage</summary>
             @if (config) { <app-model-usage-analytics></app-model-usage-analytics> }
+            </details>
         </div>
     </mat-tab>
 </mat-tab-group>

@@ -20,6 +20,7 @@ export interface TarsConversationEntry {
 
 export interface TarsProviderSelection {
     provider: string;
+    label: string;
     model: string;
     configured: boolean;
 }
@@ -56,7 +57,7 @@ export interface TarsProviderInstallationState {
     error?: string;
 }
 
-export type TarsHealthStatus = "ready" | "busy" | "unavailable" | "error" | "unknown";
+export type TarsHealthStatus = "ready" | "available" | "busy" | "unavailable" | "error" | "unknown";
 export type TarsHealthEvidence = "observed" | "configured" | "not-exposed";
 
 export type TarsComponentId =

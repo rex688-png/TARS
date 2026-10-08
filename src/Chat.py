@@ -1,3 +1,4 @@
+from lib.ResponsePresentation import private_text_summary
 import copy
 import sys
 from time import sleep
@@ -44,6 +45,7 @@ from lib.Config import (
     update_character,
     reset_game_events,
     handle_tars_prompt_command,
+    handle_config_command,
 )
 from lib.PluginManager import PluginManager
 from lib.ActionManager import ActionManager
@@ -443,7 +445,7 @@ class Chat:
             show_chat_message("event", event.content.get("event", "Unknown"))
         if event.kind == "memory":
             event = cast(MemoryEvent, event)
-            show_chat_message("memory", event.content)
+            show_chat_message("memory", private_text_summary("Memory updated", event.content))
         if event.kind == "plugin":
             event = cast(PluginEvent, event)
             plugin_content = event.plugin_event_content if isinstance(event.plugin_event_content, dict) else {}
@@ -737,7 +739,7 @@ class Chat:
         show_chat_message("info", f"Current model: {self.config['llm_model_name']}")
         show_chat_message("info", f"Current TTS voice: {self.character['tts_voice']}")
         show_chat_message("info", f"Current TTS Speed: {self.character['tts_speed']}")
-        show_chat_message("info", "Current backstory: " + self.backstory)
+        show_chat_message("info", private_text_summary("TARS system prompt loaded", self.backstory))
 
         # TTS Setup
         show_chat_message("info", "Basic configuration complete.")
@@ -1021,12 +1023,15 @@ def read_stdin(chat: Chat):
             if data.get("type") == "change_config":
                 partial = data.get("config")
                 if isinstance(partial, dict):
-                    chat.config = update_config(chat.config, partial)
+                    chat.config = handle_config_command(chat.config, data)
                     chat.plugin_manager.on_settings_changed(chat.config)
                     if "output_volume_multiplier" in partial:
                         chat.tts.set_output_volume_multiplier(
                             float(chat.config.get("output_volume_multiplier", 1.0))
                         )
+            if data.get("type") == "change_event_config":
+                chat.config = handle_config_command(chat.config, data)
+                chat.plugin_manager.on_settings_changed(chat.config)
             if data.get("type") in ("set_tars_prompt", "reset_tars_prompt"):
                 chat.config = handle_tars_prompt_command(chat.config, data)
             if data.get("type") == "submit_input":
@@ -1193,12 +1198,10 @@ if __name__ == "__main__":
                         index if isinstance(index, int) else 0,
                     )
                 if data.get("type") == "change_config":
-                    config = update_config(config, data["config"])
+                    config = handle_config_command(config, data)
                     plugin_manager.on_settings_changed(config)
                 if data.get("type") == "change_event_config":
-                    config = update_event_config(
-                        config, data["section"], data["event"], data["value"]
-                    )
+                    config = handle_config_command(config, data)
                 if data.get("type") == "change_character":
                     config = update_character(config, data)
                 if data.get("type") in ("set_tars_prompt", "reset_tars_prompt"):

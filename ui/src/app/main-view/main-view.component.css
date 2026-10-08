@@ -64,3 +64,16 @@
 .app.red { --hud-orange: #e57661; }
 @media (max-width: 850px) { .conversation-layout { grid-template-columns: minmax(0,1fr); } .context-column { display: none; } }
 @media (max-width: 620px) { .app { grid-template-columns: 62px minmax(0,1fr); } .shell-rail { padding: 16px 6px; } .brand-lockup { width: 48px; height: 48px; object-position: left; } .primary-navigation button { justify-content: center; padding: 10px 3px; } .primary-navigation button span, .rail-footer span:last-child { display: none; } .view-heading { padding: 17px; } .readiness { display: block; } .tars-avatar { width: 130px; height: 130px; } }
+/* State is encoded by color and readable text, not by glow alone. */
+.phase[data-status="READY"] { color: #72c6e3; }
+.phase[data-status="LISTENING"], .phase[data-status="SPEAKING"] { color: #8de9f7; }
+.phase[data-status="THINKING"], .phase[data-status="STARTING"], .phase[data-status="ACTING"] { color: #e0b16b; }
+.phase[data-status="ERROR"] { color: #f19090; }
+.phase[data-status="OFFLINE"] { color: #929ca6; }
+.phase .state-dot, .rail-footer .state-dot { background: currentColor; box-shadow: none; }
+.rail-footer[data-status="ELITE LIVE"] { color: #79d6b7; }
+.rail-footer[data-status="LAST KNOWN"] { color: #cbb382; }
+.rail-footer[data-status="ELITE OFFLINE"] { color: #919ba6; }
+.health-list strong[data-status="busy"] { color: #e0b16b; }
+.health-list strong[data-status="error"] { color: #f19090; }
+.health-list strong[data-status="available"] { color: #a8bdce; }

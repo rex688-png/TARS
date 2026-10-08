@@ -551,3 +551,14 @@ div.output-device-column .mat-mdc-form-field-subscript-wrapper {
   height: 20px;
   padding-top: 3px;
 }
+:host { display: block; }
+mat-accordion { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px !important; align-items: start; }
+.tars-setting-card { padding: 16px; border: 1px solid #3b454f; border-radius: 4px; background: #171d24; min-width: 0; }
+.tars-setting-card > header { display: flex; gap: 10px; align-items: center; color: #b5dbe8; }
+.tars-setting-card h3 { margin: 0; font-size: 16px; font-weight: 500; }
+.tars-setting-card > p { font-size: 12px; color: #acb9c5; margin: 10px 0 16px; }
+.tars-setting-card mat-expansion-panel { border: 0 !important; box-shadow: none !important; background: #11171d !important; }
+.tars-setting-card mat-panel-title { color: #afc8d3 !important; font-size: 12px; }
+.advanced-application-controls { grid-column: 1 / -1; border-top: 1px solid #3b454f; padding-top: 16px; }
+.advanced-application-controls > summary { cursor: pointer; font-size: 13px; color: #b3c7d6; padding: 8px 0 16px; }
+.advanced-controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; align-items: start; }

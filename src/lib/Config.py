@@ -1384,7 +1384,6 @@ def migrate(data: dict) -> dict:
 
 
 def merge_config_data(defaults: dict, user: dict):
-    print("Merge config data")
     # Create new merge dict
     merge = {}
     
@@ -1842,8 +1841,8 @@ def assign_ptt(config: Config, controller_manager, index: int = 0):
     semaphore.acquire()
     controller_manager.listen_hotkey(on_hotkey_detected)
     semaphore.acquire()
-    emit_message("config", config=config)
     save_config(config)
+    emit_message("config", config=config)
     return config
 
 
@@ -2265,6 +2264,25 @@ def update_config(config: Config, data: dict) -> Config:
     save_config(new_config)
     emit_message("config", config=new_config)
     return new_config
+
+
+def handle_config_command(config: Config, data: dict) -> Config:
+    """Acknowledge persistence, never just transport delivery; keep disk failures nonfatal."""
+    try:
+        candidate = copy.deepcopy(config)
+        if data.get('type') == 'change_event_config':
+            candidate = update_event_config(candidate, data['section'], data['event'], data['value'])
+        else:
+            candidate = update_config(candidate, data['config'])
+        if data.get('request_id'):
+            emit_message('config_save_result', request_id=data['request_id'], success=True)
+        return candidate
+    except Exception:
+        if data.get('request_id'):
+            emit_message('config_save_result', request_id=data['request_id'], success=False,
+                         error='Unable to save configuration; check disk access and try again.')
+            return config
+        raise
 
 
 def update_event_config(config: Config, section: str, event: str, value: str) -> Config:
