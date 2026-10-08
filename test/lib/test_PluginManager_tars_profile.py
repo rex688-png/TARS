@@ -206,3 +206,36 @@ def test_tars_profile_selects_verified_bundled_plugins_in_order():
 
     assert [folder for folder, _ in loaded] == list(PluginManager.TARS_PLUGIN_ORDER)
     assert all(entrypoint.endswith(".py") for _, entrypoint in loaded)
+
+
+def test_actual_provider_loader_preserves_saved_tuning_across_schema_upgrade_and_reload(tmp_path, monkeypatch):
+    from unittest.mock import patch
+    from lib.PluginBase import PluginManifest
+    folder = tmp_path / 'fixture-provider'
+    folder.mkdir()
+    entrypoint = folder / 'fixture-provider.py'
+    entrypoint.write_text('''from lib.PluginBase import PluginBase
+class FixtureProvider(PluginBase):
+    settings_schema_version = 2
+    model_providers = [{'kind':'tts', 'id':'fixture-tts', 'label':'Fixture voice', 'settings_config':[]}]
+    def __init__(self, manifest):
+        super().__init__(manifest)
+    def migrate_settings(self, settings, version):
+        settings.update(onnx_threads=4, max_tokens=30, generation_steps=2, gap=150, new_option='default')
+''')
+    manifest = PluginManifest(json.dumps({'guid':'fixture-provider-guid','name':'Fixture provider',
+        'entrypoint':entrypoint.name,'version':'2.0.0'}))
+    saved = {'onnx_threads':1,'max_tokens':75,'generation_steps':6,'gap':300,'fallback':'fixture.wav'}
+    config = {'plugin_settings':{manifest.guid:dict(saved)}}
+    monkeypatch.syspath_prepend(str(folder))
+    # Real import/loader, isolated test modules; no provider archive or hardware is claimed.
+    with patch.dict(sys.modules):
+        manager = PluginManager(config, tars_profile=True, plugin_folder=str(tmp_path))
+        plugin = manager.load_plugin_module(manifest, str(entrypoint))
+        assert all(plugin.settings[key] == value for key, value in saved.items())
+        assert plugin.settings['settings_version'] == 2
+        assert plugin.settings['new_option'] == 'default'
+        persisted = json.loads(json.dumps(manager.config))
+        restarted = PluginManager(persisted, tars_profile=True, plugin_folder=str(tmp_path))
+        plugin = restarted.load_plugin_module(manifest, str(entrypoint))
+        assert all(plugin.settings[key] == value for key, value in saved.items())

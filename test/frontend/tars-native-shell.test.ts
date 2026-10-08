@@ -154,3 +154,68 @@ test("shell uses production TARS branding and the unmodified canonical avatar", 
     assert.doesNotMatch(overlayStyle, /\.overlay-pngtuber\.canonical-tars-avatar\s*\{/);
     assert.doesNotMatch(settingsStyle, /\.minimal-avatar-image\.canonical-tars-avatar\s*\{/);
 });
+
+// Presentation contracts do not require a desktop or live Elite session.
+import { providerRuntimeLabel, selfCheck, healthLabel } from '../../ui/src/app/services/tars-health-presentation';
+import { TarsProviderRegistry } from '../../ui/src/app/services/tars-provider-registry';
+import { TarsPromptEditor } from '../../ui/src/app/components/tars-prompt-settings/tars-prompt-editor';
+
+test('providers are installed before startup, ready only on an observed initialization report', () => {
+    const ready = {component: 'tts', status: 'ready', evidence: 'observed', detail: 'Initialized'} as const;
+    assert.equal(providerRuntimeLabel(true, true, 'configuring', ready), 'INSTALLED');
+    assert.equal(providerRuntimeLabel(true, true, 'starting', undefined), 'STARTING');
+    assert.equal(providerRuntimeLabel(true, true, 'running', ready), 'READY');
+    assert.equal(providerRuntimeLabel(true, false, 'running', ready), 'INSTALLED');
+    assert.equal(providerRuntimeLabel(false, true, 'running', ready), 'UNAVAILABLE');
+    assert.equal(providerRuntimeLabel(true, true, 'running', {...ready,status:'error'}), 'ERROR');
+    assert.equal(providerRuntimeLabel(true, true, 'running', undefined), 'AVAILABLE');
+});
+
+test('self-check does not mistake missing optional telemetry for TARS failure', () => {
+    const backend = {component:'backend',status:'ready',evidence:'observed',detail:'Running'} as const;
+    const optional = {component:'elite-journal',status:'unknown',evidence:'not-exposed',detail:'No telemetry'} as const;
+    assert.equal(selfCheck([backend]), 'READY');
+    assert.equal(selfCheck([backend, optional]), 'WARNING');
+    assert.equal(healthLabel(optional), 'Not verified');
+    assert.equal(selfCheck([{...backend,status:'error'},optional]), 'FAILED');
+});
+
+test('normal provider labels never expose UUIDs', () => {
+    assert.equal(TarsProviderRegistry.label('plugin:fixture-uuid:pocket-tts'), 'PocketTTS');
+    assert.equal(TarsProviderRegistry.label('plugin:fixture-uuid:parakeet-stt'), 'Parakeet STT');
+    assert.equal(TarsProviderRegistry.label('plugin:fixture-uuid:gemma-embedding'), 'Gemma Embedding');
+    assert.equal(TarsProviderRegistry.label('plugin:fixture-uuid:unknown'), 'Local provider');
+});
+
+test('prompt feedback preserves a dirty draft on unrelated updates and disk failure', async () => {
+    const editor = new TarsPromptEditor();
+    editor.receive('Saved prompt');
+    editor.draft = 'Edited prompt';
+    editor.receive('Saved prompt');
+    assert.equal(editor.feedback, 'Unsaved changes');
+    await editor.save(async () => { throw new Error('Disk failure'); });
+    assert.equal(editor.draft, 'Edited prompt');
+    assert.match(editor.feedback, /Error saving/);
+    await editor.save(async () => 'Edited prompt');
+    assert.equal(editor.feedback, 'Saved');
+    editor.draft = 'More edits'; editor.reload();
+    assert.equal(editor.draft, 'Edited prompt');
+});
+
+test('Settings offer compact system cards and Personality owns the prompt editor', () => {
+    const advanced = readFileSync('ui/src/app/components/advanced-settings/advanced-settings.component.html','utf8');
+    const settings = readFileSync('ui/src/app/components/settings-menu/settings-menu.component.html','utf8');
+    assert.match(advanced, /tars-setting-card/);
+    assert.match(advanced, /Configure \/ Advanced/);
+    for (const label of ['AI model','Speech / microphone','Voice / output','Memory','Vision']) assert.ok(advanced.includes(label));
+    assert.match(settings, /app-tars-prompt-settings/);
+    assert.match(settings, /app-tars-diagnostics/);
+    assert.doesNotMatch(settings, /edit the system prompt from General/);
+    const styles = readFileSync('ui/src/app/main-view/main-view.component.css','utf8');
+    for (const state of ['READY','LISTENING','THINKING','ERROR','ELITE LIVE','LAST KNOWN','ELITE OFFLINE']) assert.ok(styles.includes(`data-status="${state}"`));
+});
+
+test('provider presentation uses the central approved names rather than inherited package labels', () => {
+    assert.equal(TarsProviderRegistry.pluginLabel('b7ddc677-0cfc-4081-af61-b2ebc2af5fe3', 'COVAS provider'), 'PocketTTS');
+    assert.equal(TarsProviderRegistry.pluginLabel('b77dec4f-8993-4213-8d44-caf902dabc6d', 'COVAS provider'), 'Parakeet STT');
+});

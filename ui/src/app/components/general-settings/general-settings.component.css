@@ -633,3 +633,6 @@ div.output-device-column .mat-mdc-form-field-subscript-wrapper {
     min-height: 20rem;
   }
 }
+.startup-card { border: 1px solid #3d4c59; background: #171e26; padding: 16px 20px; margin-top: 16px; border-radius: 4px; }
+.startup-card h3 { color: #b6dbe9; font-size: 16px; margin-top: 0; }
+.startup-card p { color: #aabcc9; font-size: 12px; }

@@ -4,6 +4,13 @@ import { BaseCommand, type BaseMessage, TauriService } from "./tauri.service";
 import { ModelProviderDefinition, PluginModelProvidersMessage, PluginSettings, PluginSettingsMessage, ProviderInstallStatusMessage } from "./plugin-settings";
 import { ScreenInfo } from "../models/screen-info";
 
+export interface ConfigSaveResult extends BaseMessage {
+    type: 'config_save_result';
+    request_id: string;
+    success: boolean;
+    error?: string;
+}
+
 export interface ConfigMessage extends BaseMessage {
     type: "config";
     config: Config;
@@ -210,6 +217,11 @@ export interface Config {
     providedIn: "root",
 })
 export class ConfigService {
+    private saveStateSubject = new BehaviorSubject("Saved");
+    public saveState$ = this.saveStateSubject.asObservable();
+    private pendingSaves = 0;
+    private failedSave = false;
+
     private configSubject = new BehaviorSubject<Config | null>(null);
     public config$ = this.configSubject.asObservable();
 
@@ -321,8 +333,7 @@ export class ConfigService {
             config: partialConfig,
         };
 
-        // Send update to backend
-        await this.tauriService.send_command(message);
+        await this.saveConfigCommand(message);
     }
 
     public async changeEventConfig(
@@ -343,7 +354,29 @@ export class ConfigService {
             value: enabled,
         };
 
-        await this.tauriService.send_command(message);
+        await this.saveConfigCommand(message);
+    }
+
+    private async saveConfigCommand(message: BaseCommand): Promise<void> {
+        const requestId = this.promptRequestId();
+        message["request_id"] = requestId;
+        if (!this.pendingSaves) this.failedSave = false;
+        this.pendingSaves++;
+        this.saveStateSubject.next("Saving…");
+        try {
+            const response = firstValueFrom(this.tauriService.output$.pipe(
+                filter((value): value is ConfigSaveResult => value.type === 'config_save_result' && value['request_id'] === requestId),
+                timeout(10000),
+            ));
+            const [, result] = await Promise.all([this.tauriService.send_command(message), response]);
+            if (!result.success) throw new Error(result.error ?? 'Configuration was not saved');
+        } catch (error) {
+            this.failedSave = true;
+            throw error;
+        } finally {
+            this.pendingSaves--;
+            this.saveStateSubject.next(this.pendingSaves ? "Saving…" : this.failedSave ? "Error saving — unsaved changes" : "Saved");
+        }
     }
 
     public async setPluginSetting(key: string, value: any): Promise<void> {

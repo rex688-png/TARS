@@ -1,4 +1,5 @@
 <div class="plugin-settings-stack">
+    <p class="save-feedback" aria-live="polite">{{ configService.saveState$ | async }}</p>
     <p class="plugins-info-link">Install only the TARS-approved providers listed here. Large downloads begin only when you select Install.</p>
     <h2>PROVIDERS</h2>
     <p>Speech, voice and memory engines. Installed providers remain available after restart; installation is only needed once.</p>
@@ -7,9 +8,10 @@
             <mat-expansion-panel-header>
                 <mat-panel-title>
                     <mat-icon class="tab-icon">{{ iconFor(plugin_settings_config[0], plugin_settings_config[1]) }}</mat-icon>
-                    {{ plugin_settings_config[1].label }}
-                    @if (plugin_settings_config[0].startsWith('failed_')) { <span class="provider-badge">Error</span> }
-                    @else if (plugin_settings_config[0] !== '71be4c2e-4a49-45f7-b968-d70588bdae74') { <span class="provider-badge">Ready</span> }
+                    {{ providerDisplayLabel(plugin_settings_config[0], plugin_settings_config[1]) }}
+                    @if (plugin_settings_config[0] !== '71be4c2e-4a49-45f7-b968-d70588bdae74') {
+                        <span class="provider-badge" [attr.data-status]="providerRuntimeState(plugin_settings_config[0])">{{ providerRuntimeState(plugin_settings_config[0]) }}</span>
+                    }
                 </mat-panel-title>
             </mat-expansion-panel-header>
             @if (config) {
@@ -43,7 +45,7 @@
         <mat-expansion-panel>
             <mat-expansion-panel-header><mat-panel-title>
                 <mat-icon class="tab-icon">{{ iconFor(plugin_settings_config[0], plugin_settings_config[1]) }}</mat-icon>
-                {{ plugin_settings_config[1].label }}
+                {{ providerDisplayLabel(plugin_settings_config[0], plugin_settings_config[1]) }}
                 <span class="provider-badge">Loaded</span>
             </mat-panel-title></mat-expansion-panel-header>
             @if (config) {

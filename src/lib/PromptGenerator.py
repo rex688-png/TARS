@@ -1,3 +1,4 @@
+from .ResponsePresentation import RESPONSE_POLICY, current_commander_facts
 from datetime import timedelta, datetime, timezone
 from functools import lru_cache
 from typing import Any, Callable, cast, Dict, Union, List, Optional
@@ -3010,7 +3011,7 @@ class PromptGenerator:
         return quests
 
     def generate_status_message(self, projected_states: ProjectedStates, search_agent_context: bool = False):
-        status_entries: list[tuple[str, Any]] = []
+        status_entries: list[tuple[str, Any]] = [("Preferred current commander facts (latest snapshot; freshness not verified)", current_commander_facts(projected_states))]
 
         current_status = get_state_dict(projected_states, 'CurrentStatus')
         status_fuel = current_status.get('Fuel')
@@ -3800,6 +3801,7 @@ class PromptGenerator:
                     + "Be specific about amounts and percentages for inquiries as the commander can not see the game events' text description but lives in the universe. " \
                     + "You do not ask questions or initiate conversations. You respond only when addressed and in a single sentence. " \
                     + "Don't repeat the same words and sentences, mix it up. " \
+                    + RESPONSE_POLICY \
                     + "Your character prompt is: " + self.character_prompt.format(commander_name=self.commander_name)
             
             usage_stats.system_chars = len(system_prompt_content)

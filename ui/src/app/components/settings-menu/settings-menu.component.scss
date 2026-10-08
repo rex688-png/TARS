@@ -160,3 +160,18 @@ mat-slide-toggle {
 .provider-install-error {
     color: var(--mat-sys-error);
 }
+/* Settings use steel/cyan surfaces; orange is reserved for attention. */
+:host { --hud-panel-soft: #151b22; --hud-panel-strong: #202b36; --hud-border: #3d4c59; --hud-border-dark: #303b45; --hud-glow: none; }
+:host ::ng-deep .mat-mdc-tab .mdc-tab__text-label { color: #b4c2ce !important; }
+:host ::ng-deep .mat-mdc-tab.mdc-tab--active { background: #273743 !important; box-shadow: none !important; }
+:host ::ng-deep .mat-mdc-tab.mdc-tab--active .mdc-tab__text-label { color: #8ed0e7 !important; }
+:host ::ng-deep .mat-expansion-panel { border-color: #384652 !important; background: #171e26 !important; box-shadow: none !important; }
+:host ::ng-deep .mat-expansion-panel-header-title { color: #c5d3df !important; }
+:host ::ng-deep .preflight-item.active { background: #253642 !important; color: #d9edf5 !important; border-color: #668d9e !important; box-shadow: none !important; }
+:host ::ng-deep .preflight-item.ready { color: #85cdb9; }
+:host ::ng-deep .preflight-heading { color: #b5dbe8 !important; }
+:host ::ng-deep .save-feedback { color: #9fcbbf; font-size: 12px; min-height: 18px; }
+.provider-badge[data-status="READY"] { color: #88d7c0; }
+.provider-badge[data-status="STARTING"] { color: #e4b678; }
+.provider-badge[data-status="ERROR"] { color: #f09090; }
+.provider-badge[data-status="INSTALLED"], .provider-badge[data-status="AVAILABLE"] { color: #a2c3d4; }

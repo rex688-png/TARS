@@ -1,3 +1,5 @@
+import type { ModelProviderDefinition } from "./plugin-settings";
+import { TarsProviderRegistry } from "./tars-provider-registry";
 import { Injectable } from "@angular/core";
 import { combineLatest, filter, map, merge, Observable, of, startWith, shareReplay } from "rxjs";
 
@@ -100,9 +102,10 @@ export class TarsRuntimeFacade {
         this.configService.provider_install_status$,
         this.projectionsService.currentStatus$,
         this.initializedComponents$,
+        this.configService.plugin_model_providers$ ?? of([]),
     ]).pipe(
-        map(([application, config, installation, currentStatus, components]) =>
-            this.buildHealth(application, config, installation?.state, currentStatus, components)),
+        map(([application, config, installation, currentStatus, components, providers]) =>
+            this.buildHealth(application, config, installation?.state, currentStatus, components, providers)),
     );
 
     /** No external integration is claimed until a real adapter reports it. */
@@ -205,6 +208,7 @@ export class TarsRuntimeFacade {
             && provider !== "none";
         return {
             provider,
+            label: TarsProviderRegistry.label(provider),
             model,
             configured: provider !== "none" && (!requiresCredential || Boolean(credential)),
         };
@@ -238,26 +242,29 @@ export class TarsRuntimeFacade {
         installationState: string | undefined,
         currentStatus: unknown,
         components: RuntimeComponentsMessage | null,
+        providers: readonly ModelProviderDefinition[],
     ): readonly TarsComponentHealth[] {
         const providerBusy = ["downloading", "verifying", "extracting"].includes(installationState ?? "");
         const backendStatus = application === "running"
             ? "ready"
-            : application === "error" ? "error" : application === "stopped" ? "unavailable" : "busy";
+            : application === "error" ? "error" : application === "stopped" || application === "configuring" ? "unavailable" : "busy";
         const configuredUnknown = (enabled: boolean): TarsComponentHealth["status"] =>
-            enabled ? "unknown" : "unavailable";
+            enabled ? "available" : "unavailable";
         const observed = (key: keyof Omit<RuntimeComponentsMessage, "type">, enabled: boolean): TarsComponentHealth["status"] =>
             components && application === "running" ? (components[key] ? "ready" : "unavailable")
                 : application === "starting" || application === "restarting" ? "busy" : configuredUnknown(enabled);
+        const available = (provider: string | undefined): boolean => Boolean(provider && provider !== 'none' &&
+            (!provider.startsWith('plugin:') || providers.some(item => provider === `plugin:${item.plugin_guid}:${item.id}`)));
         const evidence = components && application === "running" ? "observed" : "configured";
         const hasStatus = Object.keys(this.asRecord(currentStatus)).length > 0;
 
         return [
             this.health("backend", backendStatus, "observed", `Application is ${application}.`),
-            this.health("models", observed("models", Boolean(config)), evidence,
+            this.health("models", observed("models", available(config?.llm_provider)), evidence,
                 components ? "Model initialization reported by runtime." : "Waiting for model initialization report."),
-            this.health("stt", observed("stt", Boolean(config && config.stt_provider !== "none")), evidence,
+            this.health("stt", observed("stt", available(config?.stt_provider)), evidence,
                 components ? "Speech initialization reported by runtime." : "Waiting for speech initialization report."),
-            this.health("tts", observed("tts", Boolean(config && config.tts_provider !== "none")), evidence,
+            this.health("tts", observed("tts", available(config?.tts_provider)), evidence,
                 components ? "Voice initialization reported by runtime." : "Waiting for voice initialization report."),
             this.health("audio", config ? "unknown" : "unavailable", config ? "configured" : "not-exposed",
                 "Audio-device health is not exposed."),
@@ -269,7 +276,7 @@ export class TarsRuntimeFacade {
             this.health("elite-status", hasStatus ? "ready" : "unknown", hasStatus ? "observed" : "not-exposed",
                 hasStatus ? "Status state has been received; file freshness is not exposed." : "No Status state received."),
             this.health("plugins", "unknown", "not-exposed", "Per-plugin runtime health is not exposed."),
-            this.health("memory", observed("memory", Boolean(config && config.embedding_provider !== "none")), evidence,
+            this.health("memory", observed("memory", available(config?.embedding_provider)), evidence,
                 components ? "Embedding initialization reported by runtime." : "Waiting for embedding initialization report."),
             this.health("vision", configuredUnknown(Boolean(config?.vision_var && config.vision_provider !== "none")),
                 config ? "configured" : "not-exposed", "Vision configuration is known; capture health is not exposed."),

@@ -10,7 +10,7 @@
       <button type="button" [class.active]="selectedView === 'storage'" [attr.aria-current]="selectedView === 'storage' ? 'page' : null" (click)="selectView('storage')"><mat-icon>inventory_2</mat-icon><span>Storage</span></button>
       <button type="button" [class.active]="selectedView === 'settings'" [attr.aria-current]="selectedView === 'settings' ? 'page' : null" (click)="selectView('settings')"><mat-icon>tune</mat-icon><span>Settings</span></button>
     </nav>
-    <div class="rail-footer">
+    <div class="rail-footer" [attr.data-status]="eliteDataLabel">
       <span class="state-dot" [class.online]="eliteDataLabel === 'ELITE LIVE'"></span>
       <span>{{ eliteDataLabel }}</span>
     </div>
@@ -20,7 +20,7 @@
     <section class="view-panel tars-view" data-view="tars" [class.is-hidden]="selectedView !== 'tars'" aria-label="TARS conversation">
       <header class="view-heading">
         <div><p class="eyebrow">COPILOT / ELITE DANGEROUS</p><h1>TARS</h1></div>
-        <div class="phase" aria-live="polite">
+        <div class="phase" [attr.data-status]="activityLabel((runtime.interactionState$ | async)?.phase ?? 'idle')" aria-live="polite">
           @if (runtime.interactionState$ | async; as interaction) {
             <span class="state-dot" [class.online]="runMode === 'running'"></span>{{ activityLabel(interaction.phase) }}
           }
@@ -39,9 +39,9 @@
                   @if (runtime.configuration$ | async; as configuration) {
                     <div class="readiness-grid">
                       <span>AI</span><strong>{{ configuration.llm.configured ? configuration.llm.model : 'Setup needed' }}</strong>
-                      <span>Speech</span><strong>{{ configuration.stt.configured ? configuration.stt.provider : 'Setup needed' }}</strong>
-                      <span>Voice</span><strong>{{ configuration.tts.configured ? configuration.tts.provider : 'Setup needed' }}</strong>
-                      <span>Memory</span><strong>{{ configuration.memory.enabled ? configuration.memory.provider : 'Disabled' }}</strong>
+                      <span>Speech</span><strong>{{ configuration.stt.configured ? configuration.stt.label : 'Setup needed' }}</strong>
+                      <span>Voice</span><strong>{{ configuration.tts.configured ? configuration.tts.label : 'Setup needed' }}</strong>
+                      <span>Memory</span><strong>{{ configuration.memory.enabled ? configuration.memory.label : 'Disabled' }}</strong>
                     </div>
                   }
                   @if (keybinds$ | async; as keybinds) {
@@ -82,7 +82,7 @@
           <h2>CONTEXT</h2>
           @if (runtime.eliteContext$ | async; as elite) {
             <div class="context-list">
-              <span>Elite</span><strong>{{ elite.available ? 'State received' : 'No state yet' }}</strong>
+              <span>Elite</span><strong>{{ eliteDataLabel }}</strong>
               @if (elite.systemName) { <span>System</span><strong>{{ elite.systemName }}</strong> }
               @if (elite.bodyName) { <span>Body</span><strong>{{ elite.bodyName }}</strong> }
               @if (elite.shipType) { <span>Ship</span><strong>{{ elite.shipType }}</strong> }
@@ -92,8 +92,8 @@
             <h2>SYSTEMS</h2>
             <div class="health-list">
               @for (item of health; track item.component) {
-                @if (item.component === 'backend' || item.component === 'models' || item.component === 'stt' || item.component === 'tts' || item.component === 'memory' || item.component === 'elite-journal') {
-                  <div><span>{{ item.component }}</span><strong [class.ready]="item.status === 'ready'">{{ item.status === 'unknown' && item.evidence === 'configured' ? 'CONFIGURED' : item.status === 'busy' ? 'STARTING' : item.status }}</strong></div>
+                @if (item.component === 'backend' || item.component === 'models' || item.component === 'stt' || item.component === 'tts' || item.component === 'memory') {
+                  <div><span>{{ item.component }}</span><strong [attr.data-status]="item.status" [class.ready]="item.status === 'ready'">{{ item.status === 'unknown' && item.evidence === 'configured' ? 'CONFIGURED' : item.status === 'busy' ? 'STARTING' : item.status }}</strong></div>
                 }
               }
             </div>

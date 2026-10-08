@@ -1,3 +1,8 @@
+import { TarsProviderRegistry } from "../../services/tars-provider-registry";
+import { TarsRuntimeFacade } from "../../services/tars-runtime-facade.service";
+import { TarsComponentHealth } from "../../services/tars-runtime-facade.models";
+import { providerRuntimeLabel } from "../../services/tars-health-presentation";
+import { ModelProviderDefinition } from "../../services/plugin-settings";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { MatCardModule } from "@angular/material/card";
 import { MatTabsModule } from "@angular/material/tabs";
@@ -60,6 +65,10 @@ import { SettingsGridComponent } from "../settings-grid/settings-grid.component"
 })
 export class PluginSettingsComponent implements OnInit, OnDestroy {
   config: Config | null = null;
+  private runtimeSubscriptions = new Subscription();
+  private application = "stopped";
+  private health: readonly TarsComponentHealth[] = [];
+  private providers: ModelProviderDefinition[] = [];
   private configSubscription?: Subscription;
   private plugin_settings_message_subscription?: Subscription;
   private provider_install_status_subscription?: Subscription;
@@ -71,13 +80,17 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
   providerInstallStatuses: Record<string, ProviderInstallStatusMessage> = {};
 
   constructor(
-    private configService: ConfigService,
+    public configService: ConfigService,
+    private runtime: TarsRuntimeFacade,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
     private confirmationDialog: ConfirmationDialogService,
   ) {}
 
   ngOnInit() {
+    this.runtimeSubscriptions.add(this.runtime.applicationState$.subscribe(value => this.application = value));
+    this.runtimeSubscriptions.add(this.runtime.health$.subscribe(value => this.health = value));
+    this.runtimeSubscriptions.add(this.configService.plugin_model_providers$.subscribe(value => this.providers = value));
     this.configSubscription = this.configService.config$.subscribe(
       (config) => {
         if (config) {
@@ -138,6 +151,7 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.runtimeSubscriptions.unsubscribe();
     if (this.configSubscription) {
       this.configSubscription.unsubscribe();
     }
@@ -191,6 +205,20 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
         this.snackBar.open("Error handling plugin button click", "OK", { duration: 5000 });
       });
     };
+  }
+
+  providerDisplayLabel(guid: string, settings: PluginSettings): string {
+    return TarsProviderRegistry.pluginLabel(guid, settings.label);
+  }
+
+  providerRuntimeState(guid: string): string {
+    if (guid.startsWith('failed_') || this.plugin_settings_configs.find(([key]) => key === guid)?.[1].grids.some(grid => grid.fields.some(field => field.type === 'error'))) return 'ERROR';
+    const provider = this.providers.find(item => item.plugin_guid === guid &&
+      this.config?.[({llm: 'llm_provider', vlm: 'vision_provider', stt: 'stt_provider',
+        tts: 'tts_provider', embedding: 'embedding_provider'} as const)[item.kind]] === `plugin:${guid}:${item.id}`);
+    const installed = this.providers.some(item => item.plugin_guid === guid);
+    const component = provider ? ({llm: 'models', vlm: 'vision', stt: 'stt', tts: 'tts', embedding: 'memory'} as const)[provider.kind] : undefined;
+    return providerRuntimeLabel(installed, Boolean(provider), this.application, this.health.find(item => item.component === component));
   }
 
   providerStatus(gridKey: string): ProviderInstallStatusMessage | undefined {
