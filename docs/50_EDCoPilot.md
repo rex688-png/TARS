@@ -1,5 +1,9 @@
 # EDCoPilot Integration
 
+> **Upstream reference:** This describes the COVAS:NEXT integration. EDCoPilot
+> is not enabled by the controlled TARS product profile; these are not current
+> TARS setup instructions.
+
 We are excited to work with Razzafrag on integrating **COVAS:NEXT** with **EDCoPilot**.
 
 The EDCoPilot integration lets both applications coordinate speech output, show COVAS:NEXT dialogue in EDCoPilot, optionally read or react to EDCoPilot commentary through COVAS:NEXT, and optionally let COVAS:NEXT control EDCoPilot's UI.

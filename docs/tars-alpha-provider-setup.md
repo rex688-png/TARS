@@ -1,4 +1,4 @@
-# TARS Alpha provider setup
+# TARS provider setup
 
 TARS keeps behavior plugins and model providers separate. The six official
 plugins remain immutable installed resources. Mistral remains a built-in cloud
@@ -35,7 +35,7 @@ The provider projects do not currently expose a top-level license for their own
 plugin source. TARS therefore does not redistribute those large archives. The
 reference-backed Pocket-TTS overlay is included with its upstream third-party
 notices retained by the downloaded payload. A user starts
-each download from **Plugin Settings → TARS Provider Setup**, directly from the
+each download from **Settings → Plugins → Provider Setup**, directly from the
 official GitHub release. Downloads use a temporary directory, retry up to three
 times, verify the pinned digest, reject unsafe ZIP paths, validate the plugin
 manifest, and atomically install below `%APPDATA%\TARS\providers`. Restart TARS
@@ -51,10 +51,10 @@ in the provider settings.
 
 ## First physical Windows/Elite test
 
-1. Download and install the Task 4 MSI on a machine that does not rely on COVAS.
+1. Install a reviewed TARS MSI on a machine that does not rely on COVAS.
 2. Launch TARS and confirm `%APPDATA%\TARS` is created.
 3. Configure an OpenAI API model; do not enter keys into provider download fields.
-4. Open **Plugin Settings → TARS Provider Setup** and install Parakeet STT.
+4. Open **Settings → Plugins → Provider Setup** and install Parakeet STT.
 5. Install Pocket-TTS or Supertonic TTS.
 6. Install Gemma Embedding.
 7. Restart TARS and select the installed STT, TTS and embedding providers.

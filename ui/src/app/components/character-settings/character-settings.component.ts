@@ -1086,7 +1086,7 @@ export class CharacterSettingsComponent implements OnDestroy, AfterViewInit {
             promptParts.push(this.generateCharacterInspirationTextFromConfig(activeChar));
         }
 
-        const charName = activeChar?.name || "COVAS:NEXT";
+        const charName = activeChar?.name || "TARS";
         if (charName) {
             promptParts.push(`Your name is ${charName}.`);
         }

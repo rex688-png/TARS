@@ -132,6 +132,33 @@ def test_provider_setting_patches_survive_switch_and_restart(monkeypatch, tmp_pa
     assert config["plugin_settings"] == reloaded["plugin_settings"]
 
 
+def test_provider_partial_edit_keeps_other_fields_and_inactive_provider(monkeypatch, tmp_path):
+    config, _ = _load_tars(monkeypatch, tmp_path)
+    pocket = "b7ddc677-0cfc-4081-af61-b2ebc2af5fe3"
+    parakeet = "parakeet-guid"
+    config = config_module.update_config(config, {"plugin_settings": {
+        pocket: {"onnx_threads": 1, "voice": "saved-voice"},
+        parakeet: {"language": "en", "beam_size": 5},
+    }})
+    config = config_module.update_config(config, {"plugin_settings": {
+        pocket: {"onnx_threads": 2},
+    }})
+    config = config_module.update_config(config, {"tts_provider": "none"})
+    config = config_module.update_config(config, {"plugin_settings": {
+        parakeet: {"language": "de"},
+    }})
+    config = config_module.update_config(config, {"api_key": "edited-api-key"})
+    reloaded = load_config()
+    assert reloaded["plugin_settings"][pocket] == {
+        "onnx_threads": 2, "voice": "saved-voice",
+    }
+    assert reloaded["plugin_settings"][parakeet] == {
+        "language": "de", "beam_size": 5,
+    }
+    assert reloaded["tts_provider"] == "none"
+    assert reloaded["api_key"] == "edited-api-key"
+
+
 def test_legacy_tars_defaults_migrate_once_without_wiping_unrelated_settings(monkeypatch, tmp_path):
     canonical = REPO_ROOT / "vendor" / "tars-plugins" / "prompt" / "prompt.txt"
     (tmp_path / "config.json").write_text(json.dumps({
