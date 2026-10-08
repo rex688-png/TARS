@@ -1,43 +1,37 @@
-# Frequently Asked Questions
+# Frequently asked questions
 
-## Does this cost money?
+## Which systems are supported?
 
-No, but we recommend OpenAI, which costs money based on usage. Typical usage costs are **around $0.10 per hour**, depending on your playstyle. Alternatives are [available](./advanced/freeSetup.md), but will need some additional setup and may not work as well.
+TARS is a Windows-only project. Linux, Flatpak, Steam Deck, Proton, and Wine are
+not supported or validated.
 
-## Do I need a microphone?
+## Are local providers included in the installer?
 
-Yes, you will need a working microphone to interact with the AI and preferably a headset to prevent the AI from hearing itself.
+No. Parakeet STT, Pocket-TTS 0.0.17-tarsfix, Supertonic TTS, and Gemma Embedding
+are optional downloads through the controlled provider setup. Cloud API usage
+may incur provider charges. A ChatGPT subscription does not include OpenAI API
+usage.
 
-## My antivirus software is flagging the application as a virus. What should I do?
+## Why does TARS show Last Known Elite data?
 
-Some antivirus software may flag the application as a virus due to **a false positive**. This can be very annoying and you may need to add an exception in your antivirus software or disable it, if you encounter this issue. All our source code is publicly available and our build process is available (and can be replicated) in the repository.
-Please also report this to your antivirus software vendor as a false-positive, to hopefully get this resolved in the future.
-After you have added an exception, you may need to re-download and re-extract the application, as the antivirus software might have quarantined or deleted important files.
+When Elite is not running, saved journal state may still be available. Last
+Known does not mean live fuel, route, or ship telemetry. Start Elite and verify
+journal access before reporting a live-state issue.
 
-## The AI response is breaking up after a few words. What should I do?
+## What if voice input or output is interrupted?
 
-If you are using Voice Activation, the AI gets interrupted when Voice is detected through the microphone. If your microphone is picking up the AI's own voice, it will interrupt itself. There are multiple options to prevent this:
+Check the selected provider and audio device, then try PTT or headphones to
+prevent the microphone from hearing TARS. Local providers require separate
+installation and a restart before use.
 
-- Enable "Mute microphone during response" toggle in the settings, which will automatically mute the microphone while the AI is speaking, but also prevent you from purposefully interrupting the AI.
-- Use Push-to-Talk instead of Voice Activation, which will interrupt the AI only when you press the Push-to-Talk key.
-- Use closed headphones, which will prevent the microphone from picking up the AI's voice.
+## What if security software flags a build?
 
-## Do you support other languages than English?
+Do not assume it is a false positive or disable protection. Check the build's
+provenance and checksum, then report the detection with sanitized diagnostics.
+Never post API keys or your full private configuration.
 
-Generally yes, but there are a few places that are currently english-only. The AI can understand and speak multiple languages, but due to some additionally process for numbers they might not be read correctly. Additionally, the AI tends to fall back to english sometimes, due to most of the game-events being in english. This can usually be fixed by reminding the AI of the language you want to use.
+## Where can I find logs?
 
-## I paid money for the OpenAI API, but the AI is still not working. What should I do?
-
-OpenAI sometimes needs a few minutes to process your payment. If you are still having issues after a few minutes, please check your OpenAI account for any issues. If you are still having issues, please get in touch with us.
-
-## Does it work on Linux, Steam Deck, Proton, Wine?
-
-We have a native Linux version available, but it requires some special setup. Please contact us on discord and we will help you get it running.
-
-## Can I use Deepseek or other reasoning models?
-
-While technically possible, reasoning models have a response time of many seconds to minutes, which is not suitable for real-time interaction. The advantage of these models in coding and mathematics is not useful in the context of creative writing and storytelling and due to the long reasoning chains, these models are far more expensive than our recommended configuration.
-
-## I have encounter a bug or an issue, what should I do?
-
-Please report the bug on our [Discord server](https://discord.gg/9c58jxVuAT), make sure to include screenshots and a description of what happened before the bug occurred. If you can, please also include the log file, which can be found in `%appdata%\com.covas-next.ui\logs` using Windows Explorer.
+TARS stores logs under `%APPDATA%\TARS\logs`. See the
+[installation guide](tars-installation.md) for other profile paths. Remove
+credentials and personal data before sharing any diagnostic file.

@@ -2,7 +2,7 @@
 
 TARS is an Elite Dangerous AI copilot built on COVAS:NEXT. Start with the
 [TARS installation guide](tars-installation.md), not an upstream COVAS installer.
-Windows is the primary target; the current build still requires physical
+Windows is the supported platform; the current build still requires physical
 acceptance and is not an accepted Alpha 0.1 release.
 
 1. Install a reviewed TARS MSI or unpack the portable build from this repository.

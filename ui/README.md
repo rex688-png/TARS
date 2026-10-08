@@ -1,7 +1,11 @@
-# Tauri + Angular
+# TARS Angular frontend
 
-This template should help get you started developing with Tauri and Angular.
+This Angular application is the renderer for the Windows Electron shell. From
+the repository root, install dependencies with `npm ci` and `npm ci --prefix ui`.
+Use `npm run test:frontend-foundation` for focused frontend tests and
+`npm run build:ui` for the production renderer bundle. Electron packages the UI
+from `ui/dist/covas-next-ui/browser`; that directory is a retained build
+identifier, not the product name.
 
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) + [Angular Language Service](https://marketplace.visualstudio.com/items?itemName=Angular.ng-template).
+The frontend talks to the existing Python runtime through Electron and the
+established message services. See [project installation and runtime notes](../docs/tars-installation.md).

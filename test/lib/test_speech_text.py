@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from lib.SpeechText import normalize_spoken_quantities
@@ -21,3 +23,15 @@ def test_system_names_and_model_identifiers_remain_unchanged():
     assert "Col 285 Sector AB 12-3" in spoken
     assert "GPT-6 Luna" in spoken
     assert "two thousand" in spoken
+
+
+@pytest.mark.parametrize("source, expected", [
+    ("100 credits", "one hundred credits"),
+    ("1,000 tonnes", "one thousand tonnes"),
+    ("2,000,000 credits", "two million credits"),
+    ("4,000,000,000 credits", "four billion credits"),
+    ("12.5 ly", "twelve point five light-years"),
+    ("75%", "seventy-five percent"),
+])
+def test_spoken_quantity_ranges(source, expected):
+    assert normalize_spoken_quantities(source) == expected
