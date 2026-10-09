@@ -175,3 +175,5 @@ mat-slide-toggle {
 .provider-badge[data-status="STARTING"] { color: #e4b678; }
 .provider-badge[data-status="ERROR"] { color: #f09090; }
 .provider-badge[data-status="INSTALLED"], .provider-badge[data-status="AVAILABLE"] { color: #a2c3d4; }
+
+:host {flex-direction:column;overflow:visible;}

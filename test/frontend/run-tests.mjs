@@ -10,6 +10,7 @@ const result = await build({
   entryPoints: [
     fileURLToPath(new URL("./tars-frontend-foundation.test.ts", import.meta.url)),
     fileURLToPath(new URL("./tars-native-shell.test.ts", import.meta.url)),
+    fileURLToPath(new URL("./tars-productization.test.ts", import.meta.url)),
   ],
   bundle: true,
   format: "esm",

@@ -110,6 +110,9 @@ jobs:
         env:
           COMMIT_HASH: ${{ github.sha }}
 
+      - name: Exercise Settings tabs in Microsoft Edge
+        run: npm run test:browser-settings
+
       - name: Run Electron regression tests
         run: node --test test/electron/*.test.js
 

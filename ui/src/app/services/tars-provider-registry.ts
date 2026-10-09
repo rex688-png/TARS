@@ -49,20 +49,20 @@ export class TarsProviderRegistry {
     };
 
     static pluginLabel(guid: string, fallback: string): string {
-        return this.approvedPlugins[guid]?.label ?? fallback;
+        return TarsProviderRegistry.approvedPlugins[guid]?.label ?? fallback;
     }
 
     static options(kind: TarsProviderKind, current?: string | null, registered: readonly ModelProviderDefinition[] = []): TarsProviderOption[] {
-        const options = this.builtin[kind].map((option) => ({ ...option }));
+        const options = TarsProviderRegistry.builtin[kind].map((option) => ({ ...option }));
         if (current?.startsWith("plugin:") && !registered.some(
             provider => provider.kind === kind && current === `plugin:${provider.plugin_guid}:${provider.id}`,
         )) {
-            options.push({ value: current, label: `${this.label(current)} — not registered; install/restart required` });
+            options.push({ value: current, label: `${TarsProviderRegistry.label(current)} — not registered; install/restart required` });
         }
         if (current && !current.startsWith("plugin:") && !options.some((option) => option.value === current)) {
             options.push({
                 value: current,
-                label: `${this.label(current)} (existing setting)`,
+                label: `${TarsProviderRegistry.label(current)} (existing setting)`,
                 legacy: true,
             });
         }
@@ -74,7 +74,7 @@ export class TarsProviderRegistry {
         kind: TarsProviderKind,
     ): ModelProviderDefinition[] {
         return providers.filter(
-            (provider) => provider.kind === kind && Object.hasOwn(this.approvedPlugins, provider.plugin_guid),
+            (provider) => provider.kind === kind && Object.hasOwn(TarsProviderRegistry.approvedPlugins, provider.plugin_guid),
         );
     }
 
@@ -82,9 +82,9 @@ export class TarsProviderRegistry {
         if (!provider) return "Not set";
         if (provider.startsWith("plugin:")) {
             const [, guid, id] = provider.split(":");
-            return this.approvedPlugins[guid]?.label ?? Object.values(this.approvedPlugins).find(item => item.id === id)?.label ?? "Local provider";
+            return TarsProviderRegistry.approvedPlugins[guid]?.label ?? Object.values(TarsProviderRegistry.approvedPlugins).find(item => item.id === id)?.label ?? "Local provider";
         }
-        const known = Object.values(this.builtin)
+        const known = Object.values(TarsProviderRegistry.builtin)
             .flat()
             .find((option) => option.value === provider);
         if (known) return known.label;

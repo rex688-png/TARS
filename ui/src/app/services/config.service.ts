@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, filter, firstValueFrom, Observable, timeout } from "rxjs";
+import { BehaviorSubject, filter, firstValueFrom, Observable, timeout, take } from "rxjs";
 import { BaseCommand, type BaseMessage, TauriService } from "./tauri.service";
 import { ModelProviderDefinition, PluginModelProvidersMessage, PluginSettings, PluginSettingsMessage, ProviderInstallStatusMessage } from "./plugin-settings";
 import { ScreenInfo } from "../models/screen-info";
@@ -100,6 +100,9 @@ export interface SystemInfoMessage extends BaseMessage {
 export interface Config {
     api_key: string;
     commander_name: string;
+    tars_setup_step?: number;
+    tars_setup_complete?: boolean;
+    action_permissions?: Record<string, "allow" | "ask" | "block">;
     config_version: number;
     tars_profile_version?: number;
     // Stored characters
@@ -412,6 +415,15 @@ export class ConfigService {
     public getPluginSetting(key: string): any | null {
         const currentConfig = this.getCurrentConfig();
         return currentConfig?.plugin_settings?.[key] ?? null;
+    }
+
+    async requestProductCommand(type: string, extra: Record<string, unknown> = {}): Promise<BaseMessage> {
+        const request_id = `product-${this.promptRequestId()}`;
+        const response = firstValueFrom(this.tauriService.output$.pipe(
+            filter(value => value['request_id'] === request_id && value.type === type + '_result'), take(1), timeout(10000)));
+        const [, result] = await Promise.all([this.tauriService.send_command({type, timestamp:new Date().toISOString(), request_id, ...extra}), response]);
+        if (result['success'] !== true) throw new Error('Operation failed; current configuration was retained.');
+        return result;
     }
 
     public getCurrentConfig(): Config | null {

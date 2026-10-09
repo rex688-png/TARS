@@ -1,10 +1,11 @@
-<mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start" [(selectedIndex)]="selectedIndex" (selectedIndexChange)="categoryChange.emit($event)" [style.display]="showQuestEditor ? 'none' : 'flex'">
+<app-tars-setup (configure)="selectCategory($event)"></app-tars-setup>
+<mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start" [selectedIndex]="selectedIndex" (selectedIndexChange)="selectCategory($event)" [style.display]="showQuestEditor ? 'none' : 'flex'">
     <mat-tab label="GENERAL">
         <div class="tab-content">
             @if (config && (!config.commander_name || !config.api_key || !usageDisclaimerAccepted)) {
                 <mat-card appearance="outlined" class="welcome-message" [class.highlight]="highlightDisclaimerCard">
-                    <mat-card-header><mat-card-title>TARS setup</mat-card-title></mat-card-header>
-                    <mat-card-content>Complete the system checks below. Local providers are explicit downloads under Plugins.</mat-card-content>
+                    <mat-card-header><mat-card-title>Local-use notice</mat-card-title></mat-card-header>
+                    <mat-card-content>Review the local-use notice to start TARS. Local providers remain explicit downloads under Plugins.</mat-card-content>
                     @if (!usageDisclaimerAccepted) {
                         <mat-card-actions align="end"><button mat-raised-button color="primary" (click)="acceptUsageDisclaimer()">Accept local-use notice</button></mat-card-actions>
                     }
@@ -34,6 +35,7 @@
     <mat-tab label="DIAGNOSTICS">
         <div class="tab-content usage-tab-content">
             <app-tars-diagnostics></app-tars-diagnostics>
+            <details><summary>Action permissions — Allow / Ask / Block</summary><app-tars-action-permissions></app-tars-action-permissions></details>
             <details><summary>Action and keybind diagnostics</summary>
             @if (config) { <app-actions-settings></app-actions-settings> }
             </details>

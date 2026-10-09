@@ -123,6 +123,7 @@ export class GeneralSettingsComponent implements OnDestroy {
     private readonly avatarPreviewStateClasses: readonly AvatarPreviewStateClass[] = ["listening", "thinking", "acting", "speaking"];
     private avatarPreviewStateIndex = 0;
     private readonly avatarPreviewInterval = setInterval(() => this.advanceAvatarPreviewState(), 3000);
+    get buildSummary(): string { return this.tauriService.commitHash; }
     hideApiKey = true;
     apiKeyType: string | null = null;
     assigningPTTIndex: number | null = null;

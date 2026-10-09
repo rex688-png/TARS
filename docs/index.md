@@ -56,3 +56,5 @@ For development and regression work, see the [runtime contracts](runtime-contrac
 and [hardening/coverage audit](runtime-hardening-audit.md).
 
 For the latest real-PC fixes, see [Settings/runtime refinement](runtime-refinement.md).
+
+- [TARS native product controls](tars-productization.md)

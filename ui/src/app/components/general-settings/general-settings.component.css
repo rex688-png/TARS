@@ -636,3 +636,11 @@ div.output-device-column .mat-mdc-form-field-subscript-wrapper {
 .startup-card { border: 1px solid #3d4c59; background: #171e26; padding: 16px 20px; margin-top: 16px; border-radius: 4px; }
 .startup-card h3 { color: #b6dbe9; font-size: 16px; margin-top: 0; }
 .startup-card p { color: #aabcc9; font-size: 12px; }
+
+.general-product {padding: 8px;}.readiness-strip {display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin-bottom:20px}.readiness-chip {background:#18232b;padding:12px;border:1px solid #344955;display:flex;flex-direction:column;gap:6px;font-size:12px}.readiness-chip strong {color:#9bd6e4}.general-card-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:start}.product-card {padding:20px;background:#151c23;border:1px solid #354550;min-width:0}.product-card h2 {font-size:17px;color:#b4d7e2;margin:0 0 16px}.product-card p {font-size:13px;color:#adbdc9}.product-card mat-form-field {width:100%}.product-card button {margin-top:10px}
+
+.legacy-controls{margin-top:20px;border-top:1px solid #42515b;padding:14px}.legacy-controls summary{cursor:pointer;color:#a5c7d0}
+
+/* Two balanced columns keep the normal settings view compact. */
+.general-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:900px){.general-card-grid{grid-template-columns:minmax(0,1fr)}}
+.product-card .mat-mdc-form-field{max-width:100%}

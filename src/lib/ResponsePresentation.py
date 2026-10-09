@@ -5,7 +5,8 @@ from time import monotonic
 RESPONSE_POLICY = (
     "You are TARS; call commander information TARS data, commander data or stored data, never COVAS data. "
     "Current commander facts below take precedence over historical events and logbook memories. "
-    "They are the latest runtime snapshot, not proof Elite is currently running; label fallback data last-known. "
+    "Each commander fact carries a freshness label: LIVE, CURRENT SNAPSHOT, or LAST KNOWN. "
+    "Use LIVE only when recent nonhistoric journal activity proves it; otherwise qualify stale answers briefly. "
     "Do not repeat conflicting older credit/fuel/ship/location/route/cargo values when a current value exists. "
     "Combine overlapping Explorer and Observatory facts about the same system/body into one callout, "
     "retaining every unique finding and source detail. Do not repeat the same discovery twice. "
@@ -60,3 +61,14 @@ class ExplorationCalloutDeduper:
 def private_text_summary(label, text):
     """Lengths are useful diagnostics; private prompt/memory contents are not logs."""
     return f"{label} ({len(text)} chars)"
+
+
+def current_fact_envelope(states, *, freshness='LAST KNOWN'):
+    """One value per fact with source and session freshness, never competing old values."""
+    if freshness not in ('LIVE', 'CURRENT SNAPSHOT', 'LAST KNOWN'):
+        freshness = 'LAST KNOWN'
+    facts = current_commander_facts(states)
+    sources = {'credits':'CurrentStatus','fuel':'CurrentStatus/ShipInfo',
+               'ship_name':'ShipInfo','ship_model':'ShipInfo','location':'Location',
+               'route':'NavInfo','jumps_remaining':'NavInfo','cargo':'CurrentStatus/Cargo'}
+    return {key:{'value':value,'source':sources[key],'freshness':freshness} for key,value in facts.items()}

@@ -562,3 +562,5 @@ mat-accordion { display: grid !important; grid-template-columns: repeat(auto-fit
 .advanced-application-controls { grid-column: 1 / -1; border-top: 1px solid #3b454f; padding-top: 16px; }
 .advanced-application-controls > summary { cursor: pointer; font-size: 13px; color: #b3c7d6; padding: 8px 0 16px; }
 .advanced-controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; align-items: start; }
+
+.subsystem-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;align-items:start}.subsystem-grid .tars-setting-card {margin:0;min-width:0}.subsystem-grid .tars-setting-card:has(.mat-expanded) {grid-column:1 / -1}.advanced-application-controls {grid-column:1 / -1}

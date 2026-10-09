@@ -31,12 +31,14 @@
     "package:run": "run-script-os",
     "package:run:win32": "cd dist/win-unpacked/ && start TARS.exe",
     "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js",
-    "test:frontend-foundation": "node --test test/frontend/run-tests.mjs"
+    "test:frontend-foundation": "node --test test/frontend/run-tests.mjs",
+    "test:browser-settings": "node test/browser/settings-navigation.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
     "electron": "^38.8.6",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "playwright-core": "1.64.0"
   },
   "build": {
     "productName": "TARS",
@@ -56,7 +58,11 @@
       {
         "from": "vendor/tars-plugins",
         "to": "tars-plugins",
-        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
       }
     ],
     "files": [

@@ -1,3 +1,5 @@
+import { TarsActionPermissionsComponent } from '../tars-action-permissions/tars-action-permissions.component';
+import { TarsSetupComponent } from '../tars-setup/tars-setup.component';
 import { TarsDiagnosticsComponent } from "../tars-diagnostics/tars-diagnostics.component";
 import { TarsPromptSettingsComponent } from "../tars-prompt-settings/tars-prompt-settings.component";
 import { Component, EventEmitter, OnDestroy, OnInit, Output, ViewChild } from "@angular/core";
@@ -47,6 +49,8 @@ import { QuestsSettingsComponent } from "../quests-settings/quests-settings.comp
     selector: "app-settings-menu",
     standalone: true,
     imports: [
+        TarsSetupComponent,
+        TarsActionPermissionsComponent,
         CommonModule,
         MatInputModule,
         MatFormFieldModule,
@@ -106,6 +110,11 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
                 this.usageDisclaimerAccepted = accepted;
             },
         );
+    }
+
+    selectCategory(index: number): void {
+        this.selectedIndex = index;
+        this.categoryChange.emit(index);
     }
 
     acceptUsageDisclaimer() {

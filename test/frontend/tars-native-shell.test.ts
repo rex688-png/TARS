@@ -206,7 +206,7 @@ test('Settings offer compact system cards and Personality owns the prompt editor
     const advanced = readFileSync('ui/src/app/components/advanced-settings/advanced-settings.component.html','utf8');
     const settings = readFileSync('ui/src/app/components/settings-menu/settings-menu.component.html','utf8');
     assert.match(advanced, /tars-setting-card/);
-    assert.match(advanced, /Configure \/ Advanced/);
+    assert.match(advanced, /subsystem-grid/);
     for (const label of ['AI model','Speech / microphone','Voice / output','Memory','Vision']) assert.ok(advanced.includes(label));
     assert.match(settings, /app-tars-prompt-settings/);
     assert.match(settings, /app-tars-diagnostics/);
