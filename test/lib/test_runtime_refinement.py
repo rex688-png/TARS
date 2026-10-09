@@ -135,6 +135,14 @@ def test_overlapping_exploration_callouts_preserve_unique_facts_and_numbers():
     assert dedupe.assemble(repeated, context=('Sol','Sol A 1'), exploration=False, now=21) == repeated
 
 
+def test_display_quantity_format_preserves_identifiers():
+    from src.lib.ResponsePresentation import format_display_quantities
+    assert format_display_quantities('Travel 13 107 kilometers; HIP 13 107 remains mapped.') == (
+        'Travel 13,107 kilometers; HIP 13 107 remains mapped.')
+    assert format_display_quantities('eXPY 2, Col 285 Sector 13 107, GPT-6 Luna') == (
+        'eXPY 2, Col 285 Sector 13 107, GPT-6 Luna')
+
+
 def test_log_summary_never_contains_prompt_or_memory_text():
     from src.lib.ResponsePresentation import private_text_summary
     secret = 'Synthetic private prompt and memory content'

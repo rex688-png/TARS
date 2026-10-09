@@ -8,6 +8,19 @@ def valid_profile(data):
     return (isinstance(data,dict) and type(data.get('config_version')) is int
             and isinstance(data.get('characters'),list) and isinstance(data.get('plugin_settings'),dict))
 
+def valid_restore_profile(data):
+    # Keep normal save/legacy recovery permissive; reject unsafe manual imports.
+    return (valid_profile(data) and data['config_version'] >= 0 and bool(data['characters'])
+            and all(isinstance(character,dict) and isinstance(character.get('name'),str)
+                    and bool(character['name'].strip()) for character in data['characters'])
+            and type(data.get('active_character_index',0)) is int
+            and -1 <= data.get('active_character_index',0) < len(data['characters'])
+            and all(isinstance(key,str) and isinstance(value,dict)
+                    for key,value in data['plugin_settings'].items())
+            and isinstance(data.get('action_permissions',{}),dict)
+            and all(isinstance(key,str) and value in ('allow','ask','block')
+                    for key,value in data.get('action_permissions',{}).items()))
+
 def read_valid(path):
     data=json.loads(Path(path).read_text(encoding='utf-8'))
     if not valid_profile(data):
@@ -50,11 +63,13 @@ def recover_profile(path='config.json'):
 
 def create_manual_backup(path='config.json'):
     main=Path(path); payload=main.read_bytes()
-    if not valid_profile(json.loads(payload)):
+    if not valid_restore_profile(json.loads(payload)):
         raise ValueError('Current profile invalid')
     atomic_bytes(main.with_name('config.manual-backup.json'),payload)
 
 def restore_manual_backup(path='config.json'):
     main=Path(path); candidate=read_valid(main.with_name('config.manual-backup.json'))
+    if not valid_restore_profile(candidate):
+        raise ValueError('Manual backup has invalid TARS profile structure')
     save_profile(candidate,main)
     return candidate

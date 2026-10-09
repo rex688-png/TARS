@@ -38,7 +38,10 @@ def test_primary_shell_is_tars_specific_and_has_no_character_creation_tab():
     assert "TARS SYSTEMS" in overview
     for status in ("AI", "Speech", "Voice", "Memory", "Elite", "Actions", "PROFILE LOADED"):
         assert f">{status}<" in overview
-    assert "TARS setup" in menu
+    assert '<app-tars-setup' in menu
+    setup = (REPO_ROOT / "ui" / "src" / "app" / "components" / "tars-setup"
+             / "tars-setup.component.ts").read_text(encoding="utf-8")
+    assert "Welcome to TARS" in setup
     for category in ("GENERAL", "AI &amp; VOICE", "PERSONALITY", "PLUGINS", "DIAGNOSTICS"):
         assert f'label="{category}"' in menu
     assert "Welcome to COVAS:NEXT" not in menu
