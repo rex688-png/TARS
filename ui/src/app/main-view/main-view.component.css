@@ -77,3 +77,5 @@
 .health-list strong[data-status="busy"] { color: #e0b16b; }
 .health-list strong[data-status="error"] { color: #f19090; }
 .health-list strong[data-status="available"] { color: #a8bdce; }
+
+.conversation-controls{display:flex;gap:8px;margin-top:9px}.conversation-controls button,.phase button{background:transparent;color:#a9cbd5;border:1px solid #3d5966;padding:5px 8px;font-size:11px;cursor:pointer}.conversation-controls button:disabled{opacity:.45;cursor:default}

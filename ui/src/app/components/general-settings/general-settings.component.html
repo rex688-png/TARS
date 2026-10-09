@@ -1,4 +1,47 @@
-<div class="general-dashboard">
+<div class="general-product" *ngIf="config">
+<p class="save-feedback" aria-live="polite">{{ configService.saveState$ | async }}</p>
+<section class="readiness-strip" aria-label="System readiness">
+<div class="readiness-chip"><strong>AI</strong><span>{{ aiSummary }}</span></div>
+<div class="readiness-chip"><strong>Speech</strong><span>{{ soundInputSummary }}</span></div>
+<div class="readiness-chip"><strong>Voice</strong><span>{{ soundOutputSummary }}</span></div>
+<div class="readiness-chip"><strong>Memory</strong><span>{{ memorySummary }}</span></div>
+<div class="readiness-chip"><strong>Elite</strong><span>{{ eliteSummary }}</span></div>
+<div class="readiness-chip"><strong>Actions</strong><span>{{ actionSummary }}</span></div>
+<div class="readiness-chip"><strong>TARS</strong><span>{{ 'Profile loaded' }}</span></div>
+
+</section>
+<div class="general-card-grid">
+<section class="product-card"><h2>Commander</h2>
+                                <mat-form-field>
+                                    <mat-label>Commander Name</mat-label>
+                                    <input required matInput [(ngModel)]="config.commander_name"
+                                           (ngModelChange)="onConfigChange({commander_name: $event})">
+                                </mat-form-field>
+
+                                <p class="preflight-helper-text">Enter an <a target="_blank" rel="noopener noreferrer" href="https://platform.openai.com/api-keys">OpenAI API key</a> for the GPT-6 Luna language, agent, and vision defaults. The key stays in your local TARS profile.</p>
+                                <mat-form-field>
+                                    <mat-label>OpenAI API Key</mat-label>
+                                    <input required matInput [type]="hideApiKey ? 'password' : 'text'" [(ngModel)]="config.api_key"
+                                           (ngModelChange)="onApiKeyChange($event)"
+                                           pattern="^[A-Za-z0-9_.-]+$"
+                                           #preflightApiKeyInput="ngModel">
+                                    <button matSuffix mat-icon-button (mousedown)="hideApiKey = false" (mouseup)="hideApiKey = true"
+                                            (mouseleave)="hideApiKey = true">
+                                        <mat-icon>{{ hideApiKey ? 'visibility_off' : 'visibility' }}</mat-icon>
+                                    </button>
+                                    <mat-hint *ngIf="apiKeyType">Detected: {{ apiKeyType }} - Select providers separately; existing settings are preserved</mat-hint>
+                                    <mat-error *ngIf="preflightApiKeyInput.errors?.['pattern']">
+                                        API key can only contain letters, numbers, underscores, dots, and hyphens
+                                    </mat-error>
+                                </mat-form-field>
+                            <button mat-stroked-button (click)="openTarget('audio-input')">Configure AI &amp; voice</button></section>
+<section class="product-card"><h2>Elite integration</h2><p>{{ eliteSummary }}</p><p>Live and last-known telemetry are shown separately in the main console. Missing Elite data does not stop conversation.</p>
+<mat-form-field><mat-label>Journal folder</mat-label><input matInput [ngModel]="config.ed_journal_path" (ngModelChange)="onConfigChange({ed_journal_path: $event})"></mat-form-field>
+<mat-form-field><mat-label>Elite settings folder</mat-label><input matInput [ngModel]="config.ed_appdata_path" (ngModelChange)="onConfigChange({ed_appdata_path: $event})"></mat-form-field>
+<p>Leave folders blank for automatic detection.</p><button mat-stroked-button (click)="openTarget('overlay')">Overlay &amp; VR</button></section>
+<section class="product-card"><h2>Actions</h2><p>{{ actionSummary }}</p><p>Missing keybinds affect individual actions; TARS conversation remains available.</p><button mat-stroked-button (click)="openTarget('actions')">Permissions &amp; keybinds</button></section>
+<section class="product-card"><h2>Application</h2><mat-slide-toggle [ngModel]="config.cn_autostart" (ngModelChange)="onConfigChange({cn_autostart: $event})">Start TARS automatically</mat-slide-toggle><p>Windows desktop · {{ buildSummary }}</p><p>Settings and provider installation remain available offline.</p><button mat-stroked-button (click)="openTarget('character')">Configure personality</button></section>
+</div><details class="legacy-controls"><summary>Advanced device, overlay and profile controls</summary><p>Detailed controls retained for existing installations.</p><div class="general-dashboard">
     <p class="save-feedback" aria-live="polite">{{ configService.saveState$ | async }}</p>
     @if (config) {
             <section class="preflight-shell" aria-labelledby="ai-preflight-heading">
@@ -661,4 +704,6 @@
             <p>Settings and local provider downloads remain available while TARS is offline.</p>
         </section>
     }
+</div>
+</details>
 </div>

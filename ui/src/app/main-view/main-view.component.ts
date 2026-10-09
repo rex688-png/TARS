@@ -1,3 +1,7 @@
+import { ChatService } from '../services/chat.service';
+import { filter, firstValueFrom, take, timeout } from 'rxjs';
+import { TarsActionApprovalComponent } from '../components/tars-action-approval/tars-action-approval.component';
+import { needsSetup } from '../services/tars-setup-state';
 import { Component, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatButtonModule } from "@angular/material/button";
@@ -29,7 +33,7 @@ import { TarsShellView, viewForUiCommand } from "./tars-shell-navigation";
 @Component({
     selector: "app-main-view",
     standalone: true,
-    imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressBarModule,
+    imports: [TarsActionApprovalComponent,CommonModule, MatButtonModule, MatIconModule, MatProgressBarModule,
         ChatContainerComponent, InputContainerComponent, SettingsMenuComponent,
         ActionsContainerComponent, MemoriesContainerComponent, LogContainerComponent,
         TarsExplorationComponent, TarsStorageComponent],
@@ -67,9 +71,14 @@ export class MainViewComponent implements OnInit, OnDestroy {
         private readonly uiService: UIService,
         private readonly eventService: EventService,
         private readonly tauriService: TauriService,
+        private readonly chatService: ChatService,
     ) {}
 
     ngOnInit(): void {
+        let setupChecked = false;
+        this.subscriptions.add(this.configService.config$.subscribe(config => {
+            if (config && !setupChecked) { setupChecked = true; if (needsSetup(config)) this.selectView("settings"); }
+        }));
         this.subscriptions.add(this.policyService.usageDisclaimerAccepted$.subscribe(
             (accepted) => this.usageDisclaimerAccepted = accepted,
         ));
@@ -104,6 +113,24 @@ export class MainViewComponent implements OnInit, OnDestroy {
             this.selectedView = viewForUiCommand(this.selectedView, message?.show);
         }));
         void this.applicationCoordinator.initialize();
+    }
+
+    async newSession(): Promise<void> {
+        if (!confirm('Start a new conversation? Current short-term conversation context will be cleared. Persistent TARS memory is kept.')) return;
+        const request_id = globalThis.crypto?.randomUUID?.() ?? String(Date.now());
+        try {
+            const response = firstValueFrom(this.tauriService.output$.pipe(filter(m=>m.type==='session_started' && m['request_id']===request_id),take(1),timeout(10000)));
+            await this.tauriService.send_command({type:'new_session',timestamp:new Date().toISOString(),request_id});
+            await response; this.chatService.clearChat();
+        } catch { alert('TARS did not confirm a new session. Conversation was retained.'); }
+    }
+
+    clearVisibleChat(): void {
+        if (confirm('Clear the visible chat in this window? This keeps TARS memory and backend conversation context.')) this.chatService.clearChat();
+    }
+
+    async interruptSpeech(): Promise<void> {
+        await this.tauriService.send_command({type:'interrupt_tts',timestamp:new Date().toISOString()});
     }
 
     ngOnDestroy(): void { this.subscriptions.unsubscribe(); }

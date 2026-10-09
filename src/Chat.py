@@ -1,3 +1,5 @@
+from lib.ConfigPersistence import create_manual_backup, restore_manual_backup
+from lib.SupportBundle import handle_support_command, provider_summary
 from lib.ResponsePresentation import private_text_summary
 import copy
 import sys
@@ -165,6 +167,8 @@ class Chat:
 
         log("debug", "Initializing Action Manager...")
         self.action_manager = ActionManager()
+        if os.environ.get("TARS_RUNTIME_PROFILE") == "1":
+            self.action_manager.configure_permissions(lambda: self.config, emit_message)
         # Set enabled action permissions from config. Missing keys are disabled.
         try:
             self.action_manager.set_allowed_actions(
@@ -733,12 +737,14 @@ class Chat:
             "info",
             f"Initializing CMDR {self.config['commander_name']}'s personal AI...\n",
         )
-        show_chat_message("info", "API Key: Loaded")
+
         show_chat_message("info", f"Mic Mode: {self.config['ptt_var']}")
         show_chat_message("info", f"Using Function Calling: {self.config['tools_var']}")
-        show_chat_message("info", f"Current model: {self.config['llm_model_name']}")
-        show_chat_message("info", f"Current TTS voice: {self.character['tts_voice']}")
-        show_chat_message("info", f"Current TTS Speed: {self.character['tts_speed']}")
+        for kind, selection in provider_summary(self.config).items():
+            show_chat_message("info", f"{kind.upper()} provider: {selection['name']}")
+        if not self.config.get('tts_provider', '').startswith('plugin:') and self.config.get('tts_provider') != 'none':
+            show_chat_message("info", f"TTS voice: {self.character['tts_voice']}")
+            show_chat_message("info", f"TTS speed: {self.character['tts_speed']}")
         show_chat_message("info", private_text_summary("TARS system prompt loaded", self.backstory))
 
         # TTS Setup
@@ -1034,6 +1040,23 @@ def read_stdin(chat: Chat):
                 chat.plugin_manager.on_settings_changed(chat.config)
             if data.get("type") in ("set_tars_prompt", "reset_tars_prompt"):
                 chat.config = handle_tars_prompt_command(chat.config, data)
+            if data.get("type") == "confirm_action":
+                _, states = chat.event_manager.get_current_state()
+                result = chat.action_manager.confirm_action(data.get("request_id"), data.get("approved") is True, states)
+                if result:
+                    emit_message("chat", role="info", message=str(result.get("content", "Action completed")))
+            if data.get("type") == "create_config_backup":
+                try:
+                    create_manual_backup()
+                    emit_message("create_config_backup_result",request_id=data.get("request_id"),success=True)
+                except Exception:
+                    emit_message("create_config_backup_result",request_id=data.get("request_id"),success=False)
+            if data.get("type") == "restore_config_backup":
+                emit_message("restore_config_backup_result",request_id=data.get("request_id"),success=False)
+            if data.get("type") == "export_diagnostics":
+                handle_support_command(chat.config, data, emit_message)
+            if data.get("type") == "interrupt_tts":
+                chat.tts.abort()
             if data.get("type") == "submit_input":
                 chat.submit_input(data["input"])
             if data.get("type") == "run_action":
@@ -1074,10 +1097,12 @@ def read_stdin(chat: Chat):
                     system_address=system_address,
                     data=results,
                 )
-            if data.get("type") == "clear_history":
+            if data.get("type") in ("clear_history", "new_session"):
                 chat.event_manager.clear_conversation_history()
                 chat.assistant.clear_conversation_state()
                 emit_message("history_cleared", scope="conversation")
+                if data.get("type") == "new_session":
+                    emit_message("session_started", request_id=data.get("request_id"), success=True)
             if data.get("type") == "reset_state_machine":
                 chat.event_manager.reset_state_machine()
                 chat.assistant.reset_runtime_state()
@@ -1181,6 +1206,22 @@ if __name__ == "__main__":
 
             try:
                 data = json.loads(line)
+                if data.get("type") == "create_config_backup":
+                    try:
+                        create_manual_backup()
+                        emit_message("create_config_backup_result",request_id=data.get("request_id"),success=True)
+                    except Exception:
+                        emit_message("create_config_backup_result",request_id=data.get("request_id"),success=False)
+                if data.get("type") == "restore_config_backup":
+                    try:
+                        config = restore_manual_backup()
+                        plugin_manager.on_settings_changed(config)
+                        emit_message("config",config=config)
+                        emit_message("restore_config_backup_result",request_id=data.get("request_id"),success=True)
+                    except Exception:
+                        emit_message("restore_config_backup_result",request_id=data.get("request_id"),success=False)
+                if data.get("type") == "export_diagnostics":
+                    handle_support_command(config, data, emit_message)
                 if data.get("type") == "start":
                     if data.get("oldUi"):
                         config = load_config()

@@ -17,12 +17,14 @@
   </aside>
 
   <div class="shell-content">
+    <app-tars-action-approval></app-tars-action-approval>
     <section class="view-panel tars-view" data-view="tars" [class.is-hidden]="selectedView !== 'tars'" aria-label="TARS conversation">
       <header class="view-heading">
-        <div><p class="eyebrow">COPILOT / ELITE DANGEROUS</p><h1>TARS</h1></div>
+        <div><p class="eyebrow">COPILOT / ELITE DANGEROUS</p><h1>TARS</h1><div class="conversation-controls"><button type="button" [disabled]="runMode !== 'running'" (click)="newSession()">New session</button><button type="button" (click)="clearVisibleChat()">Clear visible chat</button></div></div>
         <div class="phase" [attr.data-status]="activityLabel((runtime.interactionState$ | async)?.phase ?? 'idle')" aria-live="polite">
           @if (runtime.interactionState$ | async; as interaction) {
-            <span class="state-dot" [class.online]="runMode === 'running'"></span>{{ activityLabel(interaction.phase) }}
+            <span class="state-dot" [class.online]="runMode === 'running'"></span><span role="status">{{ activityLabel(interaction.phase) }}</span>
+            @if (runMode === 'running' && interaction.phase === 'speaking') {<button type="button" (click)="interruptSpeech()">Stop speaking</button>}
           }
         </div>
       </header>

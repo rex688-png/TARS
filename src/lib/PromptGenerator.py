@@ -1,4 +1,4 @@
-from .ResponsePresentation import RESPONSE_POLICY, current_commander_facts
+from .ResponsePresentation import RESPONSE_POLICY, current_fact_envelope
 from datetime import timedelta, datetime, timezone
 from functools import lru_cache
 from typing import Any, Callable, cast, Dict, Union, List, Optional
@@ -3010,8 +3010,8 @@ class PromptGenerator:
                 quests[quest_id] = quest
         return quests
 
-    def generate_status_message(self, projected_states: ProjectedStates, search_agent_context: bool = False):
-        status_entries: list[tuple[str, Any]] = [("Preferred current commander facts (latest snapshot; freshness not verified)", current_commander_facts(projected_states))]
+    def generate_status_message(self, projected_states: ProjectedStates, search_agent_context: bool = False, freshness: str = "LAST KNOWN"):
+        status_entries: list[tuple[str, Any]] = [("Preferred current commander facts (one value per fact)", current_fact_envelope(projected_states, freshness=freshness))]
 
         current_status = get_state_dict(projected_states, 'CurrentStatus')
         status_fuel = current_status.get('Fuel')
@@ -3757,7 +3757,23 @@ class PromptGenerator:
             if piece:
                 usage_stats.conversation_chars += len(json.dumps(piece))
 
-        status_msg_content = self.generate_status_message(projected_states)
+        from datetime import timezone
+        now_utc = datetime.now(timezone.utc)
+        def recent_live_game_event(event):
+            if not isinstance(event, GameEvent) or event.historic:
+                return False
+            try:
+                stamp = datetime.fromisoformat(event.content.get('timestamp', event.timestamp))
+                if stamp.tzinfo is None:
+                    stamp = stamp.replace(tzinfo=timezone.utc)
+                age = (now_utc - stamp).total_seconds()
+                return 0 <= age < 90
+            except (TypeError, ValueError):
+                return False
+        freshness = ('LIVE' if any(recent_live_game_event(e) for e in events[-50:])
+                     else 'CURRENT SNAPSHOT' if any(isinstance(e, StatusEvent) for e in pending_events)
+                     else 'LAST KNOWN')
+        status_msg_content = self.generate_status_message(projected_states, freshness=freshness)
         usage_stats.status_chars = len(status_msg_content)
         conversational_pieces.append(
             {

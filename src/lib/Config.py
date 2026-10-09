@@ -1,3 +1,4 @@
+from .ConfigPersistence import save_profile, recover_profile, create_manual_backup, restore_manual_backup
 from gc import enable
 import json
 import copy
@@ -929,6 +930,9 @@ class Character(TypedDict, total=False):
 
 
 class Config(TypedDict):
+    tars_setup_step: int
+    tars_setup_complete: bool
+    action_permissions: dict[str, str]
     config_version: int
     tars_profile_version: int
     api_key: str
@@ -1410,7 +1414,7 @@ def merge_config_data(defaults: dict, user: dict):
                 continue
 
             # Plugin settings
-            if key == "plugin_settings":
+            if key in ("plugin_settings", "action_permissions"):
                 # Copy plugin settings directly, since we don't know what settings are supposed to be there.
                 merge[key] = user.get(key) or {}
                 continue
@@ -1641,6 +1645,9 @@ def load_config() -> Config:
     tars_profile = os.environ.get('TARS_RUNTIME_PROFILE') == '1'
     defaults: Config = {
         'config_version': 20,
+        'tars_setup_step': 0,
+        'tars_setup_complete': False,
+        'action_permissions': {},
         'tars_profile_version': 0,
         'commander_name': "",
         'characters': [],
@@ -1768,11 +1775,21 @@ def load_config() -> Config:
         
         if not config_exists:
             print("Config file not found, creating default configuration")
-            save_config(defaults)
-            return defaults
+            try:
+                recover_profile()
+                config_exists = True
+            except (OSError, ValueError, UnicodeError):
+                save_config(defaults)
+                return defaults
 
-        with open('config.json', 'r', encoding='utf-8') as file:
-            data = json.load(file)
+        try:
+            with open('config.json', 'r', encoding='utf-8') as file:
+                data = json.load(file)
+            if not isinstance(data, dict) or ('characters' in data and not isinstance(data['characters'], list)):
+                raise ValueError('Invalid TARS profile')
+        except (ValueError, UnicodeError):
+            print('Current configuration invalid; recovering previous known-good profile')
+            data = recover_profile()
         # Close the read handle before atomic replacement (required on Windows).
         if data:
             if tars_profile:
@@ -1815,18 +1832,7 @@ def load_config() -> Config:
 
 
 def save_config(config: Config):
-    config_file = Path("config.json")
-    # Keep a failed/interrupted write from truncating the last saved profile.
-    descriptor, temporary = tempfile.mkstemp(prefix='.config-', suffix='.tmp', dir=config_file.parent)
-    try:
-        with os.fdopen(descriptor, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=4)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(temporary, config_file)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+    save_profile(config)
 
 
 def assign_ptt(config: Config, controller_manager, index: int = 0):
