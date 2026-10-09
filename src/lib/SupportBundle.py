@@ -42,9 +42,13 @@ def build_support_bundle(config, snapshot):
     build = build if isinstance(build,str) and len(build) in (7,40) and all(c in '0123456789abcdef' for c in build.lower()) else 'not reported'
     count = snapshot.get('missing_keybinds')
     count = count if type(count) is int and 0 <= count <= 10000 else None
+    config_schema = config.get('config_version')
+    config_schema = config_schema if type(config_schema) is int and 0 <= config_schema <= 10000 else None
+    profile_version = config.get('tars_profile_version')
+    profile_version = profile_version if type(profile_version) is int and 0 <= profile_version <= 10000 else None
     info = {'format_version':1,'frontend_commit':build,'os':platform.system(),'os_release':platform.release(),
-            'python':platform.python_version(),'config_schema':config.get('config_version'),
-            'profile_version':config.get('tars_profile_version'),'providers':provider_summary(config),
+            'python':platform.python_version(),'config_schema':config_schema,
+            'profile_version':profile_version,'providers':provider_summary(config),
             'behavior_plugins':behavior_summary(),
             'health':health,'missing_keybinds':count,
             'observatory':'Feed diagnostics not exported; optional availability requires local inspection.',

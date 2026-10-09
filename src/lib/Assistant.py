@@ -1,5 +1,5 @@
 from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
-from .ResponsePresentation import ExplorationCalloutDeduper
+from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities
 import copy
 import json
 import traceback
@@ -831,7 +831,7 @@ class Assistant:
 
     def verify_action(self, user_input: str, action: ChatCompletionMessageToolCall, prompt: list, tools: list):
         """ Verify the action prediction by sending the user input without any context to the model and check if the action is still predicted """
-        log("debug", "Cache: Verifying action", user_input, action)
+        log("debug", "Cache: Verifying action", action.function.name)
         
         cache_state = self.action_manager.has_action_in_cache(user_input, action, tools)
         if cache_state == False:
@@ -950,7 +950,10 @@ class Assistant:
                     log_llm_usage("assistant", model_usage=model_usage, prompt_usage=prompt_usage, llm_model=self.llmModel)
 
                     if not response_text and not response_actions:
-                        response_text = "..."
+                        # An empty model turn is not a spoken or visible reply.
+                        self.event_manager.short_term_memory.replied_before(max_conversation_processed)
+                        self.event_manager.add_assistant_complete_event()
+                        return
                     end_time = time()
                     log('debug', 'Response time LLM', end_time - start_time)
                 except LLMError as e:
@@ -971,13 +974,14 @@ class Assistant:
                     self.event_manager.short_term_memory.replied_before(max_conversation_processed)
                     self.event_manager.add_assistant_complete_event()
             if response_text and not response_actions:
+                response_text = format_display_quantities(response_text)
                 line = self.tts.say(
                     response_text,
                     context="assistant",
                     postprocessing_layers=self._get_tts_postprocessing_layers(projected_states),
                 )
-                line.wait_for_speaking()
-                self.event_manager.add_assistant_speaking()
+                if line.wait_for_speaking():
+                    self.event_manager.add_assistant_speaking()
                 self.event_manager.add_conversation_event('assistant', response_text, reasons=reasons, processed_at=max_conversation_processed)
                 line.wait_for_completion()
                 self.event_manager.add_assistant_complete_event()
