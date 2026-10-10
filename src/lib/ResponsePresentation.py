@@ -14,6 +14,17 @@ RESPONSE_POLICY = (
     "Elite chat, weapons and cargo disposal require explicit user intent, never ordinary conversation. "
 )
 
+_SPACED_QUANTITY = re.compile(
+    r'(?<![\w/-])(?P<number>\d{1,3}(?: \d{3})+)(?P<unit>\s+(?:kilometers?|km|'
+    r'light[- ]years?|ly|light[- ]seconds?|ls|credits?|cr|tonnes?|tons?|jumps?))(?=\W|$)',
+    re.IGNORECASE,
+)
+
+
+def format_display_quantities(text):
+    """Format spaced thousands only when followed by an explicit quantity unit."""
+    return _SPACED_QUANTITY.sub(lambda match: match['number'].replace(' ', ',') + match['unit'], text)
+
 
 def current_commander_facts(states):
     def record(name):

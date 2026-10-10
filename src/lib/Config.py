@@ -1817,7 +1817,7 @@ def load_config() -> Config:
                 if _migrate_tars_profile(merged_config, prompt_path):
                     save_config(merged_config)
 
-            print(f"Configuration loaded successfully. Commander: {merged_config.get('commander_name')}, Characters: {len(merged_config.get('characters', []))}, temp {merged_config.get('llm_temperature')}")
+            print(f"TARS profile loaded. Characters: {len(merged_config.get('characters', []))}")
             return cast(Config, merged_config)  # pyright: ignore[reportInvalidCast]
         else:
             print("Empty config file, using defaults")
@@ -1825,7 +1825,7 @@ def load_config() -> Config:
     except TarsPackagingError:
         raise
     except Exception as e:
-        print(f'Error loading config.json: {str(e)}')
+        print(f'Error loading config.json: {type(e).__name__}')
         print('Restoring default configuration')
         traceback.print_exc()
         return defaults

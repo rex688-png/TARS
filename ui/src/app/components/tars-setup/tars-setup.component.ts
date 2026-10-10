@@ -1,7 +1,8 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { firstValueFrom, take } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
-import { needsSetup } from '../../services/tars-setup-state';
+import { needsSetup, setupFinishProblem } from '../../services/tars-setup-state';
 import { TarsRuntimeFacade } from '../../services/tars-runtime-facade.service';
 import { healthLabel } from '../../services/tars-health-presentation';
 @Component({selector:'app-tars-setup',standalone:true,imports:[CommonModule],template:`
@@ -33,5 +34,13 @@ export class TarsSetupComponent {
   try { await this.config.changeConfig({api_key:value}); input.value=''; this.error='Key saved in the local TARS profile.'; }
   catch { this.error='Key could not be saved.'; } finally { this.busy=false; }
  }
- async save(step:number){this.busy=true;this.error='';try{await this.config.changeConfig({tars_setup_step:Math.min(7,Math.max(0,step)),tars_setup_complete:step>=8});}catch{this.error='Setup progress was not saved. Try again.';}finally{this.busy=false;}}
+ async save(step:number){this.busy=true;this.error='';try{
+  if(step>=8){
+   const profile=await firstValueFrom(this.config.config$.pipe(take(1)));
+   const providers=await firstValueFrom(this.config.plugin_model_providers$.pipe(take(1)));
+   const problem=setupFinishProblem(profile ?? {},providers);
+   if(problem){this.error=problem;return;}
+  }
+  await this.config.changeConfig({tars_setup_step:Math.min(7,Math.max(0,step)),tars_setup_complete:step>=8});
+ }catch{this.error='Setup progress was not saved. Try again.';}finally{this.busy=false;}}
 }

@@ -735,7 +735,7 @@ class Chat:
     def run(self):
         show_chat_message(
             "info",
-            f"Initializing CMDR {self.config['commander_name']}'s personal AI...\n",
+            "Initializing TARS...",
         )
 
         show_chat_message("info", f"Mic Mode: {self.config['ptt_var']}")
@@ -1044,7 +1044,7 @@ def read_stdin(chat: Chat):
                 _, states = chat.event_manager.get_current_state()
                 result = chat.action_manager.confirm_action(data.get("request_id"), data.get("approved") is True, states)
                 if result:
-                    emit_message("chat", role="info", message=str(result.get("content", "Action completed")))
+                    emit_message("chat", role="info", message=str(result.get("content") or "Action returned no confirmation."))
             if data.get("type") == "create_config_backup":
                 try:
                     create_manual_backup()

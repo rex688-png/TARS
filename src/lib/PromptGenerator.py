@@ -2384,7 +2384,7 @@ class PromptGenerator:
         if event_name == "Market":
             return None
 
-        log('debug', f'fallback for event', event_name, content)
+        log('debug', 'fallback for event', event_name, 'content omitted')
 
         return f"Event: {event_name}\n{yaml.dump(content)}"
 
@@ -3751,7 +3751,7 @@ class PromptGenerator:
                         }
                         conversational_pieces += [piece]
                 except Exception as e:
-                    log('error', f"Error executing prompt event handler for {event}: {e}", traceback.format_exc())
+                    log('error', 'Prompt event handler failed', type(e).__name__)
             
             # If we added a single piece, add its length to history
             if piece:
@@ -3828,21 +3828,19 @@ class PromptGenerator:
                 }
             )
         except Exception as e:
-            log('error', e, traceback.format_exc())
+            log('error', 'Invalid character prompt', type(e).__name__)
             log('error', 'Invalid character prompt, please keep the {commander_name} placeholder in the prompt.')
 
         conversational_pieces.reverse()  # Restore the original order
 
         #log('debug', 'states', json.dumps(projected_states))
         prompt_json = json.dumps(conversational_pieces)
-        log('debug', 'conversation', prompt_json)
+        log('debug', 'conversation prepared', len(prompt_json), 'characters')
         if self.previous_prompt_json:
-            # find first changed character position, debug log the previous and next 30 characters
+            # Report reuse without logging private prompt or conversation slices.
             for i in range(min(len(self.previous_prompt_json), len(prompt_json))):
                 if self.previous_prompt_json[i] != prompt_json[i]:
-                    start = max(0, i - 30)
-                    end = min(len(prompt_json), i + 30)
-                    log('debug', 'prompt change', f"Change at position {i}/{len(prompt_json)} ({(i/len(prompt_json) * 100):.2f}%):\nPrevious: {self.previous_prompt_json[start:end]}\nCurrent:  {prompt_json[start:end]}")
+                    log('debug', 'prompt change', f'First change at position {i}/{len(prompt_json)}')
                     usage_stats.reuse_chars = i
                     break
         self.previous_prompt_json = prompt_json

@@ -30,6 +30,7 @@ def test_system_names_and_model_identifiers_remain_unchanged():
     ("1,000 tonnes", "one thousand tonnes"),
     ("2,000,000 credits", "two million credits"),
     ("4,000,000,000 credits", "four billion credits"),
+    ("13 107 kilometers", "thirteen thousand, one hundred and seven kilometers"),
     ("12.5 ly", "twelve point five light-years"),
     ("75%", "seventy-five percent"),
 ])
@@ -61,6 +62,7 @@ def test_elite_spoken_quantity_fixtures(source, expected):
 @pytest.mark.parametrize("identifier", [
     "Col 285 Sector AB 12-3", "HIP 22460 A 1", "S171 6", "eXPY 2",
     "FIX-01", "GPT-6 Luna", "Parakeet STT 0.0.10",
+    "HIP 13 107", "Col 285 Sector 13 107",
 ])
 def test_spoken_quantities_do_not_expand_identifiers(identifier):
     assert normalize_spoken_quantities(identifier) == identifier
