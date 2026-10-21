@@ -37,7 +37,7 @@ from .PromptGenerator import PromptGenerator
 from .TTS import TTS
 from typing import Any,  Callable, final
 import yaml
-from threading import Thread
+from threading import Thread, Lock
 from .actions.Actions import engine_boost, set_speed, fire_weapons, get_visuals
 from .Projections import get_state_dict, ProjectedStates
 from .QuestCatalogManager import remove_orphaned_quest_states
@@ -83,7 +83,9 @@ class Assistant:
                 return
 
         self.pending.append(event)
-        self.reply_pending = self.should_reply(projected_states)
+        self.reply_pending = (self.should_reply(projected_states)
+                              or bool(getattr(self, '_speech_deferred', {}))
+                              or bool(getattr(self, '_speech_retry_requested', False)))
         speech_trace.observe_event("reply_selection", event, selected=bool(self.reply_pending))
 
         if isinstance(event, MemoryEvent):
@@ -162,12 +164,17 @@ class Assistant:
             event for event in self.pending
             if not isinstance(event, (ConversationEvent, ToolEvent))
         ]
-        self.reply_pending = False
+        self.reply_pending = bool(getattr(self, '_speech_deferred', {}))
+        self._speech_retry_requested = False
+        self.speech_arbiter().cancel_optional('context_reset')
 
     def reset_runtime_state(self):
         self.pending = []
         self.reply_pending = False
         self.short_term_memories = []
+        self._speech_deferred = {}
+        self._speech_retry_requested = False
+        self.speech_arbiter().cancel_optional('restart')
 
     def _get_quests_path(self) -> Path:
         return Path(__file__).resolve().parent.parent / "data" / "quests.yaml"
@@ -880,6 +887,17 @@ class Assistant:
     @observe()
     @speech_trace.reply_scope
     def reply_thread(self, projected_states: ProjectedStates):
+        execution = None
+        if self.config.get('speech_director_mode', 'observe') == 'enforce':
+            execution = self.__dict__.setdefault('_speech_execution_lock', Lock())
+            if not execution.acquire(blocking=False):
+                self._speech_retry_requested = True
+                self.reply_pending = True
+                return
+        retrying = bool(getattr(self, '_speech_deferred', {}) or
+                        getattr(self, '_speech_retry_requested', False))
+        self._speech_retry_requested = False
+        self.__dict__.setdefault('_speech_deferred', {})
         self.reply_pending = False
         self.is_replying = True
         admission = None
@@ -888,8 +906,18 @@ class Assistant:
         try:
             events = self.event_manager.get_short_term_memory(150)
             events = list(reversed(events))
+            def event_key(event):
+                return (event.kind, event.timestamp, event.processed_at,
+                        getattr(event, 'plugin_event_name', None))
+            known = {event_key(event) for event in events}
+            # Retain a deferred important event even if noisy history exceeds 150.
+            events += [event for key, event in getattr(self, '_speech_deferred', {}).items()
+                       if key not in known]
             new_events = [event for event in events if event.responded_at == None]
+            self._speech_deferred = {}
             self.pending = []
+            if retrying and not new_events:
+                return
             mode = arbiter.configure(self.config.get('speech_director_mode', 'observe'))
             if mode != 'off':
                 arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
@@ -906,7 +934,9 @@ class Assistant:
                     if not admission.allowed:
                         # Keep every event in the store/context. Busy is deferred;
                         # stale/recent attempts wait for the next incoming event.
-                        self.reply_pending = any(d.reason == 'busy' for _, d in admission.decisions)
+                        self._speech_deferred = {event_key(event): event for event, decision
+                                                 in admission.decisions if decision.reason == 'busy'}
+                        self.reply_pending = bool(self._speech_deferred)
                         return
             for event in new_events:
                 speech_trace.observe_event("reply_event", event)
@@ -1042,6 +1072,10 @@ class Assistant:
             arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
             arbiter.finish(admission, playback_evidence)
             self.is_replying = False
+            self.reply_pending = (self.reply_pending or bool(self._speech_deferred)
+                                  or bool(self._speech_retry_requested))
+            if execution is not None:
+                execution.release()
 
     def should_reply(self, states:dict[str, Any]):
         character = self.config['characters'][self.config['active_character_index']]

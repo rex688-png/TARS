@@ -112,6 +112,17 @@ class Admission:
     claims: dict = field(default_factory=dict)
 
 
+@dataclass
+class OptionalAdmission:
+    token: str
+    mode: str
+    epoch: int
+    deadline: float
+    triggered_at: float
+    allowed: bool
+    state: str = 'preparing'
+
+
 class SpeechArbiter:
     def __init__(self, clock=monotonic, wall_clock=time, attempt_window=8.0):
         self.clock, self.wall_clock = clock, wall_clock
@@ -124,6 +135,7 @@ class SpeechArbiter:
         self._location = {}
         self._scope_since = None
         self._abort_revision = None
+        self._optional = {}
 
     def note_cancellation(self, revision):
         if not isinstance(revision, int) or isinstance(revision, bool):
@@ -132,10 +144,13 @@ class SpeechArbiter:
             if self._abort_revision is not None and revision != self._abort_revision:
                 self._recent.clear()
                 self._epoch += 1
+                self.cancel_optional('cancelled')
             self._abort_revision = revision
 
     def note_event(self, event):
         with self._lock:
+            if source(event) in ('user', 'tool', 'explorer', 'observatory', 'navigator') or getattr(event, 'kind', '') == 'user_speaking':
+                self.cancel_optional('higher_priority')
             if isinstance(event, GameEvent) and event.content.get('event') in ('FSDJump', 'Location', 'CarrierJump'):
                 self._epoch += 1
                 self._location = dict(event.content)
@@ -147,6 +162,7 @@ class SpeechArbiter:
                 except (ValueError, TypeError, AttributeError):
                     self._scope_since = self.wall_clock()
                 self._recent.clear()
+                self.cancel_optional('location_changed')
             if source(event) == 'user' or getattr(event, 'kind', '') == 'user_speaking':
                 self._epoch += 1
                 self._recent.clear()
@@ -180,6 +196,7 @@ class SpeechArbiter:
                 self._recent.clear()
                 self._mode = mode
                 self._epoch += 1
+                self.cancel_optional('mode_changed')
         return mode
 
     def reserve(self, events, states, mode='observe'):
@@ -190,6 +207,8 @@ class SpeechArbiter:
             now = self.clock()
             self._recent = {k: v for k, v in self._recent.items() if v[1] > now}
             direct = any(source(e) in ('user', 'tool') for e in events)
+            if direct or any(source(e) not in ('chatter', 'other') for e in events):
+                self.cancel_optional('higher_priority')
             claims = {}
             decisions = []
             for event in sorted(events, key=lambda e: -PRIORITY[source(e)]):
@@ -197,7 +216,11 @@ class SpeechArbiter:
                 reason = 'direct_request' if direct else self._freshness(event, states)
                 key, facts = (None, frozenset()) if direct else identity_and_facts(event)
                 if not direct and not reason:
-                    if self._active is not None:
+                    optional_token = (event.plugin_event_content.get('_speech_admission')
+                                      if isinstance(event, PluginEvent) and isinstance(event.plugin_event_content, dict) else None)
+                    if origin == 'chatter' and optional_token and not self.optional_event_valid(optional_token):
+                        reason = 'optional_cancelled'
+                    elif self._active is not None:
                         reason = 'busy'
                     elif key is not None and key in claims and facts <= claims[key]:
                         reason = 'same_batch_duplicate'
@@ -207,6 +230,10 @@ class SpeechArbiter:
                 reason = reason or ('unidentified' if key is None else 'new_facts')
                 decision = Decision(accepted, reason, origin, PRIORITY[origin], origin == 'chatter')
                 decisions.append((event, decision))
+                if mode == 'enforce' and not accepted and origin == 'chatter':
+                    data = event.plugin_event_content
+                    if isinstance(data, dict):
+                        self.discard_optional(data.get('_speech_admission'))
                 SpeechTrace.observe_event('speech_admission', event, mode=mode, proposed=accepted,
                                           reason=reason, source=origin, priority=decision.priority,
                                           optional=decision.optional, enforced=mode == 'enforce')
@@ -214,6 +241,13 @@ class SpeechArbiter:
                     claims[key] = claims.get(key, frozenset()) | facts
             proposed = any(d.accepted for _, d in decisions)
             token = uuid4().hex if proposed and not direct and self._active is None else None
+            for event, decision in decisions:
+                if token and decision.accepted and decision.source == 'chatter':
+                    data = event.plugin_event_content
+                    lease = self._optional.get(data.get('_speech_admission')) if isinstance(data, dict) else None
+                    if lease is not None and lease.state == 'dispatched':
+                        token = lease.token
+                        lease.state = 'consumed'
             if token:
                 self._active = token
             return Admission(mode != 'enforce' or proposed, decisions, token, self._epoch, claims)
@@ -222,6 +256,7 @@ class SpeechArbiter:
         if admission is None or admission.token is None:
             return
         with self._lock:
+            self._optional.pop(admission.token, None)
             if self._active != admission.token:
                 return
             self._active = None
@@ -238,9 +273,75 @@ class SpeechArbiter:
                     self._recent.pop(next(iter(self._recent)))
 
     def preview_optional(self, states, mode='observe'):
-        """Advisory pre-generation seam for PR 3; no Chatter migration/reservation."""
+        """Legacy advisory preview, retained for older plugin callers."""
         with self._lock:
             accepted = self._active is None
         SpeechTrace.emit('speech_admission_preview', source='chatter', mode=mode,
                          proposed=accepted, reason='available' if accepted else 'busy')
         return mode != 'enforce' or accepted
+
+    def cancel_optional(self, reason='cancelled'):
+        with self._lock:
+            if self._optional:
+                SpeechTrace.emit('optional_cancelled', reason=reason, count=len(self._optional))
+            self._optional.clear()
+
+    def _optional_reason(self, lease, busy=False):
+        if self._optional.get(lease.token) is not lease or lease.epoch != self._epoch:
+            return 'cancelled'
+        if self.clock() >= lease.deadline or not -5 <= self.wall_clock() - lease.triggered_at <= 60:
+            return 'stale'
+        if busy or (self._active is not None and self._active != lease.token):
+            return 'higher_priority'
+        return None
+
+    def begin_optional(self, triggered_at, mode='observe', busy=False):
+        with self._lock:
+            mode = self.configure(mode)
+            self._optional = {k: v for k, v in self._optional.items()
+                              if v.deadline > self.clock() and v.epoch == self._epoch}
+            reason = ('stale' if not -5 <= self.wall_clock() - triggered_at <= 60 else
+                      'busy' if busy or self._active is not None or self._optional else None)
+            lease = OptionalAdmission(uuid4().hex, mode, self._epoch, self.clock() + 60,
+                                      triggered_at, mode != 'enforce' or reason is None)
+            if lease.allowed and mode != 'off':
+                self._optional[lease.token] = lease
+            SpeechTrace.emit('optional_reserved', reservation_id=lease.token, mode=mode,
+                             proposed=reason is None, reason=reason or 'available')
+            return lease
+
+    def optional_valid(self, lease, busy=False):
+        with self._lock:
+            reason = self._optional_reason(lease, busy)
+            SpeechTrace.emit('optional_revalidated', reservation_id=lease.token, mode=lease.mode,
+                             proposed=reason is None, reason=reason or 'available')
+            return lease.mode != 'enforce' or reason is None
+
+    def optional_event_valid(self, token):
+        with self._lock:
+            lease = self._optional.get(token)
+            return (lease is not None and lease.state in ('dispatched', 'consumed')
+                    and self._optional_reason(lease) is None)
+
+    def discard_optional(self, token):
+        with self._lock:
+            self._optional.pop(token, None)
+
+    def dispatch_optional(self, lease, busy, dispatch):
+        with self._lock:
+            if not self.optional_valid(lease, busy()):
+                return False
+            lease.state = 'dispatched'
+            try:
+                dispatch(lease.token if lease.mode == 'enforce' else None)
+            except Exception:
+                self._optional.pop(lease.token, None)
+                raise
+            return True
+
+    def release_optional(self, lease):
+        with self._lock:
+            # A dispatched enforce ticket is owned by Assistant until completion.
+            if lease.mode != 'enforce' or lease.state == 'preparing':
+                self._optional.pop(lease.token, None)
+            SpeechTrace.emit('optional_released', reservation_id=lease.token, mode=lease.mode)

@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import override
 import copy
 import difflib
@@ -420,6 +421,8 @@ class TARSChatter(PluginBase):
         self._event_timer = None
         self._event_opportunity_seq = 0
         self._lock = threading.RLock()
+        self._speech_context = threading.local()
+        self._host_reservations = set()
         self._state_path = None
 
         self._assistant_lines = deque(maxlen=80)
@@ -575,6 +578,13 @@ class TARSChatter(PluginBase):
     @override
     def on_chat_stop(self, helper: PluginHelper):
         self._running = False
+        cancel = getattr(helper, "cancel_optional_speech", None)
+        if callable(cancel):
+            cancel()
+        with self._lock:
+            for handle in tuple(self._host_reservations):
+                handle.close()
+            self._host_reservations.clear()
         self._session_id += 1
         with self._lock:
             self._pending_chatter_reply_at = 0.0
@@ -1821,36 +1831,41 @@ Rules for THIS response:
                 log("info", f"TARS Chatter chose silence for {name} event opportunity.")
                 return
 
-            event_context = self._event_context(name, now, event_time)
-            candidate = self._prepare_chatter_line(event_context=event_context)
-            if candidate is None:
-                return
+            with self._speech_opportunity(event_time) as handle:
+                if handle is not None and not handle.allowed:
+                    return
+                event_context = self._event_context(name, now, event_time)
+                candidate = self._prepare_chatter_line(event_context=event_context)
+                if candidate is None:
+                    return
 
-            # Candidate generation itself may take seconds. Recheck all activity.
-            if (not self._running or session_id != self._session_id
-                    or self._last_assistant_time > now
-                    or self._last_user_activity > now
-                    or self._last_game_activity > event_time
-                    or (assistant is not None and (
-                        getattr(assistant, "reply_pending", False)
-                        or getattr(assistant, "is_replying", False)))):
-                return
+                # Candidate generation itself may take seconds. Recheck all activity.
+                if (not self._running or session_id != self._session_id
+                        or self._last_assistant_time > now
+                        or self._last_user_activity > now
+                        or self._last_game_activity > event_time
+                        or (assistant is not None and (
+                            getattr(assistant, "reply_pending", False)
+                            or getattr(assistant, "is_replying", False)))):
+                    return
 
-            if self._helper is not None:
-                self._helper.dispatch_event(
-                    PluginEvent(
-                        plugin_event_name="TARSChatter",
-                        plugin_event_content={
-                            "triggered_at": time.time(),
-                            "session_id": session_id,
-                            "visual": None,
-                            "candidate": candidate,
-                            "source_event": name,
-                        },
+                if self._helper is not None:
+                    dispatched = self._dispatch_optional(
+                        PluginEvent(
+                            plugin_event_name="TARSChatter",
+                            plugin_event_content={
+                                "triggered_at": time.time(),
+                                "session_id": session_id,
+                                "visual": None,
+                                "candidate": candidate,
+                                "source_event": name,
+                            },
+                        ), handle
                     )
-                )
-                self._last_event_opportunity_time = time.time()
-                log("info", f"TARS Chatter event opportunity dispatched for {name}.")
+                    if not dispatched:
+                        return
+                    self._last_event_opportunity_time = time.time()
+                    log("info", f"TARS Chatter event opportunity dispatched for {name}.")
         except Exception as exc:
             log("error", f"TARS Chatter event opportunity failed for {name}: {exc}")
 
@@ -1927,6 +1942,8 @@ Rules for THIS response:
     # ---------- spontaneous chatter ----------
 
     def _should_reply_to_chatter(self, event):
+        if not self._host_event_valid(event):
+            return False
         data = getattr(event, "plugin_event_content", None)
         if not isinstance(data, dict):
             return False
@@ -1958,6 +1975,8 @@ Rules for THIS response:
             return accepted
 
     def _chatter_prompt(self, event):
+        if not self._host_event_valid(event):
+            return ""
         data = getattr(event, "plugin_event_content", None)
         if isinstance(data, dict) and data.get("manual_test") is True:
             log("info", "TARS Chatter manual test prompt generated.")
@@ -1968,6 +1987,54 @@ Rules for THIS response:
                     "PREPARED_TARS_LINE: " + json.dumps(line, ensure_ascii=True) + "\n"
                     "This remark was screened before dispatch; deliver it verbatim.")
         return ""
+
+    @contextmanager
+    def _speech_opportunity(self, triggered_at):
+        helper = self._helper
+        reserve = getattr(helper, "reserve_optional_speech", None)
+        if not callable(reserve):
+            yield None  # Compatibility with hosts predating Speech Director.
+            return
+        handle = reserve(triggered_at)
+        with self._lock:
+            self._host_reservations.add(handle)
+        previous = getattr(self._speech_context, "current", None)
+        previous_activity = getattr(self._speech_context, "activity", None)
+        self._speech_context.activity = (self._last_assistant_time, self._last_user_activity,
+                                         self._last_game_activity, self._session_id)
+        self._speech_context.current = handle
+        try:
+            yield handle
+        finally:
+            self._speech_context.current = previous
+            self._speech_context.activity = previous_activity
+            with self._lock:
+                self._host_reservations.discard(handle)
+            handle.close()
+
+    def _host_opportunity_valid(self):
+        handle = getattr(self._speech_context, "current", None)
+        if handle is None:
+            return True
+        if handle.enforcing:
+            activity = self._speech_context.activity
+            if (not self._running or self._session_id != activity[3]
+                    or self._last_assistant_time > activity[0]
+                    or self._last_user_activity > activity[1]
+                    or self._last_game_activity > activity[2]):
+                handle.close()
+                return False
+        return handle.valid()
+
+    def _dispatch_optional(self, event, handle):
+        if handle is None:
+            self._helper.dispatch_event(event)
+            return True
+        return handle.dispatch(event)
+
+    def _host_event_valid(self, event):
+        check = getattr(self._helper, "optional_speech_event_valid", None)
+        return not callable(check) or check(event)
 
     def _prepare_chatter_line(self, visual=None, event_context=None):
         """Generate and screen a spontaneous line before dispatch.
@@ -2050,6 +2117,8 @@ Rules for THIS response:
         # If the model itself says SKIP, accept the silence immediately instead of
         # shopping across six topics until something is forced into existence.
         for attempt in range(min(3, len(topics))):
+            if not self._host_opportunity_valid():
+                return None
             topic = topics[attempt]
             guidance = self.CHATTER_TOPIC_GUIDANCE.get(topic, self.CHATTER_TOPIC_GUIDANCE["copilot"])
             user_prompt = (
@@ -2071,6 +2140,8 @@ Rules for THIS response:
                     tools=None,
                 )
                 candidate, actions, usage = result
+                if not self._host_opportunity_valid():
+                    return None
                 try:
                     log_llm_usage(
                         "TARSChatter candidate", model_usage=usage,
@@ -2344,39 +2415,46 @@ Rules for THIS response:
                 self._schedule_next()
                 return
 
-            visual = self._visual_observation(now)
-            candidate = self._prepare_chatter_line(visual)
-            if candidate is None:
-                log("info", "TARS Chatter skipped: no original remark worth interrupting with.")
-                self._schedule_next(max(120.0, self._delay()))
-                return
-            if not self._running or session_id != self._session_id:
-                return
-            # Screenshot and candidate calls can take seconds; recheck activity.
-            if (self._last_assistant_time > now or self._last_user_activity > now
-                    or self._last_game_activity > now
-                    or (assistant is not None and (
-                        getattr(assistant, "reply_pending", False)
-                        or getattr(assistant, "is_replying", False)))):
-                log("info", "TARS Chatter deferred: new activity during visual check.")
-                self._schedule_next(10.0)
-                return
+            with self._speech_opportunity(now) as handle:
+                if handle is not None and not handle.allowed:
+                    self._schedule_next(10.0)
+                    return
+                visual = self._visual_observation(now)
+                candidate = self._prepare_chatter_line(visual)
+                if candidate is None:
+                    log("info", "TARS Chatter skipped: no original remark worth interrupting with.")
+                    self._schedule_next(max(120.0, self._delay()))
+                    return
+                if not self._running or session_id != self._session_id:
+                    return
+                # Screenshot and candidate calls can take seconds; recheck activity.
+                if (self._last_assistant_time > now or self._last_user_activity > now
+                        or self._last_game_activity > now
+                        or (assistant is not None and (
+                            getattr(assistant, "reply_pending", False)
+                            or getattr(assistant, "is_replying", False)))):
+                    log("info", "TARS Chatter deferred: new activity during visual check.")
+                    self._schedule_next(10.0)
+                    return
 
-            if self._helper is not None:
-                self._helper.dispatch_event(
-                    PluginEvent(
-                        plugin_event_name="TARSChatter",
-                        plugin_event_content={
-                            "triggered_at": time.time(),
-                            "session_id": session_id,
-                            "visual": visual,
-                            "candidate": candidate,
-                        }
+                if self._helper is not None:
+                    dispatched = self._dispatch_optional(
+                        PluginEvent(
+                            plugin_event_name="TARSChatter",
+                            plugin_event_content={
+                                "triggered_at": time.time(),
+                                "session_id": session_id,
+                                "visual": visual,
+                                "candidate": candidate,
+                            }
+                        ), handle
                     )
-                )
-                log("info", "TARS Chatter spontaneous event dispatched.")
+                    if not dispatched:
+                        self._schedule_next(10.0)
+                        return
+                    log("info", "TARS Chatter spontaneous event dispatched.")
 
-            self._schedule_next()
+                self._schedule_next()
 
         except Exception as exc:
             log("error", f"TARS Director chatter cycle failed: {exc}")
