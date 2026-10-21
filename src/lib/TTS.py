@@ -245,6 +245,7 @@ class TTS:
                 "drop_if": item.get("drop_if"),
                 "line": item.get("line"),
                 "_retries": item.get("_retries", 0),
+                "_abort_revision": item.get("_abort_revision"),
             }
         return {
             "type": "text",
@@ -320,9 +321,11 @@ class TTS:
                     if isinstance(line, TTSLine) and line.is_completed():
                         continue
 
-                    # Keep cancellation identity even when an abort races with
-                    # dequeue, synthesis, a PCM write or a later retry.
+                    # A queued item retains the abort epoch from its original
+                    # submission across all retries. Late requeues after abort
+                    # must not revive a cancelled utterance on worker restart.
                     revision = getattr(self, '_abort_revision', 0)
+                    queued_revision = item.get("_abort_revision")
                     on_complete = item.get("on_complete")
                     trace_token = speech_trace.current.set(getattr(line, "trace_id", None)) if speech_trace.enabled else None
                     line_token = speech_trace.current_line.set(getattr(line, "line_id", None)) if speech_trace.enabled else None
@@ -336,7 +339,8 @@ class TTS:
                     try:
                         speech_trace.emit("playback_dequeued", line_id=getattr(line, "line_id", None),
                                           attempt_id=attempt_id)
-                        if self.is_aborted or getattr(self, '_abort_revision', 0) != revision:
+                        if (self.is_aborted or getattr(self, '_abort_revision', 0) != revision or
+                                (queued_revision is not None and queued_revision != revision)):
                             evidence = "cancelled_before_start"
                         else:
                             drop_if = item.get("drop_if")
@@ -1519,6 +1523,7 @@ class TTS:
                 "on_complete": on_complete,
                 "drop_if": drop_if,
                 "line": line,
+                "_abort_revision": getattr(self, "_abort_revision", 0),
             },
         )
         return line
@@ -1542,6 +1547,7 @@ class TTS:
                 "on_complete": on_complete,
                 "drop_if": drop_if,
                 "line": line,
+                "_abort_revision": getattr(self, "_abort_revision", 0),
             },
         )
 
