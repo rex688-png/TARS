@@ -27,8 +27,11 @@ class LLMError(Exception):
 class LLMModel(ABC):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        if "generate" in cls.__dict__:
-            cls.generate = trace_generation(cls.generate)
+        implementation = cls.__dict__.get("generate")
+        if isinstance(implementation, (staticmethod, classmethod)):
+            cls.generate = type(implementation)(trace_generation(implementation.__func__))
+        elif callable(implementation):
+            cls.generate = trace_generation(implementation)
 
     model_name: str
     provider_name: str | None

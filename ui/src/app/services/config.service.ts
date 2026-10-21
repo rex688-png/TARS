@@ -98,6 +98,7 @@ export interface SystemInfoMessage extends BaseMessage {
 }
 
 export interface Config {
+    speech_director_mode?: "off" | "observe" | "enforce";
     api_key: string;
     commander_name: string;
     tars_setup_step?: number;

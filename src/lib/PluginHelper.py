@@ -144,6 +144,12 @@ class PluginHelper():
         speech_trace.observe_event("plugin_dispatched", event)
         self._event_manager.incoming.put(event)
 
+    def preview_optional_speech(self) -> bool:
+        """Advisory seam for future pre-generation Chatter admission (not migrated)."""
+        _, states = self._event_manager.get_current_state()
+        return self._assistant.speech_arbiter().preview_optional(
+            states, self._config.get("speech_director_mode", "observe"))
+
     def send_key(self, key_name: str, *args, **kwargs):
         """Send a key"""
         self._keys.send(key_name, *args, **kwargs)

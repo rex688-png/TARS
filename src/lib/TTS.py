@@ -38,6 +38,7 @@ from .Models import TTSModel, OpenAITTSModel
 
 class TTSLine:
     def __init__(self) -> None:
+        self._playback_evidence = "unknown"
         self.trace_id = speech_trace.current.get()
         self.line_id = speech_trace.new_id()
         self._speaking = threading.Event()
@@ -130,6 +131,7 @@ class TTS:
         self.output_volume_multiplier = max(0.0, min(1.5, float(output_volume_multiplier)))
         self.read_queue = queue.Queue()
         self.is_aborted = False
+        self._abort_revision = 0
         self._is_playing = False
         self.prebuffer_size = 4
         self.output_format = pyaudio.paInt16
@@ -260,6 +262,7 @@ class TTS:
                     if callable(drop_if) and drop_if():
                         speech_trace.emit("playback_discarded", trace_id=getattr(line, "trace_id", None), line_id=getattr(line, "line_id", None), reason="drop_if")
                         if isinstance(line, TTSLine):
+                            line._playback_evidence = "dropped"
                             line.mark_completed()
                         continue
                     requeued = False
@@ -281,7 +284,7 @@ class TTS:
                         else:
                             if not isinstance(text, str) or not text:
                                 continue
-                            self._playback_one(
+                            evidence = self._playback_one(
                                 text,
                                 stream,
                                 context if isinstance(context, str) else "speech",
@@ -289,8 +292,12 @@ class TTS:
                                 cast(CharacterTTSPostprocessingConfig | None, postprocessing if isinstance(postprocessing, dict) else None),
                                 cast(list[CharacterTTSPostprocessingConfig | None] | None, postprocessing_layers if isinstance(postprocessing_layers, list) else None),
                             )
+                            if isinstance(line, TTSLine):
+                                line._playback_evidence = "cancelled" if self.is_aborted else evidence
                     except Exception as e:
                         speech_trace.emit("playback_failed", line_id=getattr(line, "line_id", None), requeued=True)
+                        if isinstance(line, TTSLine):
+                            line._playback_evidence = "failed"
                         self.read_queue.put(item)
                         requeued = True
                         raise e
@@ -400,6 +407,8 @@ class TTS:
             ),
             text_usage=TextUsageStats(input_chars=len(text)),
         )
+        return ("cancelled" if self.is_aborted else "failed" if stream_metrics.get("synthesis_failed")
+                else "output_written" if written_audio_bytes else "no_audio")
 
 
     def _reset_postprocessing_state(self) -> None:
@@ -582,6 +591,8 @@ class TTS:
                 if metrics is not None:
                     metrics["response_ms"] = (time() - started_at) * 1000
             except Exception as e:
+                if metrics is not None:
+                    metrics['synthesis_failed'] = 1.0
                 speech_trace.emit('synthesis_failed')
                 log('error', 'TTS synthesis error', e, traceback.format_exc())
                 show_chat_message('error', 'TTS synthesis error:', str(e))
@@ -1416,11 +1427,13 @@ class TTS:
         )
 
     def abort(self):
+        self._abort_revision = getattr(self, '_abort_revision', 0) + 1
         speech_trace.emit("playback_abort_requested")
         while not self.read_queue.empty():
             item = self._normalize_queue_item(self.read_queue.get())
             line = item.get("line")
             if isinstance(line, TTSLine):
+                line._playback_evidence = "cancelled"
                 speech_trace.emit("playback_cancelled", trace_id=line.trace_id, line_id=line.line_id, reason="queued_abort")
                 line.mark_completed()
 

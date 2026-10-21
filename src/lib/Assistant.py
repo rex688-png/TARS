@@ -1,3 +1,4 @@
+from .SpeechArbiter import SpeechArbiter, SOURCES as SPEECH_SOURCES
 from . import SpeechTrace as speech_trace
 from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
 from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities
@@ -67,7 +68,14 @@ class Assistant:
         self.quests_loaded = False
         self.quest_version = "0"
 
+    def speech_arbiter(self):
+        # setdefault also makes lazy construction safe for restored/test hosts.
+        if "_speech_arbiter" not in self.__dict__:
+            self.__dict__.setdefault("_speech_arbiter", SpeechArbiter())
+        return self._speech_arbiter
+
     def on_event(self, event: Event, projected_states: ProjectedStates):
+        self.speech_arbiter().note_event(event)
         # Skip disabled game events from entering the pending state
         if isinstance(event, GameEvent) or isinstance(event, StatusEvent):
             event_type = event.content.get('event') if isinstance(event, GameEvent) else event.status.get('event')
@@ -874,11 +882,32 @@ class Assistant:
     def reply_thread(self, projected_states: ProjectedStates):
         self.reply_pending = False
         self.is_replying = True
+        admission = None
+        playback_evidence = "unknown"
+        arbiter = self.speech_arbiter()
         try:
             events = self.event_manager.get_short_term_memory(150)
             events = list(reversed(events))
             new_events = [event for event in events if event.responded_at == None]
             self.pending = []
+            mode = arbiter.configure(self.config.get('speech_director_mode', 'observe'))
+            if mode != 'off':
+                arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
+                from .Event import PluginEvent
+                candidates = [event for event in new_events if
+                    (isinstance(event, ConversationEvent) and event.kind == 'user'
+                     and not getattr(event, 'do_not_reply', False)) or
+                    (isinstance(event, ToolEvent) and not getattr(event, 'do_not_reply', False)) or
+                    (isinstance(event, PluginEvent) and event.plugin_event_name in SPEECH_SOURCES) or
+                    (isinstance(event, GameEvent) and event.content.get('event') in self.enabled_game_events) or
+                    (isinstance(event, StatusEvent) and event.status.get('event') in self.enabled_game_events)]
+                if candidates:
+                    admission = arbiter.reserve(candidates, projected_states, mode)
+                    if not admission.allowed:
+                        # Keep every event in the store/context. Busy is deferred;
+                        # stale/recent attempts wait for the next incoming event.
+                        self.reply_pending = any(d.reason == 'busy' for _, d in admission.decisions)
+                        return
             for event in new_events:
                 speech_trace.observe_event("reply_event", event)
             
@@ -994,6 +1023,7 @@ class Assistant:
                     self.event_manager.add_assistant_speaking()
                 self.event_manager.add_conversation_event('assistant', response_text, reasons=reasons, processed_at=max_conversation_processed)
                 line.wait_for_completion()
+                playback_evidence = getattr(line, "_playback_evidence", "unknown")
                 self.event_manager.add_assistant_complete_event()
 
             if response_actions:
@@ -1009,6 +1039,8 @@ class Assistant:
             log("debug", "LLM error during reply:", e, traceback.format_exc())
             show_chat_message("error", "LLM error: An unknown error occurred during reply")
         finally:
+            arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
+            arbiter.finish(admission, playback_evidence)
             self.is_replying = False
 
     def should_reply(self, states:dict[str, Any]):

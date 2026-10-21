@@ -930,6 +930,7 @@ class Character(TypedDict, total=False):
 
 
 class Config(TypedDict):
+    speech_director_mode: Literal['off', 'observe', 'enforce']
     tars_setup_step: int
     tars_setup_complete: bool
     action_permissions: dict[str, str]
@@ -1381,6 +1382,7 @@ def migrate(data: dict) -> dict:
         data['config_version'] = 20
         data['allowed_actions'] = default_allowed_actions.copy()
 
+    data.setdefault('speech_director_mode', 'observe')
     data.setdefault('overlay_standalone_transparent', True)
     data.setdefault('overlay_standalone_background_color', '#000000')
 
@@ -1644,6 +1646,7 @@ def handle_tars_prompt_command(config: Config, data: dict) -> Config:
 def load_config() -> Config:
     tars_profile = os.environ.get('TARS_RUNTIME_PROFILE') == '1'
     defaults: Config = {
+        'speech_director_mode': 'observe',
         'config_version': 20,
         'tars_setup_step': 0,
         'tars_setup_complete': False,
@@ -2013,6 +2016,8 @@ def cast_int_float(current: dict, data: dict) -> dict:
 
 def update_config(config: Config, data: dict) -> Config:
     data = copy.deepcopy(data)
+    if "speech_director_mode" in data and data["speech_director_mode"] not in ("off", "observe", "enforce"):
+        raise ValueError("Invalid speech director mode")
     tars_profile = os.environ.get('TARS_RUNTIME_PROFILE') == '1'
     explicit = copy.deepcopy(data)
     # UI field edits are patches, not replacements of every provider's saved

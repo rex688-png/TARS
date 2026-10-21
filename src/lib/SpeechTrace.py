@@ -51,7 +51,7 @@ def event_fields(event):
 def observe_event(stage, event, **fields):
     if enabled:
         try:
-            emit(stage, **event_fields(event), **fields)
+            emit(stage, **{**event_fields(event), **fields})
         except Exception:
             pass
 
