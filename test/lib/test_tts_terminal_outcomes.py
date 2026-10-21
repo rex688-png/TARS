@@ -139,3 +139,18 @@ def test_audio_file_without_path_terminates_as_no_audio(monkeypatch):
     run_until_idle(obj)
     done.assert_called_once_with()
     assert stream.write.call_count == 0
+
+
+def test_late_requeue_after_abort_cannot_revive_old_audio(monkeypatch):
+    """Simulates worker holding an item while abort drains the visible queue."""
+    obj, stream = player(monkeypatch, [b'12'])
+    done = Mock()
+    line = obj.say('do not resume me', on_complete=done)
+    inflight_item = obj.read_queue.get_nowait()
+    obj.abort()
+    assert line.result is None  # Abort could not see the in-flight item.
+    obj.read_queue.put(inflight_item)  # Old failed attempt requeues after abort.
+    run_until_idle(obj)
+    assert line.result.outcome == 'cancelled_before_start'
+    assert stream.write.call_count == 0
+    done.assert_called_once_with()
