@@ -12,6 +12,7 @@ import json
 
 from .Event import ConversationEvent, GameEvent, PluginEvent, StatusEvent, ToolEvent
 from . import SpeechTrace
+from .SpeechPolicy import routine_first_discovery_tally
 
 SOURCES = {'TARSExplorerTarget': 'explorer', 'TARSObservatoryFact': 'observatory',
            'TARSNavigatorTarget': 'navigator', 'TARSChatter': 'chatter'}
@@ -214,6 +215,11 @@ class SpeechArbiter:
             for event in sorted(events, key=lambda e: -PRIORITY[source(e)]):
                 origin = source(event)
                 reason = 'direct_request' if direct else self._freshness(event, states)
+                # A distinct first-discovery tally at every jump is still
+                # routine chatter, not a new scientific finding. Keep the
+                # event in history, but decline standalone generation.
+                if not direct and origin == 'observatory' and routine_first_discovery_tally(event):
+                    reason = reason or 'routine_discovery_tally'
                 key, facts = (None, frozenset()) if direct else identity_and_facts(event)
                 if not direct and not reason:
                     optional_token = (event.plugin_event_content.get('_speech_admission')
