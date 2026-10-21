@@ -6,6 +6,7 @@ import queue
 import threading
 from time import monotonic
 from uuid import uuid4
+from typing import Callable
 from src.lib.TTSOutcome import TTSAttempt, TTSResult
 from pathlib import Path
 from types import SimpleNamespace
@@ -32,7 +33,7 @@ def test_stop_speaking_drains_queued_lines_and_sets_active_abort_without_destroy
                                  body=[abort], decorator_list=[])
     namespace = {'speech_trace':speech_trace, 'threading':threading, 'queue':queue,
                  'monotonic':monotonic, 'uuid4':uuid4, 'TTSResult':TTSResult,
-                 'TTSAttempt':TTSAttempt, 'log':lambda *args:None}
+                 'TTSAttempt':TTSAttempt, 'Callable':Callable, 'log':lambda *args:None}
     exec(compile(ast.fix_missing_locations(ast.Module(body=[line_class,harness_class],type_ignores=[])),
                  str(ROOT/'src/lib/TTS.py'),'exec'),namespace)
     line = namespace['TTSLine']()
