@@ -80,6 +80,7 @@ class TARSNavigator(PluginBase):
         self._lock = threading.RLock()
         self._state_path: Path | None = None
         self._state = self._empty_state()
+        self._last_saved_payload: str | None = None
 
     @override
     def on_chat_start(self, helper: PluginHelper):
@@ -164,14 +165,17 @@ class TARSNavigator(PluginBase):
         }
 
     def _load(self):
+        self._last_saved_payload = None
         if not self._state_path or not self._state_path.exists():
             return
         try:
-            raw = json.loads(self._state_path.read_text(encoding="utf-8"))
+            payload = self._state_path.read_text(encoding="utf-8")
+            raw = json.loads(payload)
             if isinstance(raw, dict) and raw.get("schema") == 1:
                 base = self._empty_state()
                 base.update(raw)
                 self._state = base
+                self._last_saved_payload = payload
         except Exception as exc:
             log("warning", f"TARS Navigator could not load state: {exc}")
 
@@ -179,9 +183,13 @@ class TARSNavigator(PluginBase):
         if not self._state_path:
             return
         try:
+            payload = json.dumps(self._state, ensure_ascii=False, indent=2)
+            if payload == self._last_saved_payload:
+                return
             tmp = self._state_path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(self._state, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.write_text(payload, encoding="utf-8")
             tmp.replace(self._state_path)
+            self._last_saved_payload = payload
         except Exception as exc:
             log("warning", f"TARS Navigator could not save state: {exc}")
 
