@@ -71,8 +71,8 @@ events in one batch contribute their union to the attempt record and both origin
 payloads to the existing prompt, preserving source-specific information. Late
 complementary facts get another generation instead of being silently discarded.
 DSS completion differs from discovery; organic samples 1/2/3 and different
-organisms have separate identities. Incomplete organism/sample metadata passes
-through. Generic Observatory notifications are never equated with generic biology.
+organisms have separate identities. Incomplete organism/sample metadata, genus-only identities and generic biology/Codex
+categories pass through. Generic Observatory notifications are never equated with generic biology.
 
 Freshness checks use plugin guards or actual payload/journal timestamps, with a
 60-second horizon and five-second future tolerance. A location epoch change clears
@@ -143,9 +143,9 @@ These are controlled replay counts, not a measured reduction in live API traffic
 
 | Check | Result |
 |---|---|
-| Full backend suite, tracing disabled | 395 passed; 9 pre-existing legacy fixture errors |
-| Full backend suite, tracing enabled | 395 passed; same 9 pre-existing legacy fixture errors |
-| New admission/compatibility regression cases | 44 passed (included above) |
+| Full backend suite, tracing disabled | 398 passed; 9 pre-existing legacy fixture errors |
+| Full backend suite, tracing enabled | 398 passed; same 9 pre-existing legacy fixture errors |
+| New admission/compatibility regression cases | 47 passed (included above) |
 | Current six-plugin suite at PR #22 | 89 passed |
 | Electron suite | 16 passed |
 | Bundle provenance | 27 files verified; bundle unchanged |

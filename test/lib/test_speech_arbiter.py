@@ -358,3 +358,11 @@ def test_advisory_chatter_interface_respects_mode_without_generation(arbiter):
         assert helper.preview_optional_speech() is expected
     assert obj.llmModel.calls == 0
     arbiter.finish(ticket)
+
+
+@pytest.mark.parametrize('payload', [{'kind': 'biology'}, {'kind': 'codex_new'},
+                                    {'kind': 'organic_sample', 'stage': 1, 'genus': 'Bacterium'}])
+def test_generic_finding_categories_and_genus_only_are_ambiguous(arbiter, payload):
+    event = finding(**payload)
+    assert identity_and_facts(event)[0] is None
+    assert replay('enforce', arbiter, [[event], [event]]).llmModel.calls == 2

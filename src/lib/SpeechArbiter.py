@@ -22,7 +22,7 @@ ALIASES = {'Earthlike body': 'earth_like_world', 'Water world': 'water_world',
            'Ammonia world': 'ammonia_world'}
 KINDS = {'earth_like_world', 'water_world', 'ammonia_world', 'terraformable',
          'dss_complete', 'body_discovery', 'organic_sample', 'organic_complete',
-         'biology', 'biology_body_complete', 'system_complete', 'codex_new'}
+         'biology_body_complete'}
 META = {'_guard', 'timestamp', 'event_id', 'id', 'source_plugin', 'fact_type',
         'realtime', 'monitor_mode', 'batch', 'system', 'StarSystem', 'SystemAddress',
         'system_address', 'body', 'BodyName', 'BodyID', 'body_id', 'finding_type',
@@ -80,7 +80,7 @@ def identity_and_facts(event):
         return None, frozenset()
     organism = tuple(_text(data.get(k)) for k in ('species', 'genus', 'variant'))
     stage = data.get('stage', data.get('sample'))
-    if kind.startswith('organic') and (not any(organism) or
+    if kind.startswith('organic') and (not (organism[0] or organism[2]) or
                                          (kind == 'organic_sample' and stage not in (1, 2, 3))):
         return None, frozenset()
     # Every non-routing field participates. Unknown/additional facts fail open.
