@@ -161,5 +161,8 @@ Validation on the implementation:
 No tests were skipped or disabled to obtain these results. The nine fixture errors
 remain visible in the full suite's nonzero exit status; they are not passes.
 Optional `sherpa-onnx==1.10.29` installation reached the documented wheel index but
-the wheel download from `huggingface.co` was denied by the environment proxy (403).
+the wheel download was denied by the environment proxy (403), first on
+`huggingface.co` and then on its `us.aws.cdn.hf.co` redirect. The required
+domains have been added to the saved environment network draft; the final CDN
+retry still returned 403.
 That model dependency does not block the tested backend development paths.
