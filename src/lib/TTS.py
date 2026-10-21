@@ -1,4 +1,6 @@
 from . import SpeechTrace as speech_trace
+from .TTSOutcome import TTSAttempt, TTSResult
+from uuid import uuid4
 import queue
 import math
 import random
@@ -8,7 +10,7 @@ from collections import deque
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from time import sleep, time
+from time import sleep, time, monotonic
 from typing import Any, Callable, Generator, Optional, cast, final
 import wave
 
@@ -37,19 +39,85 @@ from .Models import TTSModel, OpenAITTSModel
 
 
 class TTSLine:
-    def __init__(self) -> None:
-        self._playback_evidence = "unknown"
+    """Legacy waiting API plus a single immutable terminal result.
+
+    'completed' means the write loop returned; it never promises that the
+    listener heard the audio. Completion callbacks are invoked once.
+    """
+    def __init__(self, on_complete: Callable[[], None] | None = None) -> None:
+        self._playback_evidence = "unknown"  # compatibility with existing callers
         self.trace_id = speech_trace.current.get()
-        self.line_id = speech_trace.new_id()
+        self.line_id = speech_trace.new_id() or uuid4().hex
         self._speaking = threading.Event()
         self._completed = threading.Event()
+        self._result_lock = threading.Lock()
+        self._result: TTSResult | None = None
+        self._attempts: list[TTSAttempt] = []
+        self._on_complete = on_complete
+
+    @property
+    def result(self) -> TTSResult | None:
+        with self._result_lock:
+            return self._result
+
+    def wait_for_result(self, timeout: float | None = None) -> TTSResult | None:
+        self._completed.wait(timeout)
+        return self.result
+
+    def record_attempt(self, attempt: TTSAttempt) -> None:
+        with self._result_lock:
+            if self._result is None:
+                self._attempts.append(attempt)
+        speech_trace.emit("tts_attempt_finished", trace_id=self.trace_id,
+                          line_id=self.line_id, attempt_id=attempt.attempt_id,
+                          outcome=attempt.outcome, written_bytes=attempt.written_bytes,
+                          output_drained=attempt.output_drained)
+
+    def settle(self, outcome: str, *, reason: str = "") -> bool:
+        """Finalize exactly once, outside the lock invoke any legacy callback."""
+        with self._result_lock:
+            if self._result is not None:
+                return False
+            attempts = tuple(self._attempts)
+            last = attempts[-1] if attempts else None
+            finished = monotonic()
+            result = TTSResult(
+                line_id=self.line_id, outcome=outcome,
+                started_at=attempts[0].started_at if attempts else finished,
+                ended_at=finished, attempts=attempts,
+                written_bytes=last.written_bytes if last else 0,
+                output_drained=last.output_drained if last else None,
+                reason=reason,
+            )
+            self._result = result
+            self._playback_evidence = (
+                "output_written" if result.output_written else
+                "cancelled" if outcome in ("cancelled_before_start", "interrupted") else
+                "failed" if outcome in ("output_failed", "synthesis_failed") else
+                outcome
+            )
+            self._completed.set()
+            callback = self._on_complete
+            self._on_complete = None
+        speech_trace.emit("line_completed", trace_id=self.trace_id, line_id=self.line_id,
+                          outcome=outcome, playback_success="unknown",
+                          written_bytes=result.written_bytes,
+                          output_drained=result.output_drained)
+        if callable(callback):
+            try:
+                callback()
+            except Exception as exc:
+                log('warn', 'TTS on_complete callback failed', exc)
+        return True
 
     def mark_speaking(self) -> None:
-        self._speaking.set()
+        if not self._completed.is_set():
+            self._speaking.set()
 
     def mark_completed(self) -> None:
-        speech_trace.emit("line_completed", trace_id=self.trace_id, line_id=self.line_id, playback_success="unknown")
-        self._completed.set()
+        # Older callers can still signal terminal completion without claiming
+        # any playback success.
+        self.settle("unknown", reason="legacy_completion")
 
     def is_speaking(self) -> bool:
         return self._speaking.is_set() and not self._completed.is_set()
@@ -66,7 +134,6 @@ class TTSLine:
 
     def wait_for_completion(self) -> None:
         self._completed.wait()
-
 
 @dataclass
 class LowpassState:
