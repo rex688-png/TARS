@@ -185,7 +185,11 @@ class TARSNavigator(PluginBase):
         try:
             payload = json.dumps(self._state, ensure_ascii=False, indent=2)
             if payload == self._last_saved_payload:
-                return
+                try:
+                    if self._state_path.read_text(encoding="utf-8") == payload:
+                        return
+                except (OSError, UnicodeError):
+                    pass
             tmp = self._state_path.with_suffix(".tmp")
             tmp.write_text(payload, encoding="utf-8")
             tmp.replace(self._state_path)

@@ -5,7 +5,7 @@ self-contained. They install the
 PyInstaller backend under `resources/Chat` and the verified behavior payload
 under `resources/tars-plugins`. The latter contains the six official TARS plugins,
 their manifests and helper modules, and the canonical TARS prompt copied from
-`TARS-Plugins@4d94bd5a7633adf2b5394a4ebfc158165c54c71c`.
+`TARS-Plugins@8c4223a8764db12f841fe3de3acf6836a63073e2`.
 
 `vendor/tars-plugins/provenance.json` records a SHA-256 digest for every payload
 file. `python tools/verify_tars_bundle.py` verifies the vendored copy without an

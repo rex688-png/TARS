@@ -34,6 +34,24 @@ def load_plugin(name):
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_missing_or_externally_changed_file_is_restored(self):
+        for name in ("TARSNavigator", "TARSExpedition"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                plugin = load_plugin(name)(None)
+                state_path = Path(directory) / "state.json"
+                plugin._state_path = state_path
+                plugin._save()
+                original = state_path.read_bytes()
+
+                state_path.unlink()
+                plugin.on_chat_stop(None)
+                self.assertEqual(state_path.read_bytes(), original)
+
+                # Same-length external edit must not be mistaken for saved state.
+                state_path.write_bytes(original.replace(b'"schema": 1', b'"schema": 2'))
+                plugin._save()
+                self.assertEqual(state_path.read_bytes(), original)
+
     def test_duplicate_live_event_does_not_replace_state(self):
         event = types.SimpleNamespace(
             kind="game", historic=False,

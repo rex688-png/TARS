@@ -1,5 +1,5 @@
 {
-  "source_revision": "4d94bd5a7633adf2b5394a4ebfc158165c54c71c",
+  "source_revision": "8c4223a8764db12f841fe3de3acf6836a63073e2",
   "files": {
     "plugins/TARSExplorer/REACTS_QUICK_GUIDE.txt": "901b8e796223b0e8552680217e148950b6b73bc6629449b674986c59babaa2fd",
     "plugins/TARSExplorer/README.txt": "2de3d1bd108453870d3239ae04de73e53d4c0de2e751ce09d3c59684a0982c89",
@@ -8,7 +8,7 @@
     "plugins/TARSExplorer/TARSExplorerSession.py": "3f95b18826382cc89500d9521c9c3e9319820767acc18204940288fb4e132b3c",
     "plugins/TARSExplorer/manifest.json": "3e22a0b9307e13878d980f30fd0d6b00b3422a42d4b03cf8dede7e60403450e0",
     "plugins/TARSNavigator/README.txt": "bb3ec6f67c99d5d38239f242d9c16597084cf17f4e7ea7435892edf127ae4f89",
-    "plugins/TARSNavigator/TARSNavigator.py": "368968f8b4f89489b439e3ac9f4b8491e91748b2f728926e9b89dd4e206cae63",
+    "plugins/TARSNavigator/TARSNavigator.py": "3d3db8032c49f0d84fd703d22870aee8ca8bcdbe7382c5f57bb6a956fdbbe817",
     "plugins/TARSNavigator/TARSNavigatorSession.py": "73b81a3ae538e6f2e0443407d0de1ae4c3e3cb9c98f37730f5193b5d66d78f08",
     "plugins/TARSNavigator/manifest.json": "ca7d8b1bba7114e9d96d1105af286d045f632c96d448ce41557ca859cc43983f",
     "plugins/TARSGalaxy/README.txt": "03b025551f009c8e602e917c070cdba5e2a3d65fa98fbc8ae62a19e8fc8e838b",
@@ -21,7 +21,7 @@
     "plugins/TARSChatter/TARSChatterSession.py": "4164004a55824860b18a142cf15b4e707d6aab9cb85bee1291cb1b0e6ccd78c1",
     "plugins/TARSChatter/manifest.json": "2306486c865d53b7c1a08295345a31a7c4d7ec6266e3418da035efae41cf268d",
     "plugins/TARSExpedition/README.txt": "08d8173484a59a2fb73554815c41ff55909599cf7fa7ae06b1377d6f2e8ca577",
-    "plugins/TARSExpedition/TARSExpedition.py": "0767f7e7e27f5088bdf7344c58dbc9d470db777cfdd22cece40caed79408a9bc",
+    "plugins/TARSExpedition/TARSExpedition.py": "1a995a2aa4162d34f3a8011916e170333e7a77ade026af877610b083b9579d9b",
     "plugins/TARSExpedition/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "plugins/TARSExpedition/manifest.json": "9cb5258d9b0b2e503b9f53df8e20d0c995c9cbab8b21a4a202ec09f9f4b7867c",
     "plugins/TARSObservatoryBridge/README.txt": "9fd7d2b33d041c499f4283853a58133d2a38bc4e12ddaa425ee907ac95042779",
