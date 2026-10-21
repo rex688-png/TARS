@@ -1053,7 +1053,12 @@ class Assistant:
                     self.event_manager.add_assistant_speaking()
                 self.event_manager.add_conversation_event('assistant', response_text, reasons=reasons, processed_at=max_conversation_processed)
                 line.wait_for_completion()
-                playback_evidence = getattr(line, "_playback_evidence", "unknown")
+                terminal = getattr(line, "result", None)
+                if terminal is not None and terminal.outcome != "unknown":
+                    playback_evidence = "output_written" if terminal.output_written else "unknown"
+                else:
+                    # Backward-compatible fallback for older/mock TTSLine implementations.
+                    playback_evidence = getattr(line, "_playback_evidence", "unknown")
                 self.event_manager.add_assistant_complete_event()
 
             if response_actions:
