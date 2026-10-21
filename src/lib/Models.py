@@ -1,3 +1,4 @@
+from .SpeechTrace import generation as trace_generation
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Generator, Iterable
 import io
@@ -24,6 +25,11 @@ class LLMError(Exception):
         self.original_error = original_error
 
 class LLMModel(ABC):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if "generate" in cls.__dict__:
+            cls.generate = trace_generation(cls.generate)
+
     model_name: str
     provider_name: str | None
 

@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
 from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities
 import copy
@@ -75,6 +76,7 @@ class Assistant:
 
         self.pending.append(event)
         self.reply_pending = self.should_reply(projected_states)
+        speech_trace.observe_event("reply_selection", event, selected=bool(self.reply_pending))
 
         if isinstance(event, MemoryEvent):
             self.short_term_memories.append(event)
@@ -868,6 +870,7 @@ class Assistant:
         thread.start()
         
     @observe()
+    @speech_trace.reply_scope
     def reply_thread(self, projected_states: ProjectedStates):
         self.reply_pending = False
         self.is_replying = True
@@ -876,6 +879,8 @@ class Assistant:
             events = list(reversed(events))
             new_events = [event for event in events if event.responded_at == None]
             self.pending = []
+            for event in new_events:
+                speech_trace.observe_event("reply_event", event)
             
             memories = self.event_manager.get_latest_memories(limit=5)
 
@@ -930,6 +935,7 @@ class Assistant:
                 
             if predicted_actions:
                 #log('info', 'predicted_actions', predicted_actions)
+                speech_trace.emit("generation_bypassed", reason="action_cache")
                 response_text = None
                 response_actions = predicted_actions
                 log_action_cache_usage(
@@ -942,6 +948,7 @@ class Assistant:
                 start_time = time()
                     
                 try:
+                    speech_trace.emit("reply_generation_requested")
                     response_text, response_actions, model_usage = self.llmModel.generate(
                         messages=prompt,
                         tools=tool_list,  # pyright: ignore[reportArgumentType]
@@ -950,6 +957,7 @@ class Assistant:
                     log_llm_usage("assistant", model_usage=model_usage, prompt_usage=prompt_usage, llm_model=self.llmModel)
 
                     if not response_text and not response_actions:
+                        speech_trace.emit("response_discarded", reason="empty_model_turn")
                         # An empty model turn is not a spoken or visible reply.
                         self.event_manager.short_term_memory.replied_before(max_conversation_processed)
                         self.event_manager.add_assistant_complete_event()
@@ -957,6 +965,7 @@ class Assistant:
                     end_time = time()
                     log('debug', 'Response time LLM', end_time - start_time)
                 except LLMError as e:
+                    speech_trace.emit("reply_generation_failed")
                     show_chat_message('error', 'LLM Error:', str(e))
                     return
 
@@ -971,6 +980,7 @@ class Assistant:
                 response_text = self._exploration_callouts.assemble(response_text,
                     context=context if context[0] else None, exploration=exploration and not user_input and not tool_uses)
                 if not response_text:
+                    speech_trace.emit("response_discarded", reason="exploration_deduplication")
                     self.event_manager.short_term_memory.replied_before(max_conversation_processed)
                     self.event_manager.add_assistant_complete_event()
             if response_text and not response_actions:
@@ -995,6 +1005,7 @@ class Assistant:
                         self.verify_action(user_input[-1], response_actions[0], prompt, tool_list)
                     
         except Exception as e:
+            speech_trace.emit("reply_failed")
             log("debug", "LLM error during reply:", e, traceback.format_exc())
             show_chat_message("error", "LLM error: An unknown error occurred during reply")
         finally:
@@ -1009,12 +1020,16 @@ class Assistant:
             # check if pending contains conversational events
             if isinstance(event, ConversationEvent) and event.kind == "user":
                 if getattr(event, 'do_not_reply', False):
+                    speech_trace.observe_event('reply_not_selected', event, reason='do_not_reply')
                     continue
+                speech_trace.observe_event('reply_selected', event, reason='direct_user')
                 return True
 
             if isinstance(event, ToolEvent):
                 if getattr(event, 'do_not_reply', False):
+                    speech_trace.observe_event('reply_not_selected', event, reason='do_not_reply')
                     continue
+                speech_trace.observe_event('reply_selected', event, reason='tool_result')
                 return True
 
             if isinstance(event, GameEvent) and event.content.get("event") in self.enabled_game_events:
@@ -1085,12 +1100,14 @@ class Assistant:
             for handler in self.registered_should_reply_handlers:
                 should_reply_according_to_plugins = handler(event, states)
                 if should_reply_according_to_plugins :
+                    speech_trace.observe_event("reply_selected", event, reason="plugin_handler")
                     return True
                 elif should_reply_according_to_plugins is False:
                     pass
                 else:
                     continue
 
+        speech_trace.emit("reply_not_selected", reason="no_eligible_pending_event")
         return False
     
     def register_should_reply_handler(self, handler: Callable[[Event, ProjectedStates], bool | None]):

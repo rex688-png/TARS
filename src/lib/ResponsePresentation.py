@@ -1,4 +1,5 @@
 """Response assembly preserves source facts; only exact repeated sentences are suppressed."""
+from . import SpeechTrace as speech_trace
 import re
 from time import monotonic
 
@@ -66,6 +67,7 @@ class ExplorationCalloutDeduper:
             if key not in self.recent:
                 result.append(sentence)
             self.recent[key] = now
+        speech_trace.emit('response_assembled', sentences=len(sentences), discarded_sentences=len(sentences) - len(result))
         return ' '.join(result)
 
 

@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 from pydantic.main import BaseModel
 import inspect
 import os
@@ -140,6 +141,7 @@ class PluginHelper():
         """
         if not isinstance(event, PluginEvent):
             raise ValueError("Event must be of type PluginEvent")
+        speech_trace.observe_event("plugin_dispatched", event)
         self._event_manager.incoming.put(event)
 
     def send_key(self, key_name: str, *args, **kwargs):
@@ -172,8 +174,11 @@ class PluginHelper():
             if event.plugin_event_name != name:
                 return None
             try:
-                return should_reply_check(event)
+                selected = should_reply_check(event)
+                speech_trace.observe_event("plugin_reply_check", event, selected=bool(selected))
+                return selected
             except Exception as e:
+                speech_trace.observe_event("plugin_reply_check_failed", event)
                 log('error', f"Plugin should_reply_check raised an exception: {e}")
                 return False
         self._assistant.register_should_reply_handler(_should_reply_check)

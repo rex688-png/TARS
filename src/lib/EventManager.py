@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 from pydantic import ValidationError
 import hashlib
 import inspect
@@ -311,6 +312,7 @@ class EventManager:
             projected_states: ProjectedStates | None = None
             while not self.incoming.empty():
                 event = self.incoming.get()
+                speech_trace.observe_event("event_received", event)
 
                 timestamp = datetime.now(timezone.utc).timestamp()
                 event.processed_at = timestamp

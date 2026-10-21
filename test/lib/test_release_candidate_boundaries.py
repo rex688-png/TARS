@@ -1,4 +1,5 @@
 """Exercise release safety branches from production source without audio hardware."""
+from src.lib import SpeechTrace as speech_trace
 import ast
 import copy
 import queue
@@ -26,7 +27,7 @@ def test_stop_speaking_drains_queued_lines_and_sets_active_abort_without_destroy
     abort = _method('src/lib/TTS.py', 'TTS', 'abort')
     harness_class = ast.ClassDef(name='PlaybackHarness', bases=[], keywords=[],
                                  body=[abort], decorator_list=[])
-    namespace = {'threading':threading, 'queue':queue}
+    namespace = {'speech_trace':speech_trace, 'threading':threading, 'queue':queue}
     exec(compile(ast.fix_missing_locations(ast.Module(body=[line_class,harness_class],type_ignores=[])),
                  str(ROOT/'src/lib/TTS.py'),'exec'),namespace)
     line = namespace['TTSLine']()
@@ -52,7 +53,7 @@ def test_active_playback_stops_after_abort_before_writing_next_chunk():
     playback.returns = None
     for arg in playback.args.args:
         arg.annotation = None
-    namespace = {'strip_markdown':SimpleNamespace(strip_markdown=lambda text:text),
+    namespace = {'speech_trace':speech_trace, 'strip_markdown':SimpleNamespace(strip_markdown=lambda text:text),
                  'normalize_spoken_quantities':lambda text:text,'time':lambda:0.0,
                  'log':lambda *args:None,'log_tts_usage':lambda *args,**kwargs:None,
                  'LatencyUsageStats':lambda **kwargs:kwargs,'AudioUsageStats':lambda **kwargs:kwargs,
@@ -85,7 +86,7 @@ def test_empty_model_response_marks_turn_complete_without_visible_placeholder():
         ast.arg(arg='self'),ast.arg(arg='response_text'),ast.arg(arg='response_actions'),
         ast.arg(arg='max_conversation_processed')],vararg=None,kwonlyargs=[],kw_defaults=[],
         kwarg=None,defaults=[]),body=[copy.deepcopy(empty)],decorator_list=[])
-    namespace={'time':lambda:0.0,'log':lambda *args:None}
+    namespace={'speech_trace':speech_trace, 'time':lambda:0.0,'log':lambda *args:None}
     exec(compile(ast.fix_missing_locations(ast.Module(body=[branch],type_ignores=[])),
                  str(ROOT/'src/lib/Assistant.py'),'exec'),namespace)
     manager=SimpleNamespace(short_term_memory=SimpleNamespace(replied_before=Mock()),

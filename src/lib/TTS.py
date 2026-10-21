@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 import queue
 import math
 import random
@@ -37,6 +38,8 @@ from .Models import TTSModel, OpenAITTSModel
 
 class TTSLine:
     def __init__(self) -> None:
+        self.trace_id = speech_trace.current.get()
+        self.line_id = speech_trace.new_id()
         self._speaking = threading.Event()
         self._completed = threading.Event()
 
@@ -44,6 +47,7 @@ class TTSLine:
         self._speaking.set()
 
     def mark_completed(self) -> None:
+        speech_trace.emit("line_completed", trace_id=self.trace_id, line_id=self.line_id, playback_success="unknown")
         self._completed.set()
 
     def is_speaking(self) -> bool:
@@ -218,6 +222,7 @@ class TTS:
             try:
                 self._playback_loop()
             except Exception as e:
+                speech_trace.emit("playback_worker_failed")
                 log('error', 'An error occurred during speech synthesis', e, traceback.format_exc())
                 show_chat_message('error', 'An error occurred during speech synthesis:', e)
                 sleep(backoff)
@@ -253,10 +258,14 @@ class TTS:
                     drop_if = item.get("drop_if")
                     line = item.get("line")
                     if callable(drop_if) and drop_if():
+                        speech_trace.emit("playback_discarded", trace_id=getattr(line, "trace_id", None), line_id=getattr(line, "line_id", None), reason="drop_if")
                         if isinstance(line, TTSLine):
                             line.mark_completed()
                         continue
                     requeued = False
+                    trace_token = speech_trace.current.set(getattr(line, "trace_id", None)) if speech_trace.enabled else None
+                    line_token = speech_trace.current_line.set(getattr(line, "line_id", None)) if speech_trace.enabled else None
+                    speech_trace.emit("playback_dequeued", line_id=getattr(line, "line_id", None))
                     try:
                         if isinstance(line, TTSLine):
                             line.mark_speaking()
@@ -281,6 +290,7 @@ class TTS:
                                 cast(list[CharacterTTSPostprocessingConfig | None] | None, postprocessing_layers if isinstance(postprocessing_layers, list) else None),
                             )
                     except Exception as e:
+                        speech_trace.emit("playback_failed", line_id=getattr(line, "line_id", None), requeued=True)
                         self.read_queue.put(item)
                         requeued = True
                         raise e
@@ -292,6 +302,10 @@ class TTS:
                                 on_complete()
                             except Exception as callback_error:
                                 log('warn', 'TTS on_complete callback failed', callback_error)
+                        if trace_token is not None:
+                            speech_trace.current.reset(trace_token)
+                        if line_token is not None:
+                            speech_trace.current_line.reset(line_token)
 
                 self._is_playing = False
 
@@ -315,6 +329,7 @@ class TTS:
         start_time = time()
         first_byte_time = None
         total_audio_bytes = 0
+        written_audio_bytes = 0
         first_chunk = True
         underflow_count = 0
         empty_buffer_available = stream.get_write_available()
@@ -348,13 +363,20 @@ class TTS:
                     self._apply_output_gain_pcm16(chunk),
                     exception_on_underflow=False,
                 )  # this may throw for various system reasons
+                if not written_audio_bytes and chunk:
+                    speech_trace.emit("playback_started", evidence="pcm_write_returned")
+                written_audio_bytes += len(chunk)
                 first_chunk = False
             except IOError as e:
                 if not first_chunk:
                     underflow_count += 1
                     # log('debug', 'tts underflow detected', underflow_count)
                 stream.write(self._apply_output_gain_pcm16(chunk), exception_on_underflow=False)
+                if not written_audio_bytes and chunk:
+                    speech_trace.emit("playback_started", evidence="pcm_write_returned")
+                written_audio_bytes += len(chunk)
         
+        speech_trace.emit("playback_returned", outcome="cancelled" if self.is_aborted else "write_loop_completed" if written_audio_bytes else "no_audio", audio_bytes=written_audio_bytes, playback_success="unknown")
         if underflow_count > 0:
             self.prebuffer_size *= 2
             log('debug', 'tts underflow detected, total', underflow_count, 'increasing prebuffer size to', self.prebuffer_size)
@@ -560,6 +582,7 @@ class TTS:
                 if metrics is not None:
                     metrics["response_ms"] = (time() - started_at) * 1000
             except Exception as e:
+                speech_trace.emit('synthesis_failed')
                 log('error', 'TTS synthesis error', e, traceback.format_exc())
                 show_chat_message('error', 'TTS synthesis error:', str(e))
 
@@ -1348,6 +1371,7 @@ class TTS:
         drop_if: Callable[[], bool] | None = None,
     ) -> TTSLine:
         line = TTSLine()
+        speech_trace.emit("tts_queued", line_id=line.line_id)
         self.read_queue.put(
             {
                 "text": text,
@@ -1392,10 +1416,12 @@ class TTS:
         )
 
     def abort(self):
+        speech_trace.emit("playback_abort_requested")
         while not self.read_queue.empty():
             item = self._normalize_queue_item(self.read_queue.get())
             line = item.get("line")
             if isinstance(line, TTSLine):
+                speech_trace.emit("playback_cancelled", trace_id=line.trace_id, line_id=line.line_id, reason="queued_abort")
                 line.mark_completed()
 
         self.is_aborted = True
