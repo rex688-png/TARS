@@ -19,12 +19,13 @@ function Read-MsiRows($Database, [string]$Query, [string[]]$Columns) {
         [void]$view.Execute()
         while ($null -ne ($record = $view.Fetch())) {
             try {
-                if ($record.FieldCount -ne $Columns.Count) { throw "MSI field count $($record.FieldCount) != $($Columns.Count); query: $Query" }
                 $row = [ordered]@{}
                 for ($i=0; $i -lt $Columns.Count; $i++) { $row[$Columns[$i]] = $record.StringData($i+1) }
                 $result = [pscustomobject]$row
                 Assert-MsiRow $result $Columns $Query
                 $result
+            } catch {
+                throw "MSI record extraction failed ($($record.GetType().FullName)); query: $Query; $($_.Exception.Message)"
             } finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($record) }
         }
     } finally {

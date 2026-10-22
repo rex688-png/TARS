@@ -33,14 +33,12 @@ if ($InspectFixture) {
     $view = $database.OpenView($query)
     try {
         # Capture the exact objects formerly emitted into Read-MsiRows' pipeline.
-        $executeOutput = @($view.Execute())
-        $closeOutput = @($view.Close())
+        $executeOutput = $view.Execute()
+        $closeOutput = $view.Close()
         foreach ($method in @('Execute','Close')) {
-            $outputs = if ($method -eq 'Execute') { $executeOutput } else { $closeOutput }
-            foreach ($output in $outputs) {
-                $type = if ($null -eq $output) { '<null>' } else { $output.GetType().FullName }
-                Write-Host "::notice title=MSI COM pipeline diagnosis::$method() returned $type; value='$output'; this is not a Property row"
-            }
+            $output = if ($method -eq 'Execute') { $executeOutput } else { $closeOutput }
+            $type = if ($null -eq $output) { '<null>' } else { $output.GetType().FullName }
+            Write-Host "::notice title=MSI COM pipeline diagnosis::$method() returned $type; value='$output'"
         }
         $rows = @(Read-MsiRows $database $query @('Property','Value'))
         if ($rows.Count -lt 4) { throw 'MSI Property rows missing' }
