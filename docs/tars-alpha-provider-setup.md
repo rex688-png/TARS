@@ -73,10 +73,10 @@ in the provider settings.
 
 Automated CI validates registration, interfaces, packaging and deterministic test
 fixtures. It does not prove physical microphone/speaker operation, live Elite
-telemetry, GPU acceleration or a live vision request. Only after this checklist
-passes should the build be called TARS Alpha 0.1.
+telemetry, GPU acceleration or a live vision request. Passing this checklist supplies physical acceptance evidence; it does not
+publish or approve a beta version. Follow the [release checklist](release-readiness.md).
 
-## Physical-build rejection and Task 4 repair
+## Historical Task 4 rejection and repair
 
 The first Task 4 MSI is rejected for product acceptance. All four archives were
 downloaded and verified, but restart loading failed before provider code ran. The
@@ -112,6 +112,8 @@ action registration inventory. The summary now reports `missing keybinds`, and
 the detailed binding names remain visible; no warning is hidden and no action is
 silently enabled.
 
-This repair still requires a fresh physical Windows acceptance pass. It must not
-be called TARS Alpha 0.1 until the restarted providers instantiate against their
-real native dependencies and microphone/speaker/Elite tests pass.
+The integrated RC20 includes this repair and passed automated Windows packaging
+and clean-profile checks. A fresh physical acceptance pass for the future beta
+still requires the restarted providers to instantiate against real native
+dependencies, followed by microphone/speaker/Elite tests. The historical rejected
+build is not the current integrated release candidate.

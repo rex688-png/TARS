@@ -4,8 +4,9 @@ TARS is a voice-first companion for Elite Dangerous, built on the mature
 [COVAS:NEXT](https://github.com/RatherRude/Elite-Dangerous-AI-Integration) runtime.
 It combines conversation, game context, actions, search, memory and vision with
 one TARS identity. It is actively evolving and supports Windows only.
-Physical Windows acceptance of the current stabilization build is still
-pending. This is **not an accepted Alpha 0.1 release**.
+RC20 is integrated and automated Windows packaging/E2E checks passed. Physical
+acceptance of a future versioned beta remains pending; no beta or stable 1.0
+release is approved by this documentation.
 
 ## Install and configure
 
@@ -24,8 +25,11 @@ Local Parakeet STT, Pocket-TTS **0.0.17-tarsfix**, Supertonic TTS and Gemma
 Embedding are explicit opt-in downloads, not multi-gigabyte MSI payloads.
 Install them from the provider settings, wait for verification/extraction to
 finish, then restart. See [provider setup](docs/tars-alpha-provider-setup.md).
-Existing user settings and saved prompt edits are retained across upgrades;
+Existing user settings and saved prompt edits are designed to survive upgrades;
 **Reset to TARS Default** is an explicit action.
+
+Version metadata remains `0.0.0` until a separately approved version-adoption
+change. See the [release approval and MSI versioning checklist](docs/release-readiness.md).
 
 ## One TARS, six official behavior plugins
 

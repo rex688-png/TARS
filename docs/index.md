@@ -2,10 +2,11 @@
 
 TARS is an Elite Dangerous AI copilot built on COVAS:NEXT. Start with the
 [TARS installation guide](tars-installation.md), not an upstream COVAS installer.
-Windows is the supported platform; the current build still requires physical
-acceptance and is not an accepted Alpha 0.1 release.
+Windows is the supported platform. RC20 passed automated packaging checks; a
+future versioned beta still requires owner approval and physical acceptance.
 
-1. Install a reviewed TARS MSI or unpack the portable build from this repository.
+1. Obtain an official reviewed release when published, or an explicitly reviewed
+   temporary Actions build; install its MSI or extract its complete portable ZIP.
 2. Enter your commander name and API credentials. OpenAI GPT-6 Luna is the
    factory main/agent/vision selection. A ChatGPT subscription does not include
    API usage. OpenRouter LLM configuration is available under Advanced.
@@ -58,3 +59,5 @@ and [hardening/coverage audit](runtime-hardening-audit.md).
 For the latest real-PC fixes, see [Settings/runtime refinement](runtime-refinement.md).
 
 - [TARS native product controls](tars-productization.md)
+
+Versioning, release approval and Pages setup: [release checklist](release-readiness.md).

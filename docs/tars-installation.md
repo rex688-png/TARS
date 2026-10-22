@@ -5,7 +5,7 @@ self-contained. They install the
 PyInstaller backend under `resources/Chat` and the verified behavior payload
 under `resources/tars-plugins`. The latter contains the six official TARS plugins,
 their manifests and helper modules, and the canonical TARS prompt copied from
-`TARS-Plugins@8c4223a8764db12f841fe3de3acf6836a63073e2`.
+`TARS-Plugins@6f85f5b8dee4f8ea399df4e86d7cb0a5df03bcc2`.
 
 `vendor/tars-plugins/provenance.json` records a SHA-256 digest for every payload
 file. `python tools/verify_tars_bundle.py` verifies the vendored copy without an
@@ -60,3 +60,60 @@ upgrade test; source inspection and CI cannot prove every Windows installer path
 The old COVAS user-data directory is separate and is not automatically migrated.
 An existing upstream COVAS installation should not be used as a TARS installer
 or update source.
+
+## Download and verify a build
+
+An official release is an owner-reviewed, manually published entry on
+[TARS Releases](https://github.com/rex688-png/TARS/releases), with versioned MSI,
+portable ZIP, provenance and checksums. If no release is published, use only an
+explicitly reviewed test build from
+[Actions](https://github.com/rex688-png/TARS/actions/workflows/build-executable.yml).
+Actions downloads expire and are not beta approval. The current package version
+is 0.0.0; the proposed beta version is still pending approval.
+
+For future release assets, run PowerShell `Get-FileHash .\<downloaded-file> -Algorithm SHA256`
+and compare with `SHA256SUMS.txt`; also verify the repository, tag and full source
+SHA in `release-provenance.json`. Checksums confirm bytes, not who approved them;
+obtain the checksum/provenance files from the same reviewed release. Temporary CI
+builds may have only workflow/artifact metadata rather than release checksums.
+
+## MSI or portable installation
+
+Close TARS before installing an MSI. Make a private copy of the entire
+`%APPDATA%\TARS` folder, then run the reviewed MSI and follow Windows prompts.
+For an upgrade, retain the existing installation identity and profile; do not
+uninstall/delete user data as a routine troubleshooting step. The owner reports
+successful upgrades of previous builds, but confirm your settings and providers
+after each upgrade. New beta version/installer upgrade acceptance is still pending.
+
+For portable use, extract the complete ZIP to a writable application folder.
+The archive currently contains `files\TARS.exe` and a `TARS.lnk`; launch the
+executable if the shortcut is unsuitable. Keep all resources beside it. Portable
+means no MSI installation; it still uses `%APPDATA%\TARS`, not a separate profile
+inside the ZIP. Avoid running MSI and portable copies simultaneously against the
+same profile. Extract a new portable version into a fresh application directory
+rather than mixing resources from two builds.
+
+## Profile, build identity and startup checks
+
+The profile contains private credentials, personality edits, memory/database,
+provider data and logs. Keep whole-folder backups private. Configuration backups
+are `config.backup.json` (previous valid save) and, when requested through the
+backup controls, `config.manual-backup.json`; these do not replace a full database
+and provider backup. Do not delete or upload the profile to diagnose a startup issue.
+
+Use Diagnostics to record **TARS package** and **Frontend build**. The current UI
+labels the package as an unreleased build and does not report a separate backend
+version; that UI behavior is unchanged. Compare the frontend SHA with the reviewed
+workflow/provenance (a PR's test-merge SHA can differ from its source SHA).
+
+If startup fails, confirm extraction/installation is complete, that the backend
+and `resources/tars-plugins` exist, and inspect `%APPDATA%\TARS\logs` or a sanitized
+Diagnostics export. Check provider installation and restart status, API credentials,
+microphone permissions, selected devices and volume as relevant. Do not disable
+security software merely because it reports a warning. Local provider models are
+[separate opt-in downloads](tars-alpha-provider-setup.md), not missing MSI files.
+
+Windows 11 MSI installation/upgrade, real microphone/speaker operation and live
+Elite testing of Explorer, Chatter, memory, vision and TTS remain manual acceptance
+items for the future beta. See the [release approval checklist](release-readiness.md).
