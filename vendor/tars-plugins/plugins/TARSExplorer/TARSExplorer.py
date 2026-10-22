@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 import math
 import threading
 import time
@@ -246,6 +247,9 @@ class TARSExplorer(PluginBase):
         # Scan events. Debounce the wrap-up briefly so its composition is built
         # from the complete event batch instead of whichever bodies arrived first.
         self._fss_completion_timer: threading.Timer | None = None
+        self._departure_charging = False
+        self._departure_started = False
+        self._departure_generation = 0
         self._fss_completion_generation: int = 0
 
     def on_chat_start(self, helper: PluginHelper):
@@ -373,6 +377,9 @@ class TARSExplorer(PluginBase):
             or (address is not None and self._system_address is not None and address != self._system_address)
         )
         if changed:
+            self._departure_charging = False
+            self._departure_started = False
+            self._departure_generation += 1
             self._cancel_fss_completion()
             self._expected_bodies = None
             self._fss_complete = False
@@ -673,6 +680,12 @@ class TARSExplorer(PluginBase):
     def _should_reply_to_target(self, event: PluginEvent) -> bool:
         data = event.plugin_event_content if isinstance(event.plugin_event_content, dict) else {}
         guard = data.get("_guard") if isinstance(data.get("_guard"), dict) else {}
+        if data.get("warning_trigger") == "FsdHyperdriveCharging":
+            if (not self._departure_charging or data.get("charge_generation") != self._departure_generation
+                    or data.get("targets") != self._departure_targets()[:3]):
+                return False
+            if time.time() - guard.get("triggered_at", 0) > 3:
+                return False
         if self._helper is None or guard.get("session_id") != self._session_id:
             return False
         triggered_at = guard.get("triggered_at")
@@ -703,6 +716,8 @@ class TARSExplorer(PluginBase):
 
     def _prompt_noteworthy_target(self, event: PluginEvent) -> str:
         raw = event.plugin_event_content if isinstance(event.plugin_event_content, dict) else {}
+        if raw.get("warning_trigger") == "FsdHyperdriveCharging" and not self._should_reply_to_target(event):
+            return ""
         data = {k: v for k, v in raw.items() if k != "_guard"}
         if data.get("test"):
             return "Say exactly: Explorer automatic target callouts are working."
@@ -731,7 +746,7 @@ class TARSExplorer(PluginBase):
         if kind == "dss_complete":
             return (
                 "A worthwhile body has just finished DSS mapping. Give one short factual acknowledgement using only supplied facts. "
-                "Do not repeat the earlier discovery description; focus on mapping completion, efficiency, or newly confirmed biology. "
+                "Do not repeat the earlier discovery description; focus on mapping completion or newly confirmed biology. Never recite probe counts or a successful efficiency bonus. Mention efficiency only when efficiency_bonus_met is explicitly false, or the commander asks. "
                 + self.EXPLORER_STYLE_GUARD + " "
                 + f"Mapping facts: {json.dumps(data, ensure_ascii=False)}"
             )
@@ -1178,7 +1193,45 @@ class TARSExplorer(PluginBase):
     # Journal ingestion
     # ------------------------------------------------------------------
 
+    def _departure_targets(self):
+        ranked = {self._display_name(body): self._priority_score(body) for body in self._planet_bodies()}
+        return sorted(self._unfinished_targets(), key=lambda target: -ranked.get(target["body"], 0))
+
+    def _observe_departure_status(self, status):
+        if status.get("event") != "Status":
+            return
+        flags, flags2 = status.get("flags") or {}, status.get("flags2") or {}
+        if flags.get("FsdJump"):
+            self._departure_started = True
+        if self._departure_started:
+            if flags.get("FsdCharging") or flags.get("FsdJump"):
+                if self._departure_charging:
+                    self._departure_charging = False
+                    self._departure_generation += 1
+                return
+            self._departure_started = False
+        charging = bool(flags.get("FsdCharging") and flags2.get("FsdHyperdriveCharging")
+                        and not flags.get("FsdJump"))
+        if charging == self._departure_charging:
+            return
+        self._departure_charging = charging
+        self._departure_generation += 1
+        if charging:
+            targets = self._departure_targets()[:3]
+            if targets:
+                signature = sha256(json.dumps(targets, sort_keys=True).encode()).hexdigest()
+                self._dispatch_milestone("unfinished_target", {
+                    "departing_system": self._system_name, "targets": targets,
+                    "warning_trigger": "FsdHyperdriveCharging",
+                    "charge_generation": self._departure_generation,
+                }, "early-departure:" + signature)
+
     def _observe_event(self, event: Any, context: dict):
+        if getattr(event, "kind", None) == "status":
+            status = getattr(event, "status", None)
+            if isinstance(status, dict):
+                self._observe_departure_status(status)
+            return
         if getattr(event, "kind", None) != "game":
             return
         content = getattr(event, "content", None)
@@ -1190,16 +1243,10 @@ class TARSExplorer(PluginBase):
         event = content.get("event")
 
         if event == "StartJump":
-            # If COVAS exposes StartJump, this is the last sensible moment for an
-            # unfinished-target reminder. Never emit an old-system warning after FSDJump.
-            if not rebuilding and _clean(content.get("JumpType")).casefold() == "hyperspace":
-                unfinished = self._unfinished_targets()
-                if unfinished:
-                    self._dispatch_milestone(
-                        "unfinished_target",
-                        {"departing_system": self._system_name, "targets": unfinished[:3]},
-                        f"departure:{self._system_name}",
-                    )
+            # Departure is already committed: invalidate, never generate a late reminder.
+            self._departure_started = True
+            self._departure_charging = False
+            self._departure_generation += 1
             return
 
         if event in ("FSDJump", "Location", "CarrierJump"):
@@ -1309,7 +1356,8 @@ class TARSExplorer(PluginBase):
                         {
                             "body": self._display_name(body),
                             "reasons": reasons,
-                            "efficiency_bonus_met": body.dss_efficiency,
+                            **({"efficiency_bonus_met": False, "probes_used": probes,
+                                "efficiency_target": target} if body.dss_efficiency is False else {}),
                             "biological_signals": body.biological_signals,
                             "confirmed_genuses": body.confirmed_genuses,
                         },
@@ -1638,7 +1686,7 @@ class TARSExplorer(PluginBase):
     def _unfinished_targets(self) -> list[dict]:
         targets=[]
         for b in self._planet_bodies():
-            important = bool(b.interesting_world_type or b.terraformable or b.biological_signals >= self._minimum_bio_signals() or self._exceptional_reasons(b))
+            important = bool(b.interesting_world_type or b.terraformable or b.confirmed_genuses or b.biological_signals >= self._minimum_bio_signals() or self._exceptional_reasons(b))
             if not important: continue
             reasons=[]
             if (b.interesting_world_type or b.terraformable) and not b.dss_mapped and b.was_mapped is not True:

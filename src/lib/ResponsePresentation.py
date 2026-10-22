@@ -14,6 +14,7 @@ RESPONSE_POLICY = (
     "Display short planetary identifiers compactly (A5, A2, B3, AB4), never as A five. "
     "Use compact labels only for unambiguous body references; preserve full system names, moon suffixes, ship IDs and measurements. "
     "Keep quantities numeric in visible replies; speech pronunciation is handled separately. "
+    "For unsolicited DSS completion, omit successful efficiency bonuses and routine probe counts. Mention a missed efficiency target when relevant; answer direct efficiency questions from the actual recorded values. "
     "Never claim an action succeeded unless its result confirms success; unconfirmed means unconfirmed. "
     "Elite chat, weapons and cargo disposal require explicit user intent, never ordinary conversation. "
 )

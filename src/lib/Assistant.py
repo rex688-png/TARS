@@ -3,6 +3,7 @@ from . import SpeechTrace as speech_trace
 from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
 from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities, is_silence_sentinel
 from .BodyPresentation import known_body_labels, format_body_identifiers
+from .ExplorerSpeech import departure_warning, warning_text
 import copy
 import json
 import traceback
@@ -942,6 +943,43 @@ class Assistant:
             for event in new_events:
                 speech_trace.observe_event("reply_event", event)
             
+            warning = departure_warning(new_events, self.enabled_game_events)
+            if warning is not None:
+                def warning_valid():
+                    for pending in self.pending:
+                        if pending.kind in ('user', 'user_speaking', 'tool'):
+                            return False
+                        data = (pending.content if isinstance(pending, GameEvent) else
+                                pending.status if isinstance(pending, StatusEvent) else {})
+                        if data.get('event') in self.enabled_game_events and data.get('event') != 'FsdCharging':
+                            return False
+                    return any(handler(warning, projected_states) is True
+                               for handler in self.registered_should_reply_handlers)
+                maximum = max([event.processed_at for event in events] + [0.0])
+                text = warning_text(warning) if warning_valid() else ''
+                if text:
+                    labels = known_body_labels(projected_states, new_events)
+                    text = format_body_identifiers(text, known_labels=labels)
+                    spoken = format_body_identifiers(text, known_labels=labels, spoken=True)
+                    speech_trace.emit('generation_bypassed', reason='early_departure_warning')
+                    line = self.tts.say(spoken, context='assistant',
+                        postprocessing_layers=self._get_tts_postprocessing_layers(projected_states),
+                        drop_if=lambda: not warning_valid())
+                    if line.wait_for_speaking():
+                        self.event_manager.add_assistant_speaking()
+                        self.event_manager.add_conversation_event('assistant', text,
+                            reasons=['explorer_departure_warning'], processed_at=maximum)
+                    else:
+                        self.event_manager.short_term_memory.replied_before(maximum)
+                    line.wait_for_completion()
+                    terminal = getattr(line, 'result', None)
+                    if terminal is not None and terminal.output_written:
+                        playback_evidence = 'output_written'
+                else:
+                    self.event_manager.short_term_memory.replied_before(maximum)
+                self.event_manager.add_assistant_complete_event()
+                return
+
             memories = self.event_manager.get_latest_memories(limit=5)
 
 
