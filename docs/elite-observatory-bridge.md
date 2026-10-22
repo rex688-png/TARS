@@ -13,7 +13,7 @@ By default the plugin watches:
 %LOCALAPPDATA%\TARS\observatory\events.jsonl
 ```
 
-The path can be overridden in **Plugin Settings → TARS Observatory Bridge**. A
+The path can be overridden in **Settings → Plugins → TARS Observatory Bridge**. A
 missing file is expected when Observatory or its writer is not running and does
 not prevent TARS from starting.
 

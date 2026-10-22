@@ -84,7 +84,9 @@ Close TARS before installing an MSI. Make a private copy of the entire
 For an upgrade, retain the existing installation identity and profile; do not
 uninstall/delete user data as a routine troubleshooting step. The owner reports
 successful upgrades of previous builds, but confirm your settings and providers
-after each upgrade. New beta version/installer upgrade acceptance is still pending.
+after each upgrade. Disposable Windows MSI tests now cover ordered beta/stable upgrades, reinstalls,
+downgrade rejection and synthetic profile preservation. Full application upgrades
+on a physical Windows PC still require acceptance; no beta is assigned.
 
 For portable use, extract the complete ZIP to a writable application folder.
 The archive currently contains `files\TARS.exe` and a `TARS.lnk`; launch the
