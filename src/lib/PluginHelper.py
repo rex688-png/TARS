@@ -180,6 +180,13 @@ class PluginHelper():
         speech_trace.observe_event("plugin_dispatched", event)
         self._event_manager.incoming.put(event)
 
+    def record_chatter_diagnostic(self, reason):
+        if reason in ('scheduled', 'cooldown', 'assistant_activity', 'game_activity',
+                      'user_activity', 'host_busy', 'deliberate_silence', 'context_missing',
+                      'context_used', 'quality_rejected', 'host_admission', 'candidate_accepted',
+                      'dispatched', 'model_skip', 'generation_failed', 'session_context', 'model_unavailable'):
+            speech_trace.emit('chatter_opportunity', source='chatter', reason=reason)
+
     def preview_optional_speech(self) -> bool:
         """Legacy advisory preview; preparation should use reserve_optional_speech."""
         _, states = self._event_manager.get_current_state()

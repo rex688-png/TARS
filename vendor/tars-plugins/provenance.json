@@ -1,5 +1,5 @@
 {
-  "source_revision": "f68fa83b1d2a83d5553623e5860e6feb3b8b64e7",
+  "source_revision": "74ea4644c8d5244fa6752e9e47f6a9ada42eb9c5",
   "files": {
     "plugins/TARSExplorer/REACTS_QUICK_GUIDE.txt": "901b8e796223b0e8552680217e148950b6b73bc6629449b674986c59babaa2fd",
     "plugins/TARSExplorer/README.txt": "2de3d1bd108453870d3239ae04de73e53d4c0de2e751ce09d3c59684a0982c89",
@@ -17,9 +17,9 @@
     "plugins/TARSGalaxy/manifest.json": "ca4f00d8b6016129657c47fd9ac8c3839abb3eced811a072dc9ab3f118f2b435",
     "plugins/TARSChatter/README.txt": "d8ed7dc007ac0b3a3b9d8211ffa84d158800ea23eb8e79398ecd22973fb1148a",
     "plugins/TARSChatter/SOURCES.txt": "57ede83335051f6cbd3747954c2dbf83d9c2ffd88c2faf9d436e37efc11f1bb3",
-    "plugins/TARSChatter/TARSChatter.py": "3b773236a178475fe6a609218c64193f747233204a8415045a1f09748cc8ed44",
+    "plugins/TARSChatter/TARSChatter.py": "50ddeeae39fb2e8d9206dcdcd63756eedc2ba7d95fe3c7592bccc650c305ba24",
     "plugins/TARSChatter/TARSChatterSession.py": "4164004a55824860b18a142cf15b4e707d6aab9cb85bee1291cb1b0e6ccd78c1",
-    "plugins/TARSChatter/manifest.json": "ced37d831d917a8278a4b376165ccec0f44f4ee7dd8c90f2531b591bad4f65f8",
+    "plugins/TARSChatter/manifest.json": "236836e733bd392d368c68ea00e67054d974801b6509c018a3287078a4ecabcf",
     "plugins/TARSExpedition/README.txt": "08d8173484a59a2fb73554815c41ff55909599cf7fa7ae06b1377d6f2e8ca577",
     "plugins/TARSExpedition/TARSExpedition.py": "1a995a2aa4162d34f3a8011916e170333e7a77ade026af877610b083b9579d9b",
     "plugins/TARSExpedition/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

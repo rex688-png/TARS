@@ -1103,6 +1103,17 @@ class Assistant:
                 self.event_manager.add_conversation_event('assistant', response_text, reasons=reasons, processed_at=max_conversation_processed)
                 line.wait_for_completion()
                 terminal = getattr(line, "result", None)
+                if not user_input and not tool_uses and any(
+                        isinstance(event, PluginEvent) and event.plugin_event_name == 'TARSChatter'
+                        for event in new_events):
+                    outcome = getattr(terminal, 'outcome', 'unknown')
+                    if outcome not in ('completed', 'cancelled_before_start', 'interrupted', 'dropped',
+                                       'synthesis_failed', 'output_failed', 'no_audio', 'unknown'):
+                        outcome = 'unknown'
+                    counts = self.__dict__.setdefault('_chatter_delivery_counts', {})
+                    counts[outcome] = counts.get(outcome, 0) + 1
+                    speech_trace.emit('chatter_delivery', source='chatter', outcome=outcome,
+                        line_id=getattr(line, 'line_id', None), playback_success='unknown')
                 if terminal is not None and terminal.outcome != "unknown":
                     playback_evidence = "output_written" if terminal.output_written else "unknown"
                 else:
