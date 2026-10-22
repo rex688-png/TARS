@@ -1,4 +1,5 @@
 from .ResponsePresentation import RESPONSE_POLICY, current_fact_envelope
+from .SpeechPolicy import LIVE_EXPLORATION_SPEECH_POLICY
 from datetime import timedelta, datetime, timezone
 from functools import lru_cache
 from typing import Any, Callable, cast, Dict, Union, List, Optional
@@ -3815,8 +3816,10 @@ class PromptGenerator:
                     + "Do not use markdown in your responses, and no commas in numbers. " \
                     + "Your purpose is to provide information, status updates, and execute tools as required. Only use tools you are given from me. " \
                     + "Be specific about amounts and percentages for inquiries as the commander can not see the game events' text description but lives in the universe. " \
-                    + "You do not ask questions or initiate conversations. You respond only when addressed and in a single sentence. " \
-                    + "Don't repeat the same words and sentences, mix it up. " \
+                    + "Answer direct questions when addressed. You may also speak when an enabled and prioritized ship, exploration, navigation, safety or Chatter event deserves a response; silence is valid for routine events. " \
+                    + "Use a natural length appropriate to the significance instead of enforcing one sentence. " \
+                    + "Do not ask unnecessary follow-up questions or repeat the same wording. " \
+                    + LIVE_EXPLORATION_SPEECH_POLICY \
                     + RESPONSE_POLICY \
                     + "Your character prompt is: " + self.character_prompt.format(commander_name=self.commander_name)
             
