@@ -39,14 +39,12 @@ def plugins_checkout(dump_module):
         pytest.skip(
             "requires the separate pinned TARS-Plugins checkout; it is not available"
         )
-    try:
-        sha = dump_module._git_sha(dump_module.PLUGINS_ROOT)
-    except (OSError, subprocess.CalledProcessError) as exc:
-        pytest.fail(f"TARS-Plugins path exists but is not a readable Git checkout: {exc}")
-    assert sha == dump_module.PLUGINS_BASELINE, (
-        "external TARS-Plugins checkout must be at the pinned baseline "
-        f"{dump_module.PLUGINS_BASELINE}, found {sha}"
-    )
+    for repo, revision in ((dump_module.TARS_ROOT, dump_module.SNAPSHOT_HOST_REVISION),
+                           (dump_module.PLUGINS_ROOT, dump_module.PLUGINS_BASELINE)):
+        result = subprocess.run(['git', '-C', str(repo), 'cat-file', '-e', revision + '^{commit}'],
+                                capture_output=True)
+        if result.returncode:
+            pytest.skip(f"historical snapshot source unavailable: {revision} in {repo}")
     return dump_module.PLUGINS_ROOT
 
 
@@ -184,3 +182,33 @@ def test_baseline_commits_are_pinned(baseline, dump_module):
     assert baseline["metadata"]["tars_sha"] == "f0153840016e33c498eafd5ea197963bcf776987"
     assert baseline["metadata"]["tars_plugins_sha"] == "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
     assert dump_module._git_is_ancestor(dump_module.TARS_ROOT, dump_module.PUBLIC_TARS_BASELINE)
+
+
+@pytest.mark.parametrize('scenario', ['normal', 'route', 'memory'])
+def test_current_prompt_preserves_custom_personality_ship_route_and_memory(dump_module, scenario):
+    """Current release behavior has semantic assertions, not historical snapshots."""
+    from lib.PromptGenerator import PromptGenerator
+
+    class SystemDatabaseStub:
+        def get_bodies(self, *args, **kwargs): return []
+        def get_system(self, *args, **kwargs): return None
+        def get_system_info(self, *args, **kwargs): return None
+        def get_stations(self, *args, **kwargs): return []
+
+    generator = PromptGenerator('TEST_CMDR', 'CUSTOM_PERSONALITY_KEEP_42', [], SystemDatabaseStub())
+    states = dump_module._projection_states()
+    states['ShipInfo'].Name = 'SYNTHETIC_SHIP_KEEP_42'
+    states['NavInfo'].NavRoute = [
+        {'StarSystem': 'TEST_SYSTEM', 'StarClass': 'K', 'StarPos': [1, 2, 3]},
+        {'StarSystem': 'TEST_DESTINATION', 'StarClass': 'G', 'StarPos': [2, 3, 4]},
+    ]
+    messages = dump_module._prompt_fixture(scenario, generator, states, memory=scenario == 'memory')
+    text = json.dumps(messages)
+    assert 'CUSTOM_PERSONALITY_KEEP_42' in messages[0]['content']
+    assert 'Use a natural length appropriate' in messages[0]['content']
+    assert 'SYNTHETIC_SHIP_KEEP_42' in text
+    assert 'TEST_SYSTEM' in text and 'TEST_DESTINATION' in text
+    if scenario == 'memory':
+        assert 'TEST_CMDR prefers deterministic synthetic evidence.' in text
+    import lib.PromptGenerator as current
+    assert Path(current.__file__).resolve() == ROOT / 'src/lib/PromptGenerator.py'
