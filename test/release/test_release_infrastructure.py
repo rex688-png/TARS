@@ -3,6 +3,8 @@ import hashlib
 import importlib.util
 import json
 import os
+import shlex
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -100,8 +102,8 @@ def test_release_workflow_preserves_safety_gates():
 
 @pytest.mark.parametrize('mode',['missing','draft','published','publish_during_run','asset_collision'])
 def test_draft_release_shell_against_fake_gh_only(tmp_path,mode):
-    fake=tmp_path/'gh'
-    fake.write_text('#!'+sys.executable+'\n'+r'''
+    fake=tmp_path/'fake gh.py'
+    fake.write_text(r'''
 import json,os,sys
 from pathlib import Path
 args=sys.argv[1:];root=Path(os.environ['FAKE_ROOT']);mode=os.environ['FAKE_MODE']
@@ -116,12 +118,47 @@ elif args[:2]==['release','upload']:
     if mode=='asset_collision':sys.exit(1)
 else:sys.exit(90)
 ''')
-    fake.chmod(0o755)
     assets=tmp_path/'release-assets/reviewed';assets.mkdir(parents=True);(assets/'synthetic.txt').write_text('not a release asset')
     script=workflow()['jobs']['draft-release']['steps'][-1]['run']
-    result=subprocess.run(['bash','-c',script],cwd=tmp_path,env=dict(os.environ,PATH=str(tmp_path)+os.pathsep+os.environ['PATH'],RELEASE_TAG='v0.5.0-beta.1',FAKE_ROOT=str(tmp_path),FAKE_MODE=mode),capture_output=True,text=True)
-    calls=[json.loads(s) for s in (tmp_path/'calls.jsonl').read_text().splitlines()]
-    assert (result.returncode==0)==(mode in ['missing','draft'])
+    if os.name == 'nt':
+        # Windows' bare bash can resolve to WSL; use the Bash shipped with Git.
+        git = shutil.which('git')
+        assert git, 'Git for Windows is required to exercise the Ubuntu release shell'
+        bash = Path(git).parent.parent / 'bin/bash.exe'
+        assert bash.is_file(), f'Git Bash not found beside Git: {bash}'
+    else:
+        bash = shutil.which('bash')
+        assert bash, 'Bash is required to exercise the Ubuntu release shell'
+    env = dict(os.environ, RELEASE_TAG='v0.5.0-beta.1', FAKE_ROOT=str(tmp_path), FAKE_MODE=mode,
+               FAKE_GH_PYTHON=sys.executable, FAKE_GH_SCRIPT=str(fake))
+    if os.name == 'nt' and mode == 'missing':
+        # Diagnostic only: run the former native-shebang launcher directly, never real gh.
+        legacy = tmp_path / 'legacy-gh'
+        legacy.write_text('#!' + sys.executable + '\n' + fake.read_text())
+        probe_root = tmp_path / 'legacy probe'; probe_root.mkdir()
+        probe = subprocess.run(['bash', '-c', shlex.quote(legacy.as_posix()) + ' release view probe'],
+                               env=dict(env, FAKE_ROOT=str(probe_root), FAKE_MODE='draft'),
+                               capture_output=True, text=True)
+        detail = json.dumps({'legacy_bash': shutil.which('bash'), 'selected_bash': str(bash),
+                             'exit_code': probe.returncode, 'stdout': probe.stdout, 'stderr': probe.stderr})
+        print('Legacy Windows launcher diagnostic: ' + detail)
+        if os.environ.get('GITHUB_ACTIONS') == 'true':
+            print('::notice title=Legacy fake-gh launcher diagnostic::' + detail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+    launcher = r"""
+set -euo pipefail
+if command -v cygpath >/dev/null 2>&1; then
+  FAKE_GH_PYTHON=$(cygpath -u "$FAKE_GH_PYTHON")
+  FAKE_GH_SCRIPT=$(cygpath -u "$FAKE_GH_SCRIPT")
+fi
+gh() { "$FAKE_GH_PYTHON" "$FAKE_GH_SCRIPT" "$@"; }
+"""
+    result=subprocess.run([str(bash),'--noprofile','--norc','-c',launcher+script],cwd=tmp_path,
+                          env=env,capture_output=True,text=True)
+    diagnostic = f'bash={bash}; exit={result.returncode}; stdout={result.stdout!r}; stderr={result.stderr!r}'
+    calls_path = tmp_path/'calls.jsonl'
+    assert calls_path.is_file(), diagnostic
+    calls=[json.loads(s) for s in calls_path.read_text().splitlines()]
+    assert (result.returncode==0)==(mode in ['missing','draft']), diagnostic
     if mode in ['published','publish_during_run']:
         assert not any(c[:2]==['release','upload'] for c in calls)
     if mode=='draft':assert not any(c[:2]==['release','create'] for c in calls)
