@@ -1,25 +1,57 @@
 param([string]$MsiPath, [string]$Version, [string]$OutputPath)
 $ErrorActionPreference = 'Stop'
 
+function Assert-MsiRow($Row, [string[]]$Columns, [string]$Query) {
+    $type = if ($null -eq $Row) { '<null>' } else { $Row.GetType().FullName }
+    if ($Row -isnot [pscustomobject]) { throw "Malformed MSI row ($type) for query: $Query" }
+    foreach ($column in $Columns) {
+        $property = $Row.PSObject.Properties[$column]
+        if ($null -eq $property -or $property.Value -isnot [string]) {
+            throw "Malformed MSI row ($type): missing/non-string column '$column'; query: $Query"
+        }
+    }
+}
+
 function Read-MsiRows($Database, [string]$Query, [string[]]$Columns) {
     $view = $Database.OpenView($Query)
     try {
-        $view.Execute()
+        # COM void methods can return a non-row sentinel through PowerShell.
+        [void]$view.Execute()
         while ($null -ne ($record = $view.Fetch())) {
-            $row = [ordered]@{}
-            for ($i=0; $i -lt $Columns.Count; $i++) { $row[$Columns[$i]] = $record.StringData($i+1) }
-            [pscustomobject]$row
-            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($record)
+            try {
+                if ($record.FieldCount -ne $Columns.Count) { throw "MSI field count $($record.FieldCount) != $($Columns.Count); query: $Query" }
+                $row = [ordered]@{}
+                for ($i=0; $i -lt $Columns.Count; $i++) { $row[$Columns[$i]] = $record.StringData($i+1) }
+                $result = [pscustomobject]$row
+                Assert-MsiRow $result $Columns $Query
+                $result
+            } finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($record) }
         }
-    } finally { $view.Close(); [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($view) }
+    } finally {
+        [void]$view.Close()
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($view)
+    }
+}
+
+function ConvertTo-MsiProperties([object[]]$Rows) {
+    $properties = @{}
+    foreach ($row in $Rows) {
+        Assert-MsiRow $row @('Property','Value') 'Property table'
+        if ([string]::IsNullOrWhiteSpace($row.Property)) { throw 'Malformed MSI Property table: empty Property key' }
+        if ($properties.ContainsKey($row.Property)) { throw "Malformed MSI Property table: duplicate '$($row.Property)'" }
+        $properties[$row.Property] = $row.Value
+    }
+    foreach ($required in @('ProductVersion','ProductCode','UpgradeCode','ProductName')) {
+        if ([string]::IsNullOrWhiteSpace($properties[$required])) { throw "MSI Property table missing required '$required'" }
+    }
+    return $properties
 }
 
 function Get-MsiMetadata([string]$Path) {
     $installer = New-Object -ComObject WindowsInstaller.Installer
     $database = $installer.OpenDatabase((Resolve-Path $Path).Path, 0)
     try {
-        $properties = @{}
-        foreach ($row in (Read-MsiRows $database 'SELECT `Property`, `Value` FROM `Property`' @('Property','Value'))) { $properties[$row.Property] = $row.Value }
+        $properties = ConvertTo-MsiProperties @(Read-MsiRows $database 'SELECT `Property`, `Value` FROM `Property`' @('Property','Value'))
         return [pscustomobject]@{
             ProductVersion=$properties.ProductVersion; ProductCode=$properties.ProductCode
             UpgradeCode=$properties.UpgradeCode; ProductName=$properties.ProductName

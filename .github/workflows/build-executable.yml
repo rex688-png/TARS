@@ -217,7 +217,14 @@ jobs:
         run: node e2e/build_MsiFixtures.cjs
       - name: Inspect tables and run real install-upgrade-downgrade sequence
         shell: pwsh
-        run: ./e2e/test_MsiUpgrades.ps1
+        run: |
+          try {
+            ./e2e/test_MsiMetadata.ps1 -InspectFixture
+            ./e2e/test_MsiUpgrades.ps1
+          } catch {
+            Write-Host "::error title=MSI acceptance failure::$($_.Exception.Message)"
+            throw
+          }
       - name: Upload synthetic MSI acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
