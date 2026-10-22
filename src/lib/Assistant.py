@@ -1,7 +1,8 @@
 from .SpeechArbiter import SpeechArbiter, SOURCES as SPEECH_SOURCES
 from . import SpeechTrace as speech_trace
 from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
-from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities
+from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities, is_silence_sentinel
+from .BodyPresentation import known_body_labels, format_body_identifiers
 import copy
 import json
 import traceback
@@ -1015,6 +1016,14 @@ class Assistant:
 
                     log_llm_usage("assistant", model_usage=model_usage, prompt_usage=prompt_usage, llm_model=self.llmModel)
 
+                    if is_silence_sentinel(response_text):
+                        response_text = None
+                        speech_trace.emit("response_discarded", reason="silence_sentinel")
+                        if not response_actions:
+                            self.event_manager.short_term_memory.replied_before(max_conversation_processed)
+                            self.event_manager.add_assistant_complete_event()
+                            return
+
                     if not response_text and not response_actions:
                         speech_trace.emit("response_discarded", reason="empty_model_turn")
                         # An empty model turn is not a spoken or visible reply.
@@ -1043,9 +1052,11 @@ class Assistant:
                     self.event_manager.short_term_memory.replied_before(max_conversation_processed)
                     self.event_manager.add_assistant_complete_event()
             if response_text and not response_actions:
-                response_text = format_display_quantities(response_text)
+                labels = known_body_labels(projected_states, new_events)
+                response_text = format_body_identifiers(format_display_quantities(response_text), known_labels=labels)
+                spoken_text = format_body_identifiers(response_text, known_labels=labels, spoken=True)
                 line = self.tts.say(
-                    response_text,
+                    spoken_text,
                     context="assistant",
                     postprocessing_layers=self._get_tts_postprocessing_layers(projected_states),
                 )

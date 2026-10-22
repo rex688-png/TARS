@@ -11,6 +11,9 @@ RESPONSE_POLICY = (
     "Do not repeat conflicting older credit/fuel/ship/location/route/cargo values when a current value exists. "
     "Combine overlapping Explorer and Observatory facts about the same system/body into one callout, "
     "retaining every unique finding and source detail. Do not repeat the same discovery twice. "
+    "Display short planetary identifiers compactly (A5, A2, B3, AB4), never as A five. "
+    "Use compact labels only for unambiguous body references; preserve full system names, moon suffixes, ship IDs and measurements. "
+    "Keep quantities numeric in visible replies; speech pronunciation is handled separately. "
     "Never claim an action succeeded unless its result confirms success; unconfirmed means unconfirmed. "
     "Elite chat, weapons and cargo disposal require explicit user intent, never ordinary conversation. "
 )
@@ -85,3 +88,10 @@ def current_fact_envelope(states, *, freshness='LAST KNOWN'):
                'ship_name':'ShipInfo','ship_model':'ShipInfo','location':'Location',
                'route':'NavInfo','jumps_remaining':'NavInfo','cargo':'CurrentStatus/Cargo'}
     return {key:{'value':value,'source':sources[key],'freshness':freshness} for key,value in facts.items()}
+
+
+def is_silence_sentinel(text):
+    """Only a complete model silence marker, never a substring or user request."""
+    if not isinstance(text, str):
+        return False
+    return bool(re.fullmatch(r"skip[.!]?", text.strip(" \t\r\n\"'`“”‘’").casefold()))
