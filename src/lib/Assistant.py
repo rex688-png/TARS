@@ -1,3 +1,4 @@
+from .JournalFacts import SALE_EVENTS, sale_key
 from .SpeechArbiter import SpeechArbiter, SOURCES as SPEECH_SOURCES
 from . import SpeechTrace as speech_trace
 from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
@@ -916,8 +917,23 @@ class Assistant:
             events += [event for key, event in getattr(self, '_speech_deferred', {}).items()
                        if key not in known]
             new_events = [event for event in events if event.responded_at == None]
+            sale_keys = set(getattr(self, '_sale_reaction_keys', {}))
+            filtered = []
+            for event in new_events:
+                if isinstance(event, GameEvent) and event.content.get('event') in SALE_EVENTS:
+                    key = sale_key(event)
+                    if (event.historic or event.content['event'] not in self.enabled_game_events
+                            or (key is not None and key in sale_keys)):
+                        continue
+                    if key is not None:
+                        sale_keys.add(key)
+                filtered.append(event)
+            removed_sale_only = bool(new_events) and not filtered
+            new_events = filtered
             self._speech_deferred = {}
             self.pending = []
+            if removed_sale_only:
+                return
             if retrying and not new_events:
                 return
             mode = arbiter.configure(self.config.get('speech_director_mode', 'observe'))
@@ -1103,6 +1119,13 @@ class Assistant:
                 self.event_manager.add_conversation_event('assistant', response_text, reasons=reasons, processed_at=max_conversation_processed)
                 line.wait_for_completion()
                 terminal = getattr(line, "result", None)
+                sale_history = self.__dict__.setdefault('_sale_reaction_keys', {})
+                for event in new_events:
+                    key = sale_key(event)
+                    if key is not None:
+                        sale_history[key] = True
+                while len(sale_history) > 512:
+                    sale_history.pop(next(iter(sale_history)))
                 if not user_input and not tool_uses and any(
                         isinstance(event, PluginEvent) and event.plugin_event_name == 'TARSChatter'
                         for event in new_events):
@@ -1148,6 +1171,9 @@ class Assistant:
             return False
 
         for event in self.pending:
+            if isinstance(event, GameEvent) and event.content.get('event') in SALE_EVENTS:
+                if event.historic or sale_key(event) in getattr(self, '_sale_reaction_keys', {}):
+                    continue
             # check if pending contains conversational events
             if isinstance(event, ConversationEvent) and event.kind == "user":
                 if getattr(event, 'do_not_reply', False):

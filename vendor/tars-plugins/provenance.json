@@ -1,10 +1,10 @@
 {
-  "source_revision": "74ea4644c8d5244fa6752e9e47f6a9ada42eb9c5",
+  "source_revision": "6f85f5b8dee4f8ea399df4e86d7cb0a5df03bcc2",
   "files": {
     "plugins/TARSExplorer/REACTS_QUICK_GUIDE.txt": "901b8e796223b0e8552680217e148950b6b73bc6629449b674986c59babaa2fd",
     "plugins/TARSExplorer/README.txt": "2de3d1bd108453870d3239ae04de73e53d4c0de2e751ce09d3c59684a0982c89",
     "plugins/TARSExplorer/SOURCES.txt": "df275e25889b1a1e35093d406d96ed221de90122f0af687ca9478785b2d2bf0b",
-    "plugins/TARSExplorer/TARSExplorer.py": "3c7f0604ace6c2e76a0c8d1537a92484f9a24b0dfda10541a95842ecf3b5c5a5",
+    "plugins/TARSExplorer/TARSExplorer.py": "ed80d6617e535e82c54b5985fbb7731e0052b645437d843371f7543b332a7944",
     "plugins/TARSExplorer/TARSExplorerSession.py": "3f95b18826382cc89500d9521c9c3e9319820767acc18204940288fb4e132b3c",
     "plugins/TARSExplorer/manifest.json": "b0275decf0009ef694a7c0901200906c119334225b3f15771d6405a684f6c10d",
     "plugins/TARSNavigator/README.txt": "bb3ec6f67c99d5d38239f242d9c16597084cf17f4e7ea7435892edf127ae4f89",
