@@ -27,6 +27,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Validate package versions and release tag
+        shell: pwsh
+        run: |
+          if ($env:RUNNER_ARCH -ne 'X64') { throw 'Release assets require the existing Windows x64 architecture' }
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            python tools/release_metadata.py --tag "$env:GITHUB_REF_NAME"
+          } else {
+            python tools/release_metadata.py
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
@@ -182,7 +193,7 @@ jobs:
   draft-release:
     name: Add Windows Artifacts to Draft Release
     needs: [electron-build, e2e]
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     concurrency:
       group: release-${{ github.ref }}
@@ -190,6 +201,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out tagged release source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up release metadata validation
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Download MSI artifact
         uses: actions/download-artifact@v4
         with:
@@ -202,17 +224,25 @@ jobs:
           name: TARS_PORTABLE_v${{ github.sha }}
           path: release-assets
 
-      - name: Generate release checksums
-        working-directory: release-assets
-        run: sha256sum *.msi *.zip > SHA256SUMS.txt
+      - name: Stage versioned assets, provenance and checksums
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SOURCE: ${{ github.sha }}
+          RELEASE_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python tools/release_metadata.py --tag "$RELEASE_TAG" --source "$RELEASE_SOURCE" --run-url "$RELEASE_RUN" --architecture "$RUNNER_ARCH" --assets release-assets
 
       - name: Create or update draft release
         # No release is published automatically; physical acceptance is separate.
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          set -euo pipefail
+          TAG="$RELEASE_TAG"
+          PRERELEASE=()
+          if [[ "$TAG" == *-beta.* ]]; then PRERELEASE=(--prerelease); fi
 
           ensure_draft_release() {
             if gh release view "$TAG" >/dev/null 2>&1; then
@@ -223,7 +253,7 @@ jobs:
               return
             fi
 
-            gh release create "$TAG" --draft --title "$TAG" --notes "Draft release for $TAG" || {
+            gh release create "$TAG" --verify-tag --draft "${PRERELEASE[@]}" --title "$TAG" --notes "Review release-provenance.json and SHA256SUMS.txt; publication requires manual approval." || {
               gh release view "$TAG" >/dev/null
               if [ "$(gh release view "$TAG" --json isDraft --jq '.isDraft')" != "true" ]; then
                 echo "Release $TAG already exists and is not a draft. Refusing to attach assets."
@@ -233,4 +263,9 @@ jobs:
           }
 
           ensure_draft_release
-          gh release upload "$TAG" release-assets/* --clobber
+          # Recheck immediately before upload; never replace existing assets.
+          if [ "$(gh release view "$TAG" --json isDraft --jq '.isDraft')" != "true" ]; then
+            echo "Release is no longer a draft; refusing upload."
+            exit 1
+          fi
+          gh release upload "$TAG" release-assets/reviewed/*
