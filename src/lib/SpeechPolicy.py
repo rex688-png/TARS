@@ -27,7 +27,7 @@ _COUNTER_TERMS = re.compile(
 _SCIENTIFIC_TERMS = re.compile(
     r"\b(?:gravity|orbital|rotation|period|eccentricity|temperature|atmosphere"
     r"|pressure|mass|radius|ring|biolog(?:y|ical)|genus|species|stratum"
-    r"|terraform|water\s+world|earthlike|earth-like|ammonia|codex|mapped"
+    r"|terraform(?:able|ing|ed)?|water\s+world|earthlike|earth-like|ammonia|codex|mapped"
     r"|dss|signals?|neutron|stellar|habitable|life|star\s+class)\b", re.I
 )
 
@@ -70,6 +70,10 @@ LIVE_EXPLORATION_SPEECH_POLICY = (
     "Maintain the fourth wall: never mention game mechanics, developers, DLCs, "
     "player interfaces, software limitations or simulations in character. "
     "An Observatory notification is evidence, not a script to recite. "
+    "A possible Codex discovery remains possible until explicitly confirmed; "
+    "do not promote a candidate to a confirmed first entry. Preserve uncertainty "
+    "and incomplete or intentionally withheld Observatory information: missing "
+    "details are unknown, never proof of absence or permission to invent them. "
     "For a genuinely valuable find such as an Earth-like world, terraformable "
     "water world, remarkable biology or an exceptional physical observation, "
     "say what makes it worthwhile in a natural, grounded way. One to three "

@@ -3,6 +3,7 @@
 Tests use only synthetic events, no live Commander data or external services.
 """
 from pathlib import Path
+import pytest
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
@@ -10,7 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from lib.Event import GameEvent, PluginEvent
 from lib.SpeechPolicy import LIVE_EXPLORATION_SPEECH_POLICY, routine_first_discovery_tally
 from lib.PromptGenerator import PromptGenerator
-from test_speech_trace import assistant
+from test_speech_trace import assistant, user
+from test_speech_arbiter import arbiter, clock, finding, replay
 
 
 def _fact(text, source="Stat Scanner"):
@@ -83,3 +85,36 @@ def test_prompt_generator_has_no_hidden_one_sentence_restriction():
     )
     assert "LIVE_EXPLORATION_SPEECH_POLICY" in source
     assert "You respond only when addressed and in a single sentence" not in source
+
+
+@pytest.mark.parametrize('detail', ['3 terraformable bodies', 'an exceptional orbital period'])
+def test_counter_notice_with_scientific_detail_is_not_suppressed(detail):
+    event = _fact('New personal best: 321 first-discovered systems; ' + detail)
+    assert not routine_first_discovery_tally(event)
+
+
+@pytest.mark.parametrize('mode,expected', [('off', 1), ('observe', 1), ('enforce', 0)])
+def test_tally_suppression_reaches_real_host_without_changing_history(mode, expected, arbiter):
+    event = _fact('New personal best: 321 first-discovered systems')
+    event.plugin_event_content['_guard'] = {'triggered_at': 1000.0}
+    obj = replay(mode, arbiter, [[event]])
+    assert obj.llmModel.calls == expected
+    assert event.responded_at is None
+    if not expected:
+        obj.prompt_generator.generate_prompt.assert_not_called()
+        obj.event_manager.short_term_memory.replied_before.assert_not_called()
+
+
+@pytest.mark.parametrize('with_question', [False, True])
+def test_tally_does_not_hide_science_or_direct_questions(arbiter, with_question):
+    tally = _fact('New personal best: 321 first-discovered systems')
+    tally.plugin_event_content['_guard'] = {'triggered_at': 1000.0}
+    other = user() if with_question else finding()
+    obj = replay('enforce', arbiter, [[tally, other]])
+    assert obj.llmModel.calls == 1
+    assert obj.prompt_generator.generate_prompt.call_args.kwargs['pending_events'] == [tally, other]
+
+
+def test_policy_preserves_possible_codex_and_missing_observatory_information():
+    assert 'possible Codex' in LIVE_EXPLORATION_SPEECH_POLICY
+    assert 'withheld' in LIVE_EXPLORATION_SPEECH_POLICY
