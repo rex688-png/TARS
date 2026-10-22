@@ -20,6 +20,7 @@
                  [innerHTML]="sanitizedSvg"></div>
           } @else {
             <div class="overlay-pngtuber"
+                 [class.canonical-tars-avatar]="isCanonicalTarsAvatar"
                  [ngClass]="action"
                  [style.width.px]="avatarBaseWidth * avatarScale"
                  #pngtuberElement></div>

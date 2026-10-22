@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 import math
 import threading
 import time
@@ -227,6 +228,8 @@ class TARSExplorer(PluginBase):
         self._system_address: int | None = None
         self._star_pos: tuple[float, float, float] | None = None
         self._expected_bodies: int | None = None
+        self._discovery_body_count: int | None = None
+        self._confirmed_body_count: int | None = None
         self._fss_complete: bool = False
         self._bodies: dict[str, BodyState] = {}
         self._body_id_to_key: dict[int, str] = {}
@@ -246,6 +249,9 @@ class TARSExplorer(PluginBase):
         # Scan events. Debounce the wrap-up briefly so its composition is built
         # from the complete event batch instead of whichever bodies arrived first.
         self._fss_completion_timer: threading.Timer | None = None
+        self._departure_charging = False
+        self._departure_started = False
+        self._departure_generation = 0
         self._fss_completion_generation: int = 0
 
     def on_chat_start(self, helper: PluginHelper):
@@ -373,8 +379,13 @@ class TARSExplorer(PluginBase):
             or (address is not None and self._system_address is not None and address != self._system_address)
         )
         if changed:
+            self._departure_charging = False
+            self._departure_started = False
+            self._departure_generation += 1
             self._cancel_fss_completion()
             self._expected_bodies = None
+            self._discovery_body_count = None
+            self._confirmed_body_count = None
             self._fss_complete = False
             self._bodies = {}
             self._body_id_to_key = {}
@@ -562,6 +573,9 @@ class TARSExplorer(PluginBase):
         name_key = self._find_body_key_by_name(name) if name else None
         body_by_name = self._bodies.get(name_key) if name_key else None
 
+        if body_by_name is not None and body_id is not None and body_by_name.body_id not in (None, body_id):
+            body_by_name = None  # Conflicting stable IDs are never merge candidates.
+
         if body_by_id is not None:
             body = body_by_id
             canonical_key = id_key or actual_id_key or self._body_key(body.name, body.body_id)
@@ -673,6 +687,12 @@ class TARSExplorer(PluginBase):
     def _should_reply_to_target(self, event: PluginEvent) -> bool:
         data = event.plugin_event_content if isinstance(event.plugin_event_content, dict) else {}
         guard = data.get("_guard") if isinstance(data.get("_guard"), dict) else {}
+        if data.get("warning_trigger") == "FsdHyperdriveCharging":
+            if (not self._departure_charging or data.get("charge_generation") != self._departure_generation
+                    or data.get("targets") != self._departure_targets()[:3]):
+                return False
+            if time.time() - guard.get("triggered_at", 0) > 3:
+                return False
         if self._helper is None or guard.get("session_id") != self._session_id:
             return False
         triggered_at = guard.get("triggered_at")
@@ -703,9 +723,12 @@ class TARSExplorer(PluginBase):
 
     def _prompt_noteworthy_target(self, event: PluginEvent) -> str:
         raw = event.plugin_event_content if isinstance(event.plugin_event_content, dict) else {}
+        if raw.get("warning_trigger") == "FsdHyperdriveCharging" and not self._should_reply_to_target(event):
+            return ""
         data = {k: v for k, v in raw.items() if k != "_guard"}
         if data.get("test"):
             return "Say exactly: Explorer automatic target callouts are working."
+        data["source_identity_rule"] = "Use this event source identity, never the commander current body; missing identity remains uncertain."
         kind = data.get("callout_kind")
         if kind == "organic_complete":
             return (
@@ -717,7 +740,9 @@ class TARSExplorer(PluginBase):
             )
         if kind == "system_complete":
             return (
-                "The commander has just completed FSS identification of every body in the current system. "
+                "FSS identification completion was reported for the supplied source system. "
+                "If count_changed_since_discovery, explain that the earlier discovery snapshot was superseded by FSSAllBodiesFound.Count. "
+                "A confirmed journal total does not guarantee complete local Scan records; qualify incomplete composition. "
                 "Give one short TARS-like system wrap-up using only player-facing supplied facts: concise, dry and observant, with light sarcasm only when natural. Prioritize genuinely useful discoveries or remaining targets. "
                 "Never say internal bookkeeping words such as announced, unannounced, score, threshold, category, detector or cooldown. "
                 "Do not repeat a body/fact that Explorer already called out unless needed to make the summary useful. "
@@ -731,7 +756,7 @@ class TARSExplorer(PluginBase):
         if kind == "dss_complete":
             return (
                 "A worthwhile body has just finished DSS mapping. Give one short factual acknowledgement using only supplied facts. "
-                "Do not repeat the earlier discovery description; focus on mapping completion, efficiency, or newly confirmed biology. "
+                "Do not repeat the earlier discovery description; focus on mapping completion or newly confirmed biology. Never recite probe counts or a successful efficiency bonus. Mention efficiency only when efficiency_bonus_met is explicitly false, or the commander asks. "
                 + self.EXPLORER_STYLE_GUARD + " "
                 + f"Mapping facts: {json.dumps(data, ensure_ascii=False)}"
             )
@@ -811,6 +836,8 @@ class TARSExplorer(PluginBase):
         payload = {
             "system": self._system_name or None,
             "body": self._display_name(body),
+            "body_name": body.name or None, "body_id": body.body_id,
+            "system_address": self._system_address,
             "planet_class": body.planet_class or None,
             "terraformable": body.terraformable,
             "landable": body.landable,
@@ -863,6 +890,7 @@ class TARSExplorer(PluginBase):
             return cooldown
 
         data = dict(payload)
+        data.update(body_name=body.name or None, body_id=body.body_id, system_address=self._system_address)
         data["callout_kind"] = callout_kind
         data.setdefault("system", self._system_name or None)
         self._announced_callouts.add(key)
@@ -927,7 +955,11 @@ class TARSExplorer(PluginBase):
 
         dss_mapped = sum(1 for b in planets if b.dss_mapped)
         return {
-            "body_count": self._expected_bodies or len(self._bodies),
+            "body_count": self._confirmed_body_count,
+            "body_count_source": "FSSAllBodiesFound.Count" if self._confirmed_body_count is not None else "unknown",
+            "discovery_body_count": self._discovery_body_count,
+            "count_changed_since_discovery": (self._confirmed_body_count is not None and self._discovery_body_count is not None
+                                               and self._confirmed_body_count != self._discovery_body_count),
             "system_composition": composition,
             "fss_complete": self._fss_complete,
             "dss_mapped_bodies": dss_mapped,
@@ -1178,7 +1210,45 @@ class TARSExplorer(PluginBase):
     # Journal ingestion
     # ------------------------------------------------------------------
 
+    def _departure_targets(self):
+        ranked = {self._display_name(body): self._priority_score(body) for body in self._planet_bodies()}
+        return sorted(self._unfinished_targets(), key=lambda target: -ranked.get(target["body"], 0))
+
+    def _observe_departure_status(self, status):
+        if status.get("event") != "Status":
+            return
+        flags, flags2 = status.get("flags") or {}, status.get("flags2") or {}
+        if flags.get("FsdJump"):
+            self._departure_started = True
+        if self._departure_started:
+            if flags.get("FsdCharging") or flags.get("FsdJump"):
+                if self._departure_charging:
+                    self._departure_charging = False
+                    self._departure_generation += 1
+                return
+            self._departure_started = False
+        charging = bool(flags.get("FsdCharging") and flags2.get("FsdHyperdriveCharging")
+                        and not flags.get("FsdJump"))
+        if charging == self._departure_charging:
+            return
+        self._departure_charging = charging
+        self._departure_generation += 1
+        if charging:
+            targets = self._departure_targets()[:3]
+            if targets:
+                signature = sha256(json.dumps(targets, sort_keys=True).encode()).hexdigest()
+                self._dispatch_milestone("unfinished_target", {
+                    "departing_system": self._system_name, "targets": targets,
+                    "warning_trigger": "FsdHyperdriveCharging",
+                    "charge_generation": self._departure_generation,
+                }, "early-departure:" + signature)
+
     def _observe_event(self, event: Any, context: dict):
+        if getattr(event, "kind", None) == "status":
+            status = getattr(event, "status", None)
+            if isinstance(status, dict):
+                self._observe_departure_status(status)
+            return
         if getattr(event, "kind", None) != "game":
             return
         content = getattr(event, "content", None)
@@ -1190,16 +1260,10 @@ class TARSExplorer(PluginBase):
         event = content.get("event")
 
         if event == "StartJump":
-            # If COVAS exposes StartJump, this is the last sensible moment for an
-            # unfinished-target reminder. Never emit an old-system warning after FSDJump.
-            if not rebuilding and _clean(content.get("JumpType")).casefold() == "hyperspace":
-                unfinished = self._unfinished_targets()
-                if unfinished:
-                    self._dispatch_milestone(
-                        "unfinished_target",
-                        {"departing_system": self._system_name, "targets": unfinished[:3]},
-                        f"departure:{self._system_name}",
-                    )
+            # Departure is already committed: invalidate, never generate a late reminder.
+            self._departure_started = True
+            self._departure_charging = False
+            self._departure_generation += 1
             return
 
         if event in ("FSDJump", "Location", "CarrierJump"):
@@ -1214,6 +1278,19 @@ class TARSExplorer(PluginBase):
 
         if not self._belongs_to_current_system(content):
             return
+
+        if event in ("Scan", "FSSBodySignals", "SAASignalsFound", "SAAScanComplete", "ScanOrganic"):
+            source_id = _safe_int(content.get("Body") if event == "ScanOrganic" else content.get("BodyID"))
+            source_name = _clean(content.get("BodyName"))
+            if source_id is None and not source_name:
+                return  # No evidence identifies a body; do not borrow current-body context.
+            existing_key = self._body_id_to_key.get(source_id)
+            existing = self._bodies.get(existing_key) if existing_key else None
+            name_key = self._find_body_key_by_name(source_name) if source_name else None
+            named = self._bodies.get(name_key) if name_key else None
+            if (existing and source_name and existing.name and existing.name.casefold() != source_name.casefold()) or (
+                    named and source_id is not None and named.body_id not in (None, source_id)):
+                return  # Inconsistent source identity: preserve prior facts rather than merging bodies.
 
         if event == "ApproachBody":
             self._current_body_name = _clean(content.get("Body") or content.get("BodyName"))
@@ -1243,16 +1320,19 @@ class TARSExplorer(PluginBase):
             return
 
         if event in ("FSSDiscoveryScan", "DiscoveryScan"):
-            count = _safe_int(content.get("BodyCount") or content.get("Bodies"))
-            if count is not None:
-                self._expected_bodies = max(self._expected_bodies or 0, count)
+            count = _safe_int(content.get("BodyCount", content.get("Bodies")))
+            if count is not None and count >= 0:
+                self._discovery_body_count = count
+                if not self._fss_complete:
+                    self._expected_bodies = count
             # Honk/body count is state only. Body count alone is never a speech opportunity.
             return
 
         if event == "FSSAllBodiesFound":
             self._fss_complete = True
             count = _safe_int(content.get("Count"))
-            if count is not None:
+            if count is not None and count >= 0:
+                self._confirmed_body_count = count
                 self._expected_bodies = count
             if not rebuilding:
                 # The journal/COVAS event stream may still contain same-second Scan
@@ -1309,7 +1389,8 @@ class TARSExplorer(PluginBase):
                         {
                             "body": self._display_name(body),
                             "reasons": reasons,
-                            "efficiency_bonus_met": body.dss_efficiency,
+                            **({"efficiency_bonus_met": False, "probes_used": probes,
+                                "efficiency_target": target} if body.dss_efficiency is False else {}),
                             "biological_signals": body.biological_signals,
                             "confirmed_genuses": body.confirmed_genuses,
                         },
@@ -1461,7 +1542,8 @@ class TARSExplorer(PluginBase):
 
         # Absence is only authoritative after FSSAllBodiesFound. Before that these
         # values mean "known so far" and must never be used to claim zero planets.
-        confirmed = bool(self._fss_complete)
+        confirmed = bool(self._fss_complete and self._confirmed_body_count is not None
+                         and len(self._bodies) >= self._confirmed_body_count)
         unresolved = None
         if self._expected_bodies is not None:
             unresolved = max(0, self._expected_bodies - len(self._bodies))
@@ -1638,7 +1720,7 @@ class TARSExplorer(PluginBase):
     def _unfinished_targets(self) -> list[dict]:
         targets=[]
         for b in self._planet_bodies():
-            important = bool(b.interesting_world_type or b.terraformable or b.biological_signals >= self._minimum_bio_signals() or self._exceptional_reasons(b))
+            important = bool(b.interesting_world_type or b.terraformable or b.confirmed_genuses or b.biological_signals >= self._minimum_bio_signals() or self._exceptional_reasons(b))
             if not important: continue
             reasons=[]
             if (b.interesting_world_type or b.terraformable) and not b.dss_mapped and b.was_mapped is not True:

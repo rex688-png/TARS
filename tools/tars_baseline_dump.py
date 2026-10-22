@@ -33,7 +33,13 @@ TARS_SRC = TARS_ROOT / "src"
 PLUGINS_ROOT = TARS_ROOT.parent / "TARS-Plugins"
 PLUGIN_DIRECTORY = PLUGINS_ROOT / "plugins"
 TARS_BASELINE = "f0153840016e33c498eafd5ea197963bcf776987"
+# Same audit baseline in the already-rewritten public history. Keep the original
+# evidence SHA above in snapshots; never import the old history to satisfy it.
+PUBLIC_TARS_BASELINE = "cd460841c57a29ac0cd9fe670379db6551d55193"
 PLUGINS_BASELINE = "685e16a19d5a5cd83f16297b90ee4c58ba8e11b5"
+# Prompt snapshots were deliberately last updated by this product commit.
+# The older audit identity in snapshot metadata remains immutable evidence.
+SNAPSHOT_HOST_REVISION = "8fa6b62f829e25467d7fc859fd9e0f2916059aca"
 PLUGIN_NAMES = (
     "TARSExplorer",
     "TARSNavigator",
@@ -440,8 +446,8 @@ def _prompt_fixture(name: str, prompt_generator, states, memory: bool = False) -
     return normalized
 
 
-def build_baseline() -> dict[str, Any]:
-    if not _git_is_ancestor(TARS_ROOT, TARS_BASELINE):
+def _build_baseline() -> dict[str, Any]:
+    if not _git_is_ancestor(TARS_ROOT, PUBLIC_TARS_BASELINE):
         raise RuntimeError("Pinned TARS baseline is not an ancestor of the current checkout")
     if not PLUGINS_ROOT.is_dir():
         raise RuntimeError(
@@ -662,6 +668,51 @@ def build_baseline() -> dict[str, Any]:
         },
     }
 
+
+
+def build_baseline() -> dict[str, Any]:
+    """Execute pinned snapshot sources, isolated from already-imported current lib modules.
+
+    Requires local Git objects only; never downloads old public/secret history or
+    changes the primary checkouts. Missing historical sources are an explicit error.
+    """
+    sources = ((TARS_ROOT, SNAPSHOT_HOST_REVISION), (PLUGINS_ROOT, PLUGINS_BASELINE))
+    for repo, revision in sources:
+        result = subprocess.run(['git', '-C', str(repo), 'cat-file', '-e', revision + '^{commit}'],
+                                capture_output=True)
+        if result.returncode:
+            raise RuntimeError(f"Historical validation requires local Git source {revision} in {repo}")
+    with tempfile.TemporaryDirectory(prefix='tars-pinned-baseline-') as temporary:
+        created = []
+        try:
+            for index, (repo, revision) in enumerate(sources):
+                checkout = Path(temporary) / str(index)
+                subprocess.run(['git', '-C', str(repo), 'worktree', 'add', '--quiet', '--detach',
+                                str(checkout), revision], check=True, capture_output=True)
+                created.append((repo, checkout))
+            worker = r"""
+import contextlib, importlib.util, io, json, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('pinned_baseline_worker', sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+module.TARS_ROOT = Path(sys.argv[2])
+module.TARS_SRC = module.TARS_ROOT / 'src'
+module.PLUGINS_ROOT = Path(sys.argv[3])
+module.PLUGIN_DIRECTORY = module.PLUGINS_ROOT / 'plugins'
+with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    baseline = module._build_baseline()
+print(json.dumps(baseline))
+"""
+            result = subprocess.run([sys.executable, '-I', '-c', worker, str(Path(__file__).resolve()),
+                                     str(created[0][1]), str(created[1][1])],
+                                    check=True, capture_output=True, text=True)
+            return json.loads(result.stdout)
+        finally:
+            for repo, checkout in reversed(created):
+                subprocess.run(['git', '-C', str(repo), 'worktree', 'remove', '--force',
+                                str(checkout)], check=True, capture_output=True)
 
 def write_snapshots(baseline: dict[str, Any], snapshot_root: Path) -> None:
     snapshot_root.mkdir(parents=True, exist_ok=True)

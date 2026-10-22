@@ -36,6 +36,7 @@ export class SettingsGridComponent {
     @Input() setValue!: (fieldKey: string, value: any) => void;
 
     @Input() onButtonClick?: (fieldKey: string) => void;
+    @Input() buttonEnabled: boolean = true;
     
     /**
      * Optional: Header level for the grid label (default: h3).

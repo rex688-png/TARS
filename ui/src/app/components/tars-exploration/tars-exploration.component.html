@@ -1,0 +1,20 @@
+<header class="exploration-heading"><p>ELITE / EXPLORATION</p><h1>Exploration</h1><span>Current journal data</span></header>
+<div class="exploration-summary">
+  <section><h2>Current system</h2><strong>{{ system || 'Waiting for Elite journal' }}</strong>@if (body) { <p>Body · {{ body }}</p> }</section>
+  <section><h2>Route</h2><strong>{{ destination || 'No recorded route' }}</strong>@if (destination) { <p>{{ route.length }} jumps in current NavRoute</p> }</section>
+  <section><h2>Biology</h2><strong>{{ organism || 'No active sample' }}</strong>@if (sampleCount !== null && organism) { <p>{{ sampleCount }} samples recorded for current organism</p> }</section>
+</div>
+@if (navigation?.systemRecord) {
+  <div class="exploration-summary discoveries">
+    <section><h2>FSS / Identified bodies</h2><strong>{{ navigation?.bodiesDisplay }}</strong><p>From the recorded system scan</p></section>
+    <section><h2>Notable worlds</h2><strong>{{ notableWorlds.length }}</strong><p>Worlds flagged in the system record</p></section>
+    <section><h2>Biological signals</h2><strong>{{ biologicalBodies }}</strong><p>Bodies with recorded signals or genuses</p></section>
+  </div>
+  @if (notableWorlds.length) {
+    <div class="notable-list"><h2>Notable worlds</h2>
+      @for (world of notableWorlds; track world.name) { <div><strong>{{ world.name }}</strong><span>{{ world.reason }}</span></div> }
+    </div>
+  }
+}
+<details class="exploration-detail"><summary>System discoveries, notable worlds and route detail</summary><app-navigation-container></app-navigation-container></details>
+<p class="data-note">Expedition and Observatory findings appear here only when their runtime data is exposed. TARS can discuss them in conversation now.</p>

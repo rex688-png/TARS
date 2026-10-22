@@ -14,7 +14,7 @@
         <app-settings-field
             [field]="field"
             [value]="getFieldValue(field)"
-            [buttonEnabled]="onButtonClick !== undefined"
+            [buttonEnabled]="onButtonClick !== undefined && buttonEnabled"
             (valueChange)="onFieldChange(field, $event)"
             (buttonClick)="handleButtonClick(field)">
         </app-settings-field>

@@ -21,13 +21,21 @@ export function configureTarsApplication(app) {
   return paths;
 }
 
-export function buildBackendEnvironment(baseEnvironment, enabled, resourcesPath = undefined) {
+export function buildBackendEnvironment(
+  baseEnvironment,
+  enabled,
+  resourcesPath = undefined,
+  userDataPath = undefined,
+) {
   return enabled
     ? {
         ...baseEnvironment,
         TARS_RUNTIME_PROFILE: '1',
         ...(resourcesPath
           ? { TARS_BUNDLED_RESOURCES: path.join(resourcesPath, 'tars-plugins') }
+          : {}),
+        ...(userDataPath
+          ? { TARS_PROVIDER_ROOT: path.join(userDataPath, 'providers') }
           : {}),
       }
     : { ...baseEnvironment };

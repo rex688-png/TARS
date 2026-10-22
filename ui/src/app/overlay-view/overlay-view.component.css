@@ -95,7 +95,7 @@
   aspect-ratio: 1;
   grid-area: pngtuber;
   /* Default fallback image - now handled dynamically in TypeScript based on position */
-  background-image: url('../../assets/cn_avatar_default.svg');
+  background-image: url('../../assets/Obraz ChatGPT 28 wrz 2026, 21_39_52.png');
   background-size: 200%;
   background-position: 0% 0%;
   background-repeat: no-repeat;

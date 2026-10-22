@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Literal, Optional, cast
 
 from typing_extensions import override
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from ..Config import get_asset_path
 from ..Event import Event, GameEvent, ProjectedEvent, StatusEvent
@@ -29,6 +29,9 @@ from ..EventModels import (
 
 with open(get_asset_path("ship_sizes.json"), encoding="utf-8") as handle:
     ship_sizes: dict[str, Literal["S", "M", "L", "Unknown"]] = json.load(handle)
+
+with open(get_asset_path("ship_display_names.json"), encoding="utf-8") as handle:
+    ship_display_names: dict[str, str] = json.load(handle)
 
 with open(get_asset_path("fsd_stats.json"), encoding="utf-8") as handle:
     fsd_stats_payload = json.load(handle)
@@ -58,6 +61,7 @@ class ShipInfoStateModel(BaseModel):
     """Current ship information and capabilities."""
     Name: str = Field(default="Unknown", description="Custom ship name")
     Type: str = Field(default="Unknown", description="Ship type identifier")
+    Model: str = Field(default="Unknown", description="Authoritative display name for ship model")
     ShipIdent: str = Field(default="Unknown", description="Ship identification code")
     UnladenMass: float = Field(default=0, description="Ship mass without cargo or fuel (tons)")
     Cargo: float = Field(default=0, description="Current cargo weight (tons)")
@@ -85,6 +89,14 @@ class ShipInfoStateModel(BaseModel):
     Fighters: list[FighterState] = Field(default_factory=list, description="Ship-launched fighters status")
     fighter_loadout: Optional[str] = Field(default=None, description="Loadout of the launched fighter")
 
+    @model_validator(mode="after")
+    def restore_model_for_saved_projection(self):
+        # Older stored projections have Type but no Model. Resolve the display
+        # name when they are hydrated, before the next live Loadout arrives.
+        if self.Model == "Unknown" and self.Type != "Unknown":
+            self.Model = ship_display_names.get(self.Type.lower(), self.Type)
+        return self
+
 
 class ShipInfo(Projection[ShipInfoStateModel]):
     StateModel = ShipInfoStateModel
@@ -111,6 +123,7 @@ class ShipInfo(Projection[ShipInfoStateModel]):
                 self.state.Name = payload.get("ShipName") or "Unknown"
             if "Ship" in payload:
                 self.state.Type = payload.get("Ship") or "Unknown"
+                self.state.Model = ship_display_names.get(self.state.Type.lower(), self.state.Type)
             if "ShipIdent" in payload:
                 self.state.ShipIdent = payload.get("ShipIdent") or "Unknown"
             if "UnladenMass" in payload:

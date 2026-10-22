@@ -1,5 +1,9 @@
 # Plugin development for COVAS:NEXT
 
+> **Upstream reference:** TARS currently loads its verified six-plugin bundle
+> and approved provider packages. The generic plugin installation workflow
+> below does not enable arbitrary plugins in the TARS product profile.
+
 Do you want to build a plugin, to expand on COVAS' features? This page will help you get started.
 
 ## Prerequisites

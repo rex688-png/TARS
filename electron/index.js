@@ -23,6 +23,7 @@ import {
   selectOverlayDisplay,
 } from './desktop-overlay-lifecycle.js';
 import { buildBackendEnvironment, configureTarsApplication } from './tars-runtime-profile.js';
+import { resolveAppUiAssetPath } from './app-ui-assets.js';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 const isLinux = process.platform === 'linux';
@@ -300,7 +301,7 @@ function toVrIntegrationError(action, error) {
     return new Error('OpenXR application integration is not available on this device.');
   }
   if (lowerDetails.includes('utility is unavailable')) {
-    return new Error('The VR integration component is missing from this installation. Repair or reinstall COVAS:NEXT.');
+    return new Error('The VR integration component is missing from this installation. Repair or reinstall TARS.');
   }
   const message = action === 'install'
     ? 'OpenXR integration could not be installed for this user.'
@@ -318,7 +319,7 @@ async function getVrCompatibilityState() {
     return toProductVRState(await VROverlay.getCompatibilityReport());
   } catch (error) {
     logger.warn({ err: error }, 'VR compatibility probe failed');
-    throw new Error('VR support could not be checked. Try again or repair the COVAS:NEXT installation.');
+    throw new Error('VR support could not be checked. Try again or repair the TARS installation.');
   }
 }
 
@@ -627,7 +628,12 @@ class BackendService {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: config.backend_cwd,
       env: {
-        ...buildBackendEnvironment(process.env, tarsRuntimeProfile, process.resourcesPath),
+        ...buildBackendEnvironment(
+          process.env,
+          tarsRuntimeProfile,
+          process.resourcesPath,
+          tarsApplicationPaths?.userData,
+        ),
         // set unbuffered python
         PYTHONUNBUFFERED: 1,
       }
@@ -761,6 +767,7 @@ function createMainWindow() {
     width: 1024,
     height: 768,
     title: tarsRuntimeProfile ? 'TARS' : 'COVAS:NEXT',
+    icon: path.join(import.meta.dirname, 'icon.png'),
     webPreferences: {
       preload: overlayPreloadPath
     }
@@ -1150,11 +1157,11 @@ function tokensMatch(value, expected) {
 function remoteInterfaceLoginPage(error = false) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>COVAS:NEXT Remote Interface</title><style>
+<title>TARS Remote Interface</title><style>
 body { align-items: center; background: #121212; color: #f2f2f2; display: flex; font: 1rem system-ui, sans-serif; justify-content: center; margin: 0; min-height: 100vh; }
 main { background: #202020; border-radius: 10px; box-shadow: 0 12px 32px #0008; max-width: 22rem; padding: 2rem; width: calc(100% - 4rem); }
 h1 { font-size: 1.25rem; margin-top: 0; } p { color: #c7c7c7; } input, button { box-sizing: border-box; font: inherit; width: 100%; } input { border: 1px solid #777; border-radius: 4px; letter-spacing: .2em; margin: 1rem 0; padding: .75rem; } button { background: #3f51b5; border: 0; border-radius: 4px; color: white; cursor: pointer; padding: .75rem; } .error { color: #ff8a80; }
-</style></head><body><main><h1>COVAS:NEXT Remote Interface</h1><p>Enter the four-digit PIN shown in the desktop app.</p>${error ? '<p class="error">Incorrect PIN. Please try again.</p>' : ''}<form method="post" action="/auth"><input aria-label="PIN" autocomplete="one-time-code" inputmode="numeric" maxlength="4" name="pin" pattern="[0-9]{4}" required type="password"><button type="submit">Open interface</button></form></main><script>const pin = new URLSearchParams(location.hash.slice(1)).get('pin'); if (/^\\d{4}$/.test(pin ?? '')) { document.querySelector('input[name="pin"]').value = pin; document.querySelector('form').requestSubmit(); }</script></body></html>`;
+</style></head><body><main><h1>TARS Remote Interface</h1><p>Enter the four-digit PIN shown in the desktop app.</p>${error ? '<p class="error">Incorrect PIN. Please try again.</p>' : ''}<form method="post" action="/auth"><input aria-label="PIN" autocomplete="one-time-code" inputmode="numeric" maxlength="4" name="pin" pattern="[0-9]{4}" required type="password"><button type="submit">Open interface</button></form></main><script>const pin = new URLSearchParams(location.hash.slice(1)).get('pin'); if (/^\\d{4}$/.test(pin ?? '')) { document.querySelector('input[name="pin"]').value = pin; document.querySelector('form').requestSubmit(); }</script></body></html>`;
 }
 
 function sendRemoteInterfaceLogin(response, statusCode, error = false) {
@@ -1332,14 +1339,9 @@ function getRemoteInterfaceState() {
 app.whenReady().then(async ()=>{
 
   protocol.handle('app', (request) => {
-    const requestUrl = new URL(request.url);
-    const resolved = url.pathToFileURL(path.join(import.meta.dirname, './ui/', requestUrl.pathname)).toString()
-    //logger.info(request.url, '->', resolved)
-    // if file is directory, return index.html
-    if (requestUrl.pathname.endsWith('/')) {
-      return net.fetch(url.pathToFileURL(path.join(import.meta.dirname, './ui/index.html')).toString())
-    }
-    return net.fetch(resolved)
+    const filePath = resolveAppUiAssetPath(path.join(import.meta.dirname, 'ui'), request.url);
+    if (!filePath) return new Response('Invalid asset path', { status: 400 });
+    return net.fetch(url.pathToFileURL(filePath).toString());
   })
 
   const backend = new BackendService();

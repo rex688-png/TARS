@@ -71,7 +71,7 @@
                     <h3><mat-icon>visibility</mat-icon>Visual Analysis</h3>
                     <div class="inline-action">
                         <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                            <mat-label>What should COVAS inspect?</mat-label>
+                            <mat-label>What should TARS inspect?</mat-label>
                             <input matInput [(ngModel)]="visualQuery" (keyup.enter)="inspectVisuals()" maxlength="500">
                         </mat-form-field>
                         <button mat-flat-button type="button" (click)="inspectVisuals()" [disabled]="isSending || !visualQuery.trim()">

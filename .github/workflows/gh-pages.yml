@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+    paths: ["docs/**", "mkdocs.yml", ".github/workflows/gh-pages.yml"]
 
 permissions:
   contents: read # Adjusted from 'write'
@@ -13,7 +14,7 @@ permissions:
 # Used to avoid concurrency issues
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -22,9 +23,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }} # Retrieved from deploy-pages action
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Removed Git Credentials setup (Redundant)
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.x
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV

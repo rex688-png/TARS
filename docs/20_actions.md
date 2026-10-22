@@ -1,12 +1,12 @@
 # Actions
 
-Actions (also called Tools, Commands, or Functions) are the actions that COVAS:NEXT can perform in Elite: Dangerous or outside. There is no need to remember specific commands, as the AI will understand your intent and perform the action accordingly.
+Actions (also called tools or commands) are operations TARS can perform in Elite Dangerous or outside. You can ask TARS naturally; available actions depend on runtime readiness and Elite bindings.
 Primarily, these actions can be used to control various ship/srv/suit operations, such as firing weapons, adjusting speed, deploying heat sinks, and more.
 Additionally, the AI can fetch internet data if it deems it relevant for the conversation, by either your inquiry or game events happening.
 
 ## Keyboard and Mouse Bindings
 
-COVAS:NEXT uses your Elite: Dangerous control bindings to emulate button presses, allowing the AI to control various ship/SRV/suit operations.
+TARS uses your Elite Dangerous control bindings to emulate button presses for supported ship/SRV/suit operations.
 Keyboard and mouse bindings are supported. When both keyboard and mouse buttons are assigned for the same game action, COVAS:NEXT will prefer the keyboard binding. If there are multiple keyboard buttons assigned for one game action, COVAS:NEXT will prefer the secondary binding unless configured otherwise.
 
 Supported mouse inputs:
@@ -18,7 +18,7 @@ Supported mouse inputs:
 
 ## Usage with HOTAS or other Controllers
 
-A common workaround is to assign keyboard bindings alongside your controller bindings, even if you don't use a keyboard. This allows COVAS:NEXT to use these keybindings for its commands, while you continue to use your controller for the game.
+A common workaround is to assign keyboard bindings alongside your controller bindings, even if you don't use a keyboard. This allows TARS to use these keybindings for its commands, while you continue to use your controller for the game.
 
 ## Available Game Actions
 

@@ -1,5 +1,11 @@
 @for (msg of chat; track msg.index) {
-  <div class="chat-entry" [ngClass]="getEventClass(msg.role, msg.message)">
+  @if (msg.role === 'search_result' && msg.searchDetails && !limit) {
+    <details class="search-result-card">
+      <summary><span>SEARCH RESULT</span><strong>{{ searchTitle(msg.searchDetails) }}</strong><em>View details</em></summary>
+      <div class="search-result-content"><markdown [data]="msg.searchDetails"></markdown></div>
+    </details>
+  } @else {
+  <div class="chat-entry" [ngClass]="getEventClass(msg.role, msg.message)" [class.tars-message]="msg.role === 'covas' || msg.role === 'plugin'" [class.commander-message]="msg.role === 'cmdr'">
     <span class="timestamp">{{ msg.timestamp | date:'HH:mm:ss' }}</span>
     <span class="prefix" [style.color]="msg.display_color || getLogColor(msg.role)">{{ getDisplayName(msg) }}</span>
     <span class="message">{{ formatMessage(msg) }}</span>
@@ -7,4 +13,8 @@
       <span class="processing-text">{{ msg.processingText }}</span>
     }
   </div>
+  }
+}
+@if (hasNewMessages && !limit) {
+  <button class="new-messages" type="button" (click)="returnToBottom()">New messages ↓</button>
 }

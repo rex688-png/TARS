@@ -1,3 +1,4 @@
+from .SpeechTrace import generation as trace_generation
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Generator, Iterable
 import io
@@ -24,6 +25,14 @@ class LLMError(Exception):
         self.original_error = original_error
 
 class LLMModel(ABC):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        implementation = cls.__dict__.get("generate")
+        if isinstance(implementation, (staticmethod, classmethod)):
+            cls.generate = type(implementation)(trace_generation(implementation.__func__))
+        elif callable(implementation):
+            cls.generate = trace_generation(implementation)
+
     model_name: str
     provider_name: str | None
 
@@ -288,11 +297,11 @@ class OpenAILLMModel(LLMModel):
             raise LLMError(f'LLM Error: {str(e)}', e)
 
         if not isinstance(completion, ChatCompletion) or hasattr(completion, 'error'):
-            log("debug", "LLM completion error:", completion)
+            log("debug", "LLM completion error; response content omitted")
             raise LLMError("LLM error: No valid completion received")
         
         if not completion.choices:
-            log("debug", "LLM completion has no choices:", completion)
+            log("debug", "LLM completion has no choices; response content omitted")
             return (
                 None,
                 None,
@@ -305,7 +314,7 @@ class OpenAILLMModel(LLMModel):
             ) # Treated as "..."
 
         if not hasattr(completion.choices[0], 'message') or not completion.choices[0].message:
-            log("debug", "LLM completion choice has no message:", completion)
+            log("debug", "LLM completion choice has no message; response content omitted")
             return (
                 None,
                 None,
@@ -336,7 +345,7 @@ class OpenAILLMModel(LLMModel):
         if hasattr(completion.choices[0].message, 'content'):
             response_text = self._extract_response_text(completion.choices[0].message.content)
             if response_text is None:
-                log("debug", "LLM completion no content:", completion)
+                log("debug", "LLM completion no content; response content omitted")
         else:
             log("debug", f'LLM completion without text')
             response_text = None

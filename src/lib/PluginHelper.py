@@ -1,6 +1,8 @@
+from . import SpeechTrace as speech_trace
 from pydantic.main import BaseModel
 import inspect
 import os
+import queue
 from typing import Any, Callable, TypeVar
 
 from .Models import LLMModel, STTModel, TTSModel, EmbeddingModel
@@ -31,6 +33,41 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .PluginManager import PluginManager
     from .PluginBase import PluginManifest
+
+class OptionalSpeechHandle:
+    """Preparation capability; dispatch atomically transfers ownership to the host."""
+    def __init__(self, helper, triggered_at):
+        self.helper = helper
+        self.arbiter = helper._assistant.speech_arbiter()
+        self.arbiter.note_cancellation(getattr(helper._assistant.tts, '_abort_revision', None))
+        self.lease = self.arbiter.begin_optional(triggered_at, helper._config.get('speech_director_mode', 'observe'),
+                                                  busy=helper._optional_priority_pending())
+        self.allowed = self.lease.allowed
+        self.enforcing = self.lease.mode == 'enforce'
+        self.closed = False
+
+    def valid(self):
+        mode = self.arbiter.configure(self.helper._config.get('speech_director_mode', 'observe'))
+        if mode != self.lease.mode and 'enforce' in (mode, self.lease.mode):
+            return False
+        self.arbiter.note_cancellation(getattr(self.helper._assistant.tts, '_abort_revision', None))
+        if self.closed and self.lease.mode == 'enforce':
+            return False
+        return self.arbiter.optional_valid(self.lease, self.helper._optional_priority_pending())
+
+    def dispatch(self, event):
+        if not self.valid():
+            return False
+        def dispatch(token):
+            if token is not None:
+                event.plugin_event_content = {**event.plugin_event_content, '_speech_admission': token}
+            self.helper.dispatch_event(event)
+        return self.arbiter.dispatch_optional(self.lease, self.helper._optional_priority_pending, dispatch)
+
+    def close(self):
+        self.closed = True
+        self.arbiter.release_optional(self.lease)
+
 
 class PluginHelper():
     """Contains all built-inservices and managers that can be used by plugins"""
@@ -140,7 +177,57 @@ class PluginHelper():
         """
         if not isinstance(event, PluginEvent):
             raise ValueError("Event must be of type PluginEvent")
+        speech_trace.observe_event("plugin_dispatched", event)
         self._event_manager.incoming.put(event)
+
+    def record_chatter_diagnostic(self, reason):
+        if reason in ('scheduled', 'cooldown', 'assistant_activity', 'game_activity',
+                      'user_activity', 'host_busy', 'deliberate_silence', 'context_missing',
+                      'context_used', 'quality_rejected', 'host_admission', 'candidate_accepted',
+                      'dispatched', 'model_skip', 'generation_failed', 'session_context', 'model_unavailable'):
+            speech_trace.emit('chatter_opportunity', source='chatter', reason=reason)
+
+    def preview_optional_speech(self) -> bool:
+        """Legacy advisory preview; preparation should use reserve_optional_speech."""
+        _, states = self._event_manager.get_current_state()
+        return self._assistant.speech_arbiter().preview_optional(
+            states, self._config.get("speech_director_mode", "observe"))
+
+    def _optional_priority_pending(self):
+        from .Event import ConversationEvent, ToolEvent, GameEvent, StatusEvent
+        from .SpeechArbiter import source
+        assistant = self._assistant
+        if assistant.reply_pending or assistant.is_replying:
+            return True
+        events = list(assistant.pending)
+        incoming = getattr(self._event_manager, 'incoming', None)
+        if isinstance(incoming, queue.Queue):
+            with incoming.mutex:
+                events += list(incoming.queue)
+        for event in events:
+            if getattr(event, 'do_not_reply', False):
+                continue
+            if isinstance(event, ToolEvent) or (isinstance(event, ConversationEvent) and event.kind in ('user', 'user_speaking')):
+                return True
+            if source(event) in ('explorer', 'observatory', 'navigator'):
+                return True
+            data = event.content if isinstance(event, GameEvent) else event.status if isinstance(event, StatusEvent) else {}
+            if data.get('event') in assistant.enabled_game_events:
+                return True
+        return False
+
+    def reserve_optional_speech(self, triggered_at):
+        return OptionalSpeechHandle(self, triggered_at)
+
+    def optional_speech_event_valid(self, event):
+        data = getattr(event, 'plugin_event_content', {})
+        token = data.get('_speech_admission') if isinstance(data, dict) else None
+        if token is None or self._config.get('speech_director_mode', 'observe') != 'enforce':
+            return True
+        return self._assistant.speech_arbiter().optional_event_valid(token)
+
+    def cancel_optional_speech(self):
+        self._assistant.speech_arbiter().cancel_optional('stopped')
 
     def send_key(self, key_name: str, *args, **kwargs):
         """Send a key"""
@@ -172,8 +259,19 @@ class PluginHelper():
             if event.plugin_event_name != name:
                 return None
             try:
-                return should_reply_check(event)
+                selected = should_reply_check(event)
+                if not selected and isinstance(event.plugin_event_content, dict):
+                    token = event.plugin_event_content.get('_speech_admission')
+                    if token is not None:
+                        self._assistant.speech_arbiter().discard_optional(token)
+                speech_trace.observe_event("plugin_reply_check", event, selected=bool(selected))
+                return selected
             except Exception as e:
+                if isinstance(event.plugin_event_content, dict):
+                    token = event.plugin_event_content.get('_speech_admission')
+                    if token is not None:
+                        self._assistant.speech_arbiter().discard_optional(token)
+                speech_trace.observe_event("plugin_reply_check_failed", event)
                 log('error', f"Plugin should_reply_check raised an exception: {e}")
                 return False
         self._assistant.register_should_reply_handler(_should_reply_check)

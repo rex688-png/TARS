@@ -1,17 +1,17 @@
 {
   "name": "tars",
   "version": "0.0.0",
-  "description": "[Getting Started](https://ratherrude.github.io/Elite-Dangerous-AI-Integration/) | [Join our Discord](https://discord.gg/9c58jxVuAT) | [Download latest version](https://github.com/RatherRude/Elite-Dangerous-AI-Integration/releases)",
-  "homepage": "https://github.com/RatherRude/Elite-Dangerous-AI-Integration#readme",
+  "description": "TARS cockpit assistant for Elite Dangerous, built on the mature COVAS:NEXT runtime.",
+  "homepage": "https://github.com/rex688-png/TARS#readme",
   "bugs": {
-    "url": "https://github.com/RatherRude/Elite-Dangerous-AI-Integration/issues"
+    "url": "https://github.com/rex688-png/TARS/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RatherRude/Elite-Dangerous-AI-Integration.git"
+    "url": "git+https://github.com/rex688-png/TARS.git"
   },
   "license": "ISC",
-  "author": "ratherrude",
+  "author": "TARS contributors; based on COVAS:NEXT by RatherRude",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -24,22 +24,21 @@
     "build:ui": "cd ui && npx ng build --configuration production",
     "build:py": "run-script-os",
     "build:py:win32": "powershell ./e2e/build.ps1",
-    "build:py:linux": "./e2e/build.sh",
     "package": "run-script-os",
     "package:win32": "npm run package:dir && npm run package:msi",
-    "package:linux": "npm run package:dir && npm run package:flatpak",
     "package:dir": "electron-builder --dir",
     "package:msi": "electron-builder --win msi",
-    "package:flatpak": "flatpak-builder --force-clean --install-deps-from=flathub --repo=.flatpak-repo --force-clean .flatpak-build  com.covasnext.ui.yml && flatpak build-bundle .flatpak-repo covas-next-ui-development.flatpak com.covasnext.ui --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo",
     "package:run": "run-script-os",
     "package:run:win32": "cd dist/win-unpacked/ && start TARS.exe",
-    "package:run:linux": "cd dist/linux-unpacked/ && ./covas-next",
-    "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js"
+    "test:overlay": "node --test test/electron/desktop-overlay-lifecycle.test.js",
+    "test:frontend-foundation": "node --test test/frontend/run-tests.mjs",
+    "test:browser-settings": "node test/browser/settings-navigation.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
     "electron": "^38.8.6",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "playwright-core": "1.64.0"
   },
   "build": {
     "productName": "TARS",
@@ -47,6 +46,9 @@
     "executableName": "TARS",
     "directories": {
       "buildResources": "electron"
+    },
+    "win": {
+      "icon": "electron/icon.ico"
     },
     "extraResources": [
       {
@@ -56,7 +58,11 @@
       {
         "from": "vendor/tars-plugins",
         "to": "tars-plugins",
-        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
       }
     ],
     "files": [

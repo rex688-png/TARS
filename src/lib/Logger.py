@@ -1,3 +1,4 @@
+from . import SpeechTrace
 import sys
 import traceback
 from typing import Any, Literal, cast
@@ -203,6 +204,8 @@ def show_chat_message(role: str, *args: Any, **payload: Any):
 
 
 def log(prefix: Literal["info", "debug", "warn", "error"], message: Any, *args: Any):
+    if SpeechTrace.enabled:
+        SpeechTrace.observe_message(message)
     output = io.StringIO()
     print(message, *args, file=output)
     contents = output.getvalue().strip()

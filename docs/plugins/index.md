@@ -1,25 +1,20 @@
-# Plugins
+# TARS plugins and local providers
 
-COVAS:NEXT offers an extensive plugin API, which allows 3rd parties to extend the functionality of your assistant, integrating it with various other tools, or just adding additional features.
+The six official behavior plugins are bundled with TARS: **TARS Explorer, TARS
+Navigator, TARS Galaxy, TARS Chatter, TARS Expedition, and TARS Observatory
+Bridge**. They work together as one assistant. The verified source revision and
+file hashes are recorded in `vendor/tars-plugins/provenance.json`. TARS does not
+scan arbitrary plugin folders in its product profile.
 
-# First Official Plugins
+Local providers are separate, optional packages. The controlled provider setup
+can install **Parakeet STT**, **Pocket-TTS 0.0.17-tarsfix**, **Supertonic TTS**,
+and **Gemma Embedding** after an explicit download request. None is bundled in
+the base MSI or portable package. Provider archives are verified before being
+installed under `%APPDATA%\TARS\providers`; restart TARS after installation.
+Settings and credentials live in the TARS user profile, not in provider
+package folders. See [provider setup](../tars-alpha-provider-setup.md) and
+[installation](../tars-installation.md).
 
-| Plugin | Description | Releases |
-|--------|-------------|----------|
-| **Parakeet** | Free, local STT Plugin (Multilingual) | [Releases](https://github.com/COVAS-Labs/plugin-parakeet-stt/releases) |
-| **Supertonic** | Free, local TTS Plugin (Multilingual) | [Releases](https://github.com/COVAS-Labs/plugin-supertonic-tts/releases) |
-| **Pocket-TTS** | Free, local TTS Plugin with basic voice cloning | [Releases](https://github.com/COVAS-Labs/plugin-pocket-tts/releases) |
-| **Gemma** | Free, local Embedding Plugin (Multilingual) | [Releases](https://github.com/COVAS-Labs/plugin-gemma-embedding/releases) |
-| **Elevenlabs** | Paid, Cloud STT&TTS Plugin (Multilingual) | [Releases](https://github.com/COVAS-Labs/plugin-elevenlabs/releases) |
-
-# Plugin installation
-All plugins are installed in the `plugins` folder, found here:  
-
-* Windows: `%appdata%\com.covas-next.ui\plugins`
-* Linux: `~/.var/app/com.covasnext.ui/data/com.covas-next.ui/plugins`
-
-To install a plugin, download the packaged plugin archive and extract it to a subfolder inside the `plugins` directory.  
-Ensure that the manifest is found at `C:/Users/USERNAME/AppData/Roaming/com.covas-next.ui/plugins/SUB-FOLDER/manifest.json`, otherwise the plugin will not load.
-
-# For developers
-See the [Development](./Development.md) page.
+The inherited [plugin development guide](Development.md) describes the upstream
+COVAS:NEXT API. It is reference material, not instructions to install arbitrary
+plugins into the controlled TARS product profile.

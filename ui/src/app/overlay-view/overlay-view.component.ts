@@ -232,6 +232,10 @@ export class OverlayViewComponent implements OnDestroy, AfterViewInit {
     return mime.trim().toLowerCase().split(";")[0]?.trim() ?? null;
   }
 
+  get isCanonicalTarsAvatar(): boolean {
+    return this.effectiveAvatarUrl() === CharacterService.DEFAULT_AVATAR_URL;
+  }
+
   private effectiveAvatarUrl(): string | null {
     return this.currentAvatarUrl ?? (this.scriptedAvatarUrl ? null : this.characterService.getAvatarUrl());
   }

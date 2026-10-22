@@ -1,3 +1,10 @@
+from .JournalFacts import SALE_EVENTS, sale_key
+from .SpeechArbiter import SpeechArbiter, SOURCES as SPEECH_SOURCES
+from . import SpeechTrace as speech_trace
+from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
+from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities, is_silence_sentinel
+from .BodyPresentation import known_body_labels, format_body_identifiers
+from .ExplorerSpeech import departure_warning, warning_text
 import copy
 import json
 import traceback
@@ -33,7 +40,7 @@ from .PromptGenerator import PromptGenerator
 from .TTS import TTS
 from typing import Any,  Callable, final
 import yaml
-from threading import Thread
+from threading import Thread, Lock
 from .actions.Actions import engine_boost, set_speed, fire_weapons, get_visuals
 from .Projections import get_state_dict, ProjectedStates
 from .QuestCatalogManager import remove_orphaned_quest_states
@@ -64,7 +71,14 @@ class Assistant:
         self.quests_loaded = False
         self.quest_version = "0"
 
+    def speech_arbiter(self):
+        # setdefault also makes lazy construction safe for restored/test hosts.
+        if "_speech_arbiter" not in self.__dict__:
+            self.__dict__.setdefault("_speech_arbiter", SpeechArbiter())
+        return self._speech_arbiter
+
     def on_event(self, event: Event, projected_states: ProjectedStates):
+        self.speech_arbiter().note_event(event)
         # Skip disabled game events from entering the pending state
         if isinstance(event, GameEvent) or isinstance(event, StatusEvent):
             event_type = event.content.get('event') if isinstance(event, GameEvent) else event.status.get('event')
@@ -72,7 +86,10 @@ class Assistant:
                 return
 
         self.pending.append(event)
-        self.reply_pending = self.should_reply(projected_states)
+        self.reply_pending = (self.should_reply(projected_states)
+                              or bool(getattr(self, '_speech_deferred', {}))
+                              or bool(getattr(self, '_speech_retry_requested', False)))
+        speech_trace.observe_event("reply_selection", event, selected=bool(self.reply_pending))
 
         if isinstance(event, MemoryEvent):
             self.short_term_memories.append(event)
@@ -150,12 +167,17 @@ class Assistant:
             event for event in self.pending
             if not isinstance(event, (ConversationEvent, ToolEvent))
         ]
-        self.reply_pending = False
+        self.reply_pending = bool(getattr(self, '_speech_deferred', {}))
+        self._speech_retry_requested = False
+        self.speech_arbiter().cancel_optional('context_reset')
 
     def reset_runtime_state(self):
         self.pending = []
         self.reply_pending = False
         self.short_term_memories = []
+        self._speech_deferred = {}
+        self._speech_retry_requested = False
+        self.speech_arbiter().cancel_optional('restart')
 
     def _get_quests_path(self) -> Path:
         return Path(__file__).resolve().parent.parent / "data" / "quests.yaml"
@@ -801,14 +823,17 @@ class Assistant:
         action_descriptions: list[str | None] = []
         action_results: list[Any] = []
         for action in actions:
+            intent = latest_user_intent(list(self.event_manager.processed) + list(self.event_manager.pending))
+            if not action_intent_allowed(action.function.name, intent):
+                result = {'tool_call_id': action.id, 'role': 'tool', 'name': action.function.name,
+                          'content': 'Not executed: explicit commander intent is required.'}
+                self.event_manager.add_tool_call([action.model_dump()], [result], None)
+                action_results.append(result)
+                continue
             action_input_desc = self.action_manager.getActionDesc(action, projected_states)
             action_descriptions.append(action_input_desc)
             if action_input_desc:
-                spoken_action_desc = (
-                    "Searching"
-                    if self.config.get("mute_search", False) and action.function.name == "web_search_agent"
-                    else action_input_desc
-                )
+                spoken_action_desc = spoken_activity(action.function.name)
                 self.tts.say(
                     spoken_action_desc,
                     context="assistant_acting",
@@ -826,7 +851,7 @@ class Assistant:
 
     def verify_action(self, user_input: str, action: ChatCompletionMessageToolCall, prompt: list, tools: list):
         """ Verify the action prediction by sending the user input without any context to the model and check if the action is still predicted """
-        log("debug", "Cache: Verifying action", user_input, action)
+        log("debug", "Cache: Verifying action", action.function.name)
         
         cache_state = self.action_manager.has_action_in_cache(user_input, action, tools)
         if cache_state == False:
@@ -863,15 +888,114 @@ class Assistant:
         thread.start()
         
     @observe()
+    @speech_trace.reply_scope
     def reply_thread(self, projected_states: ProjectedStates):
+        execution = None
+        if self.config.get('speech_director_mode', 'observe') == 'enforce':
+            execution = self.__dict__.setdefault('_speech_execution_lock', Lock())
+            if not execution.acquire(blocking=False):
+                self._speech_retry_requested = True
+                self.reply_pending = True
+                return
+        retrying = bool(getattr(self, '_speech_deferred', {}) or
+                        getattr(self, '_speech_retry_requested', False))
+        self._speech_retry_requested = False
+        self.__dict__.setdefault('_speech_deferred', {})
         self.reply_pending = False
         self.is_replying = True
+        admission = None
+        playback_evidence = "unknown"
+        arbiter = self.speech_arbiter()
         try:
             events = self.event_manager.get_short_term_memory(150)
             events = list(reversed(events))
+            def event_key(event):
+                return (event.kind, event.timestamp, event.processed_at,
+                        getattr(event, 'plugin_event_name', None))
+            known = {event_key(event) for event in events}
+            # Retain a deferred important event even if noisy history exceeds 150.
+            events += [event for key, event in getattr(self, '_speech_deferred', {}).items()
+                       if key not in known]
             new_events = [event for event in events if event.responded_at == None]
+            sale_keys = set(getattr(self, '_sale_reaction_keys', {}))
+            filtered = []
+            for event in new_events:
+                if isinstance(event, GameEvent) and event.content.get('event') in SALE_EVENTS:
+                    key = sale_key(event)
+                    if (event.historic or event.content['event'] not in self.enabled_game_events
+                            or (key is not None and key in sale_keys)):
+                        continue
+                    if key is not None:
+                        sale_keys.add(key)
+                filtered.append(event)
+            removed_sale_only = bool(new_events) and not filtered
+            new_events = filtered
+            self._speech_deferred = {}
             self.pending = []
+            if removed_sale_only:
+                return
+            if retrying and not new_events:
+                return
+            mode = arbiter.configure(self.config.get('speech_director_mode', 'observe'))
+            if mode != 'off':
+                arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
+                from .Event import PluginEvent
+                candidates = [event for event in new_events if
+                    (isinstance(event, ConversationEvent) and event.kind == 'user'
+                     and not getattr(event, 'do_not_reply', False)) or
+                    (isinstance(event, ToolEvent) and not getattr(event, 'do_not_reply', False)) or
+                    (isinstance(event, PluginEvent) and event.plugin_event_name in SPEECH_SOURCES) or
+                    (isinstance(event, GameEvent) and event.content.get('event') in self.enabled_game_events) or
+                    (isinstance(event, StatusEvent) and event.status.get('event') in self.enabled_game_events)]
+                if candidates:
+                    admission = arbiter.reserve(candidates, projected_states, mode)
+                    if not admission.allowed:
+                        # Keep every event in the store/context. Busy is deferred;
+                        # stale/recent attempts wait for the next incoming event.
+                        self._speech_deferred = {event_key(event): event for event, decision
+                                                 in admission.decisions if decision.reason == 'busy'}
+                        self.reply_pending = bool(self._speech_deferred)
+                        return
+            for event in new_events:
+                speech_trace.observe_event("reply_event", event)
             
+            warning = departure_warning(new_events, self.enabled_game_events)
+            if warning is not None:
+                def warning_valid():
+                    for pending in self.pending:
+                        if pending.kind in ('user', 'user_speaking', 'tool'):
+                            return False
+                        data = (pending.content if isinstance(pending, GameEvent) else
+                                pending.status if isinstance(pending, StatusEvent) else {})
+                        if data.get('event') in self.enabled_game_events and data.get('event') != 'FsdCharging':
+                            return False
+                    return any(handler(warning, projected_states) is True
+                               for handler in self.registered_should_reply_handlers)
+                maximum = max([event.processed_at for event in events] + [0.0])
+                text = warning_text(warning) if warning_valid() else ''
+                if text:
+                    labels = known_body_labels(projected_states, new_events)
+                    text = format_body_identifiers(text, known_labels=labels)
+                    spoken = format_body_identifiers(text, known_labels=labels, spoken=True)
+                    speech_trace.emit('generation_bypassed', reason='early_departure_warning')
+                    line = self.tts.say(spoken, context='assistant',
+                        postprocessing_layers=self._get_tts_postprocessing_layers(projected_states),
+                        drop_if=lambda: not warning_valid())
+                    if line.wait_for_speaking():
+                        self.event_manager.add_assistant_speaking()
+                        self.event_manager.add_conversation_event('assistant', text,
+                            reasons=['explorer_departure_warning'], processed_at=maximum)
+                    else:
+                        self.event_manager.short_term_memory.replied_before(maximum)
+                    line.wait_for_completion()
+                    terminal = getattr(line, 'result', None)
+                    if terminal is not None and terminal.output_written:
+                        playback_evidence = 'output_written'
+                else:
+                    self.event_manager.short_term_memory.replied_before(maximum)
+                self.event_manager.add_assistant_complete_event()
+                return
+
             memories = self.event_manager.get_latest_memories(limit=5)
 
 
@@ -916,12 +1040,16 @@ class Assistant:
             allowed_actions = self.config.get("allowed_actions", {})
             in_station = bool(flags.get("Docked"))
             tool_list = self.action_manager.getToolsList(active_mode, uses_actions, uses_web_actions, uses_ui_actions, allowed_actions, in_station) if use_tools else None
+            intent = latest_user_intent(events)
+            if tool_list:
+                tool_list = [tool for tool in tool_list if action_intent_allowed(tool['function']['name'], intent)]
             predicted_actions = None
             if tool_list and user_input and not tool_uses and self.config["use_action_cache_var"]:
                 predicted_actions = self.action_manager.predict_action(user_input[-1], tool_list)
                 
             if predicted_actions:
                 #log('info', 'predicted_actions', predicted_actions)
+                speech_trace.emit("generation_bypassed", reason="action_cache")
                 response_text = None
                 response_actions = predicted_actions
                 log_action_cache_usage(
@@ -934,6 +1062,7 @@ class Assistant:
                 start_time = time()
                     
                 try:
+                    speech_trace.emit("reply_generation_requested")
                     response_text, response_actions, model_usage = self.llmModel.generate(
                         messages=prompt,
                         tools=tool_list,  # pyright: ignore[reportArgumentType]
@@ -941,24 +1070,78 @@ class Assistant:
 
                     log_llm_usage("assistant", model_usage=model_usage, prompt_usage=prompt_usage, llm_model=self.llmModel)
 
+                    if is_silence_sentinel(response_text):
+                        response_text = None
+                        speech_trace.emit("response_discarded", reason="silence_sentinel")
+                        if not response_actions:
+                            self.event_manager.short_term_memory.replied_before(max_conversation_processed)
+                            self.event_manager.add_assistant_complete_event()
+                            return
+
                     if not response_text and not response_actions:
-                        response_text = "..."
+                        speech_trace.emit("response_discarded", reason="empty_model_turn")
+                        # An empty model turn is not a spoken or visible reply.
+                        self.event_manager.short_term_memory.replied_before(max_conversation_processed)
+                        self.event_manager.add_assistant_complete_event()
+                        return
                     end_time = time()
                     log('debug', 'Response time LLM', end_time - start_time)
                 except LLMError as e:
+                    speech_trace.emit("reply_generation_failed")
                     show_chat_message('error', 'LLM Error:', str(e))
                     return
 
             if response_text and not response_actions:
+                from .Event import PluginEvent
+                exploration = any(isinstance(event, PluginEvent) and event.plugin_event_name in
+                    ('TARSExplorerTarget', 'TARSObservatoryFact') for event in new_events)
+                location = get_state_dict(projected_states, 'Location')
+                context = (location.get('StarSystem'), location.get('Body'))
+                if not hasattr(self, '_exploration_callouts'):
+                    self._exploration_callouts = ExplorationCalloutDeduper()
+                response_text = self._exploration_callouts.assemble(response_text,
+                    context=context if context[0] else None, exploration=exploration and not user_input and not tool_uses)
+                if not response_text:
+                    speech_trace.emit("response_discarded", reason="exploration_deduplication")
+                    self.event_manager.short_term_memory.replied_before(max_conversation_processed)
+                    self.event_manager.add_assistant_complete_event()
+            if response_text and not response_actions:
+                labels = known_body_labels(projected_states, new_events)
+                response_text = format_body_identifiers(format_display_quantities(response_text), known_labels=labels)
+                spoken_text = format_body_identifiers(response_text, known_labels=labels, spoken=True)
                 line = self.tts.say(
-                    response_text,
+                    spoken_text,
                     context="assistant",
                     postprocessing_layers=self._get_tts_postprocessing_layers(projected_states),
                 )
-                line.wait_for_speaking()
-                self.event_manager.add_assistant_speaking()
+                if line.wait_for_speaking():
+                    self.event_manager.add_assistant_speaking()
                 self.event_manager.add_conversation_event('assistant', response_text, reasons=reasons, processed_at=max_conversation_processed)
                 line.wait_for_completion()
+                terminal = getattr(line, "result", None)
+                sale_history = self.__dict__.setdefault('_sale_reaction_keys', {})
+                for event in new_events:
+                    key = sale_key(event)
+                    if key is not None:
+                        sale_history[key] = True
+                while len(sale_history) > 512:
+                    sale_history.pop(next(iter(sale_history)))
+                if not user_input and not tool_uses and any(
+                        isinstance(event, PluginEvent) and event.plugin_event_name == 'TARSChatter'
+                        for event in new_events):
+                    outcome = getattr(terminal, 'outcome', 'unknown')
+                    if outcome not in ('completed', 'cancelled_before_start', 'interrupted', 'dropped',
+                                       'synthesis_failed', 'output_failed', 'no_audio', 'unknown'):
+                        outcome = 'unknown'
+                    counts = self.__dict__.setdefault('_chatter_delivery_counts', {})
+                    counts[outcome] = counts.get(outcome, 0) + 1
+                    speech_trace.emit('chatter_delivery', source='chatter', outcome=outcome,
+                        line_id=getattr(line, 'line_id', None), playback_success='unknown')
+                if terminal is not None and terminal.outcome != "unknown":
+                    playback_evidence = "output_written" if terminal.output_written else "unknown"
+                else:
+                    # Backward-compatible fallback for older/mock TTSLine implementations.
+                    playback_evidence = getattr(line, "_playback_evidence", "unknown")
                 self.event_manager.add_assistant_complete_event()
 
             if response_actions:
@@ -970,10 +1153,17 @@ class Assistant:
                         self.verify_action(user_input[-1], response_actions[0], prompt, tool_list)
                     
         except Exception as e:
+            speech_trace.emit("reply_failed")
             log("debug", "LLM error during reply:", e, traceback.format_exc())
             show_chat_message("error", "LLM error: An unknown error occurred during reply")
         finally:
+            arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
+            arbiter.finish(admission, playback_evidence)
             self.is_replying = False
+            self.reply_pending = (self.reply_pending or bool(self._speech_deferred)
+                                  or bool(self._speech_retry_requested))
+            if execution is not None:
+                execution.release()
 
     def should_reply(self, states:dict[str, Any]):
         character = self.config['characters'][self.config['active_character_index']]
@@ -981,15 +1171,22 @@ class Assistant:
             return False
 
         for event in self.pending:
+            if isinstance(event, GameEvent) and event.content.get('event') in SALE_EVENTS:
+                if event.historic or sale_key(event) in getattr(self, '_sale_reaction_keys', {}):
+                    continue
             # check if pending contains conversational events
             if isinstance(event, ConversationEvent) and event.kind == "user":
                 if getattr(event, 'do_not_reply', False):
+                    speech_trace.observe_event('reply_not_selected', event, reason='do_not_reply')
                     continue
+                speech_trace.observe_event('reply_selected', event, reason='direct_user')
                 return True
 
             if isinstance(event, ToolEvent):
                 if getattr(event, 'do_not_reply', False):
+                    speech_trace.observe_event('reply_not_selected', event, reason='do_not_reply')
                     continue
+                speech_trace.observe_event('reply_selected', event, reason='tool_result')
                 return True
 
             if isinstance(event, GameEvent) and event.content.get("event") in self.enabled_game_events:
@@ -1060,12 +1257,14 @@ class Assistant:
             for handler in self.registered_should_reply_handlers:
                 should_reply_according_to_plugins = handler(event, states)
                 if should_reply_according_to_plugins :
+                    speech_trace.observe_event("reply_selected", event, reason="plugin_handler")
                     return True
                 elif should_reply_according_to_plugins is False:
                     pass
                 else:
                     continue
 
+        speech_trace.emit("reply_not_selected", reason="no_eligible_pending_event")
         return False
     
     def register_should_reply_handler(self, handler: Callable[[Event, ProjectedStates], bool | None]):
@@ -1083,7 +1282,7 @@ class Assistant:
 
         method = action_descriptor.get('method')
         args = {'query': query}
-        spoken_search_text = "Searching" if self.config.get("mute_search", False) else f"Searching: {query}"
+        spoken_search_text = spoken_activity(action_name)
         request = [{
             "id": f"call_{int(datetime.now().timestamp())}",
             "type": "function",

@@ -1,5 +1,11 @@
 # TARS runtime profile
 
+> Historical Task 2 implementation record. Current packaging uses the verified
+> six-plugin bundle, approved providers and editable prompt described in
+> [TARS installation](tars-installation.md) and [product profile](tars-product-profile.md).
+> The manual plugin placement and deferred-vendoring notes below are historical,
+> not current installation instructions.
+
 Task 2 introduces a narrow internal product profile on top of the existing COVAS-derived backend. It does not remove native tools, providers, memory, vision, STT/TTS, Chatter interception, or the default development/test startup path.
 
 ## Activation and application data

@@ -1,3 +1,4 @@
+from ..ResponsePresentation import RESPONSE_POLICY
 import datetime
 import math
 from typing import cast, Any, List, Dict
@@ -331,7 +332,7 @@ def web_search_agent(
     You will be given a user query and a set of tools.
     You can call one or more tools to gather information.
     Once you have enough information, you must generate a concise and helpful final report answering the user's query.
-    The report summarizes the interpretation of the query, the search parameters used to acquire the answer and the answer to the user's query.
+    Report the answer and relevant factual details only. Never narrate the internal search query, reasoning, tool arguments or implementation steps.
     
     Do not just regurgitate the tool outputs. Synthesize them into a coherent answer.
     
@@ -368,6 +369,8 @@ def web_search_agent(
     1. Call `body_finder` with `{"rings": {"material": "Painite", "hotspots": 1}}`.
     2. Summarize the found bodies and their hotspot details.
     """
+
+    system_prompt += "\n" + RESPONSE_POLICY
 
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system_prompt},

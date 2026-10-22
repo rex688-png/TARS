@@ -19,3 +19,20 @@ def test_lynx_highliner_is_known_ship_name():
     assert "Lynx Highliner" in known_ships
     assert "Panther Clipper MkII" in known_ships
     assert "Python" in known_ships
+
+
+def test_caspian_explorer_model_is_separate_from_commander_ship_name():
+    from lib.Event import GameEvent
+    from lib.projections.ship_info import ShipInfo, ShipInfoStateModel
+
+    saved = ShipInfoStateModel.model_validate({"Name": "eXPY", "Type": "explorer_nx"})
+    assert saved.Model == "Caspian Explorer"
+
+    projection = ShipInfo()
+    projection.process(GameEvent(historic=False, content={
+        "event": "Loadout", "Ship": "explorer_nx", "ShipName": "eXPY",
+        "ShipIdent": "EXP-01", "Modules": [], "timestamp": "2026-10-08T00:00:00Z",
+    }))
+    assert projection.state.Name == "eXPY"
+    assert projection.state.Type == "explorer_nx"
+    assert projection.state.Model == "Caspian Explorer"

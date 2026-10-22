@@ -1,0 +1,4 @@
+{"timestamp":"2026-01-02T08:00:00Z","event":"Fileheader","part":2,"language":"English/UK"}
+{"timestamp":"2026-01-02T08:00:01Z","event":"Commander","FID":"F0000000","Name":"Fixture Commander"}
+{"timestamp":"2026-01-02T08:00:02Z","event":"Location","StarSystem":"LHS 3447","SystemAddress":987654,"StarPos":[51.0,-9.0,12.0],"Docked":false}
+{"timestamp":"2026-01-02T08:00:03Z","event":"Loadout","Ship":"explorer_nx","ShipName":"eXPY","ShipIdent":"FIX-01","FuelCapacity":{"Main":32.0,"Reserve":0.63},"Modules":[]}

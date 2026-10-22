@@ -8,6 +8,7 @@ from openai.types.chat import ChatCompletionMessageFunctionToolCall
 from pydantic import BaseModel
 
 
+from .ActionPermissions import ActionApprovals, permission_mode
 from .Database import KeyValueStore
 from .Logger import log
 import traceback
@@ -26,8 +27,18 @@ class ActionManager:
     actions = {}
 
     def __init__(self):
+        self.approvals = None
         self.action_cache = KeyValueStore("action_cache")
         self.allowed_actions: dict[str, bool] = {}
+
+    def configure_permissions(self, config, emit):
+        self.approvals = ActionApprovals(config, emit)
+
+    def confirm_action(self, token, approved, projected_states):
+        call = self.approvals.resolve(token, approved) if self.approvals else None
+        if call is None:
+            return None
+        return self.runAction(call, projected_states, _approved_call=call)
 
     def set_allowed_actions(self, allowed_actions: dict[str, bool] | None):
         """Set enabled states by permission key. Missing keys are disabled."""
@@ -42,6 +53,8 @@ class ActionManager:
         for action in actions:
             permission_key = action.get("permission")
             if permission_key and action_permissions.get(permission_key) is not True:
+                continue
+            if permission_key and self.approvals and permission_mode(self.approvals.config(), permission_key) == 'block':
                 continue
             if uses_actions:
                 # enable correct actions for game mode
@@ -90,15 +103,31 @@ class ActionManager:
         tool_call: ChatCompletionMessageFunctionToolCall,
         projected_states: ProjectedStates,
         processing_callback: Callable[[str, str, object], None] | None = None,
+        *, _approved_call=None,
     ):
         """get function response and fetch matching python function, then call function using arguments provided"""
         function_result = None
 
         function_name = tool_call.function.name
         function_descriptor = self.actions.get(function_name)
+        if function_descriptor and self.approvals:
+            key = function_descriptor.get("permission")
+            if key:
+                mode = permission_mode(self.approvals.config(), key)
+                result = None
+                if mode == 'block':
+                    result = 'Not executed: blocked by TARS action permissions.'
+                elif mode == 'ask' and _approved_call is not tool_call:
+                    result = self.approvals.request(tool_call, key)
+                if result:
+                    return {"tool_call_id": tool_call.id, "role": "tool", "name": function_name, "content": result}
         if function_descriptor:
             function_to_call = function_descriptor.get("method")
-            function_args = json.loads(tool_call.function.arguments if tool_call.function.arguments else "null")
+            try:
+                function_args = json.loads(tool_call.function.arguments if tool_call.function.arguments else "null")
+            except (ValueError, TypeError):
+                return {"tool_call_id": tool_call.id, "role": "tool", "name": function_name,
+                        "content": "Not executed: invalid action arguments."}
 
             try:
                 function_result = function_to_call(function_args, projected_states)

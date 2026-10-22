@@ -66,10 +66,13 @@ test('configures paths before consumers request them', () => {
 });
 
 test('enables the internal profile only for the packaged backend', () => {
-  assert.deepEqual(buildBackendEnvironment({ EXISTING: 'kept' }, true, '/installed/resources'), {
+  assert.deepEqual(buildBackendEnvironment(
+    { EXISTING: 'kept' }, true, '/installed/resources', '/profiles/TARS'
+  ), {
     EXISTING: 'kept',
     TARS_RUNTIME_PROFILE: '1',
     TARS_BUNDLED_RESOURCES: path.join('/installed/resources', 'tars-plugins'),
+    TARS_PROVIDER_ROOT: path.join('/profiles/TARS', 'providers'),
   });
   assert.deepEqual(buildBackendEnvironment({ EXISTING: 'kept' }, false), {
     EXISTING: 'kept',

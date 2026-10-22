@@ -1,3 +1,8 @@
+import { TarsProviderRegistry } from "../../services/tars-provider-registry";
+import { TarsRuntimeFacade } from "../../services/tars-runtime-facade.service";
+import { TarsComponentHealth } from "../../services/tars-runtime-facade.models";
+import { providerRuntimeLabel } from "../../services/tars-health-presentation";
+import { ModelProviderDefinition } from "../../services/plugin-settings";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { MatCardModule } from "@angular/material/card";
 import { MatTabsModule } from "@angular/material/tabs";
@@ -18,6 +23,7 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatProgressBarModule } from "@angular/material/progress-bar";
 import {
   ConfirmationDialogComponent,
   ConfirmationDialogData,
@@ -25,6 +31,7 @@ import {
 import { ConfirmationDialogService } from "../../services/confirmation-dialog.service";
 import {
   PluginSettings,
+  ProviderInstallStatusMessage,
   SettingsGrid,
 } from "../../services/plugin-settings";
 import { SettingsGridComponent } from "../settings-grid/settings-grid.component";
@@ -50,6 +57,7 @@ import { SettingsGridComponent } from "../settings-grid/settings-grid.component"
     MatCheckboxModule,
     MatDialogModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     SettingsGridComponent,
   ],
   templateUrl: "./plugin-settings.component.html",
@@ -57,20 +65,32 @@ import { SettingsGridComponent } from "../settings-grid/settings-grid.component"
 })
 export class PluginSettingsComponent implements OnInit, OnDestroy {
   config: Config | null = null;
+  private runtimeSubscriptions = new Subscription();
+  private application = "stopped";
+  private health: readonly TarsComponentHealth[] = [];
+  private providers: ModelProviderDefinition[] = [];
   private configSubscription?: Subscription;
   private plugin_settings_message_subscription?: Subscription;
+  private provider_install_status_subscription?: Subscription;
 
   // Plugin settings
   plugin_settings_configs: [string, PluginSettings][] = [];
+  providerConfigs: [string, PluginSettings][] = [];
+  behaviorConfigs: [string, PluginSettings][] = [];
+  providerInstallStatuses: Record<string, ProviderInstallStatusMessage> = {};
 
   constructor(
-    private configService: ConfigService,
+    public configService: ConfigService,
+    private runtime: TarsRuntimeFacade,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
     private confirmationDialog: ConfirmationDialogService,
   ) {}
 
   ngOnInit() {
+    this.runtimeSubscriptions.add(this.runtime.applicationState$.subscribe(value => this.application = value));
+    this.runtimeSubscriptions.add(this.runtime.health$.subscribe(value => this.health = value));
+    this.runtimeSubscriptions.add(this.configService.plugin_model_providers$.subscribe(value => this.providers = value));
     this.configSubscription = this.configService.config$.subscribe(
       (config) => {
         if (config) {
@@ -90,6 +110,8 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
           this.plugin_settings_configs = Object.entries(
             plugin_settings_message?.plugin_settings_configs || {}
           );
+          this.providerConfigs = this.plugin_settings_configs.filter(([guid]) => !this.isBehaviorPlugin(guid));
+          this.behaviorConfigs = this.plugin_settings_configs.filter(([guid]) => this.isBehaviorPlugin(guid));
 
           if (plugin_settings_message?.plugin_settings_configs) {
             console.log("Plugin settings loaded", {
@@ -101,15 +123,42 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
           }
         },
       );
+    this.provider_install_status_subscription = this.configService
+      .provider_install_status$
+      .subscribe((status) => {
+        if (status) {
+          this.providerInstallStatuses = {
+            ...this.providerInstallStatuses,
+            [status.provider_key]: status,
+          };
+        }
+      });
+  }
+
+  private readonly behaviorIcons: Record<string, string> = {
+    "f8b87f19-f65e-4bf2-bd3f-26d30c128a04": "travel_explore",
+    "348ea6cb-1443-47e9-a3a3-6e8c1c17f523": "public",
+    "5a80ff76-201c-49c7-a632-6f00d671a99a": "sensors",
+    "8d3c25ce-49d4-4526-8041-ed6303510cef": "navigation",
+    "cac18803-add3-4f2d-a07d-306d5704bb7f": "forum",
+    "eeb92d2d-9656-441c-92e9-98513d43cac2": "explore",
+  };
+
+  isBehaviorPlugin(guid: string): boolean { return guid in this.behaviorIcons; }
+
+  iconFor(guid: string, config: PluginSettings): string {
+    return this.behaviorIcons[guid] ?? config.icon ?? "extension";
   }
 
   ngOnDestroy() {
+    this.runtimeSubscriptions.unsubscribe();
     if (this.configSubscription) {
       this.configSubscription.unsubscribe();
     }
     if (this.plugin_settings_message_subscription) {
       this.plugin_settings_message_subscription.unsubscribe();
     }
+    this.provider_install_status_subscription?.unsubscribe();
   }
 
   async onConfigChange(partialConfig: Partial<Config>) {
@@ -145,10 +194,7 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
       if (this.config == null) {
         return;
       }
-      this.config.plugin_settings ??= {};
-      this.config.plugin_settings[pluginGuid] ??= {};
-      this.config.plugin_settings[pluginGuid][fieldKey] = value;
-      this.onConfigChange({ plugin_settings: this.config.plugin_settings });
+      void this.onConfigChange({ plugin_settings: { [pluginGuid]: { [fieldKey]: value } } });
     };
   }
 
@@ -159,6 +205,48 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
         this.snackBar.open("Error handling plugin button click", "OK", { duration: 5000 });
       });
     };
+  }
+
+  providerDisplayLabel(guid: string, settings: PluginSettings): string {
+    return TarsProviderRegistry.pluginLabel(guid, settings.label);
+  }
+
+  providerRuntimeState(guid: string): string {
+    if (guid.startsWith('failed_') || this.plugin_settings_configs.find(([key]) => key === guid)?.[1].grids.some(grid => grid.fields.some(field => field.type === 'error'))) return 'ERROR';
+    const provider = this.providers.find(item => item.plugin_guid === guid &&
+      this.config?.[({llm: 'llm_provider', vlm: 'vision_provider', stt: 'stt_provider',
+        tts: 'tts_provider', embedding: 'embedding_provider'} as const)[item.kind]] === `plugin:${guid}:${item.id}`);
+    const installed = this.providers.some(item => item.plugin_guid === guid);
+    const component = provider ? ({llm: 'models', vlm: 'vision', stt: 'stt', tts: 'tts', embedding: 'memory'} as const)[provider.kind] : undefined;
+    return providerRuntimeLabel(installed, Boolean(provider), this.application, this.health.find(item => item.component === component));
+  }
+
+  providerStatus(gridKey: string): ProviderInstallStatusMessage | undefined {
+    return this.providerInstallStatuses[gridKey];
+  }
+
+  providerButtonEnabled(gridKey: string): boolean {
+    const status = this.providerStatus(gridKey);
+    return !status || status.state === "failed";
+  }
+
+  providerStatusText(status: ProviderInstallStatusMessage): string {
+    switch (status.state) {
+      case "downloading":
+        return `Downloading — ${this.toMiB(status.downloaded_bytes)} / ${this.toMiB(status.total_bytes)} MB — ${status.percent}%`;
+      case "verifying":
+        return "Verifying…";
+      case "extracting":
+        return "Extracting…";
+      case "installed":
+        return "Installed ✓ — Restart required";
+      case "failed":
+        return `Installation failed${status.error ? ` — ${status.error}` : ""}`;
+    }
+  }
+
+  private toMiB(bytes: number): string {
+    return (bytes / (1024 * 1024)).toFixed(1);
   }
 
   // Legacy methods kept for backward compatibility
@@ -179,9 +267,6 @@ export class PluginSettingsComponent implements OnInit, OnDestroy {
     if (this.config == null) {
       return;
     }
-    this.config.plugin_settings ??= {};
-    this.config.plugin_settings[pluginGuid] ??= {};
-    this.config.plugin_settings[pluginGuid][fieldKey] = value;
-    this.onConfigChange({ plugin_settings: this.config.plugin_settings });
+    void this.onConfigChange({ plugin_settings: { [pluginGuid]: { [fieldKey]: value } } });
   }
 }

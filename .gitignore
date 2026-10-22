@@ -31,3 +31,20 @@ plugin_data/*
 .*
 !.gitignore
 !.gitattributes
+
+# Local runtime/private material; never commit exported working profiles.
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.bak
+*~
+/providers/
+/recordings/
+/screenshots/
+/observatory/
+/logs/
+/covas.db*
+/tars.db*
+/config-backups/

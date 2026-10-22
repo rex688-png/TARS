@@ -45,6 +45,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { ScreenInfo } from "../../models/screen-info";
 import QRCode from "qrcode";
 import { FontScaleService } from "../../services/font-scale.service";
+import { TarsProviderKind, TarsProviderRegistry } from "../../services/tars-provider-registry";
 
 export type AdvancedSettingsFocusTarget =
     | "commander-name"
@@ -150,7 +151,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
     pluginEmbeddingProviders: ModelProviderDefinition[] = [];
 
     constructor(
-        private configService: ConfigService,
+        public configService: ConfigService,
         private characterService: CharacterService,
         private snackBar: MatSnackBar,
         private configBackupService: ConfigBackupService,
@@ -178,11 +179,11 @@ export class AdvancedSettingsComponent implements OnDestroy {
         );
         this.pluginProvidersSubscription = this.configService.plugin_model_providers$.subscribe(
             (providers) => {
-                this.pluginLLMProviders = providers.filter(p => p.kind === 'llm');
-                this.pluginVLMProviders = providers.filter(p => p.kind === 'vlm');
-                this.pluginSTTProviders = providers.filter(p => p.kind === 'stt');
-                this.pluginTTSProviders = providers.filter(p => p.kind === 'tts');
-                this.pluginEmbeddingProviders = providers.filter(p => p.kind === 'embedding');
+                this.pluginLLMProviders = TarsProviderRegistry.filterPluginProviders(providers, 'llm');
+                this.pluginVLMProviders = TarsProviderRegistry.filterPluginProviders(providers, 'vlm');
+                this.pluginSTTProviders = TarsProviderRegistry.filterPluginProviders(providers, 'stt');
+                this.pluginTTSProviders = TarsProviderRegistry.filterPluginProviders(providers, 'tts');
+                this.pluginEmbeddingProviders = TarsProviderRegistry.filterPluginProviders(providers, 'embedding');
             }
         );
         this.screensSubscription = this.configService.screens$.subscribe(
@@ -192,6 +193,13 @@ export class AdvancedSettingsComponent implements OnDestroy {
         );
         void this.refreshOverlayRuntimeInfo(false);
         void this.loadRemoteInterfaceBindAddresses();
+    }
+
+    providerOptions(kind: TarsProviderKind, current?: string | null) {
+        return TarsProviderRegistry.options(kind, current, [
+            ...this.pluginLLMProviders, ...this.pluginVLMProviders, ...this.pluginSTTProviders,
+            ...this.pluginTTSProviders, ...this.pluginEmbeddingProviders,
+        ]);
     }
 
     onFontScaleChange(scale: number): void {
@@ -316,16 +324,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
     async setPluginProviderSetting(pluginGuid: string, key: string, value: any): Promise<void> {
         if (!this.config) return;
         
-        const currentPluginSettings = this.config.plugin_settings?.[pluginGuid] ?? {};
-        const updatedPluginSettings = {
-            ...this.config.plugin_settings,
-            [pluginGuid]: {
-                ...currentPluginSettings,
-                [key]: value
-            }
-        };
-        
-        await this.onConfigChange({ plugin_settings: updatedPluginSettings });
+        await this.onConfigChange({ plugin_settings: { [pluginGuid]: { [key]: value } } });
     }
 
     // Create a getValue function for a specific plugin (for use with SettingsGridComponent)
@@ -354,50 +353,9 @@ export class AdvancedSettingsComponent implements OnDestroy {
 
     async onApiKeyChange(apiKey: string) {
         if (!this.config) return;
-
         await this.onConfigChange({ api_key: apiKey });
-
-        let providerChanges: Partial<Config> = {};
-
-        if (apiKey.startsWith("AQ") || apiKey.startsWith("AIzaS")) {
-            this.apiKeyType = "Google AI Studio";
-            providerChanges = {
-                llm_provider: "google-ai-studio",
-                agent_llm_provider: "google-ai-studio",
-                stt_provider: "google-ai-studio",
-                vision_provider: "google-ai-studio",
-                tts_provider: "edge-tts",
-                vision_var: true,
-                embedding_provider: "google-ai-studio",
-            };
-        } else if (apiKey.startsWith("sk-or-v1")) {
-            this.apiKeyType = "OpenRouter";
-            providerChanges = {
-                llm_provider: "openrouter",
-                agent_llm_provider: "openrouter",
-                stt_provider: "none",
-                vision_provider: "none",
-                tts_provider: "edge-tts",
-                vision_var: false,
-                embedding_provider: "none",
-            };
-        } else if (apiKey.startsWith("sk-")) {
-            this.apiKeyType = "OpenAI";
-            providerChanges = {
-                llm_provider: "openai",
-                agent_llm_provider: "openai",
-                stt_provider: "openai",
-                vision_provider: "openai",
-                tts_provider: "edge-tts",
-                vision_var: true,
-                embedding_provider: "openai",
-            };
-        } else {
-            this.apiKeyType = null;
-            return;
-        }
-
-        await this.onConfigChange(providerChanges);
+        this.apiKeyType = apiKey.startsWith("sk-or-v1") ? "OpenRouter"
+            : apiKey.startsWith("sk-") ? "OpenAI" : null;
     }
 
     async onAssignPTT(e: Event, index: number) {
@@ -500,7 +458,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Enable overlays in OpenXR applications?",
-                message: "COVAS:NEXT will install a per-user OpenXR integration component. It does not require administrator access, but compatible OpenXR applications must be restarted afterward.",
+                message: "TARS will install a per-user OpenXR integration component. It does not require administrator access, but compatible OpenXR applications must be restarted afterward.",
                 confirmButtonText: "Enable integration",
                 cancelButtonText: "Not now",
             },
@@ -514,7 +472,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Update OpenXR integration?",
-                message: "COVAS:NEXT will replace its per-user OpenXR integration component. Restart any running VR applications afterward.",
+                message: "TARS will replace its per-user OpenXR integration component. Restart any running VR applications afterward.",
                 confirmButtonText: "Update integration",
                 cancelButtonText: "Not now",
             },
@@ -528,7 +486,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
             data: {
                 title: "Remove OpenXR integration?",
-                message: "This removes COVAS:NEXT's per-user OpenXR integration. Restart any running VR applications afterward.",
+                message: "This removes TARS's per-user OpenXR integration. Restart any running VR applications afterward.",
                 confirmButtonText: "Remove integration",
                 cancelButtonText: "Keep integration",
             },
@@ -630,15 +588,15 @@ export class AdvancedSettingsComponent implements OnDestroy {
             }
 
             if (result.granted) {
-                this.snackBar.open('Accessibility access is already enabled for COVAS:NEXT.', 'OK', {
+                this.snackBar.open('Accessibility access is already enabled for TARS.', 'OK', {
                     duration: 5000,
                 });
                 return;
             }
 
             const message = result.openedSettings
-                ? 'macOS opened Accessibility settings. Enable COVAS:NEXT there and restart the app if needed.'
-                : 'Accessibility permission was requested. Enable COVAS:NEXT in System Settings if macOS did not grant it immediately.';
+                ? 'macOS opened Accessibility settings. Enable TARS there and restart the app if needed.'
+                : 'Accessibility permission was requested. Enable TARS in System Settings if macOS did not grant it immediately.';
             this.snackBar.open(message, 'OK', {
                 duration: 8000,
             });
@@ -816,6 +774,8 @@ export class AdvancedSettingsComponent implements OnDestroy {
         this.onConfigChange(update);
     }
 
+    providerDisplay = TarsProviderRegistry.label;
+
     async onConfigChange(partialConfig: Partial<Config>) {
         if (partialConfig.overlay_mode !== undefined) {
             clearTimeout(this.vrCompatibilityRefreshTimer);
@@ -824,7 +784,7 @@ export class AdvancedSettingsComponent implements OnDestroy {
             }
         }
         if (this.config) {
-            console.log("Sending config update to backend:", partialConfig);
+            // Never log configuration payloads: they may contain credentials.
 
             try {
                 await this.configService.changeConfig(partialConfig);

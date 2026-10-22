@@ -584,7 +584,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1824"
+        "source": "TARS/src/lib/actions/Actions.py:1832"
       },
       {
         "description": "initiate FSD jump (jump to the next system or enter supercruise)",
@@ -604,7 +604,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2024"
+        "source": "TARS/src/lib/actions/Actions.py:2032"
       },
       {
         "description": "Toggle auto-brake",
@@ -614,7 +614,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2258"
+        "source": "TARS/src/lib/actions/Actions.py:2266"
       },
       {
         "description": "Use battery",
@@ -624,7 +624,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2601"
+        "source": "TARS/src/lib/actions/Actions.py:2609"
       },
       {
         "description": "Charge ECM",
@@ -634,7 +634,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1936"
+        "source": "TARS/src/lib/actions/Actions.py:1944"
       },
       {
         "description": "Charge Shutdown Field Neutraliser",
@@ -644,7 +644,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1948"
+        "source": "TARS/src/lib/actions/Actions.py:1956"
       },
       {
         "description": "Clear authority level",
@@ -654,7 +654,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2577"
+        "source": "TARS/src/lib/actions/Actions.py:2585"
       },
       {
         "description": "call this tool if the user asks to cycle, select or switch to specific firegroup, the the next firegroup or to the previous firegroup",
@@ -678,7 +678,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1795"
+        "source": "TARS/src/lib/actions/Actions.py:1803"
       },
       {
         "description": "Deploy or retract hardpoints. Do not call this action when asked to switch hud mode",
@@ -688,7 +688,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1593"
+        "source": "TARS/src/lib/actions/Actions.py:1601"
       },
       {
         "description": "Deploy heat sink",
@@ -698,7 +698,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1580"
+        "source": "TARS/src/lib/actions/Actions.py:1588"
       },
       {
         "description": "Deploy an SRV",
@@ -714,7 +714,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2001"
+        "source": "TARS/src/lib/actions/Actions.py:2009"
       },
       {
         "description": "Leave vehicle",
@@ -724,7 +724,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2015"
+        "source": "TARS/src/lib/actions/Actions.py:2023"
       },
       {
         "description": "Dock the SRV",
@@ -734,7 +734,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2189"
+        "source": "TARS/src/lib/actions/Actions.py:2197"
       },
       {
         "description": "Eject all cargo",
@@ -744,7 +744,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2073"
+        "source": "TARS/src/lib/actions/Actions.py:2081"
       },
       {
         "description": "Eject all cargo",
@@ -754,7 +754,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2383"
+        "source": "TARS/src/lib/actions/Actions.py:2391"
       },
       {
         "description": "Enter a vehicle",
@@ -764,7 +764,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2470"
+        "source": "TARS/src/lib/actions/Actions.py:2478"
       },
       {
         "description": "Use engine boost",
@@ -774,7 +774,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1869"
+        "source": "TARS/src/lib/actions/Actions.py:1877"
       },
       {
         "description": "Equip or hide a piece of gear",
@@ -804,7 +804,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2502"
+        "source": "TARS/src/lib/actions/Actions.py:2510"
       },
       {
         "description": "Request docking for Ship Launched Fighter",
@@ -814,7 +814,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2158"
+        "source": "TARS/src/lib/actions/Actions.py:2166"
       },
       {
         "description": "Fire chaff launcher",
@@ -824,7 +824,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1857"
+        "source": "TARS/src/lib/actions/Actions.py:1865"
       },
       {
         "description": "Fire buggy weapons with simple controls: single shot, start continuous, or stop",
@@ -871,7 +871,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2209"
+        "source": "TARS/src/lib/actions/Actions.py:2217"
       },
       {
         "description": "Open or close the galaxy map",
@@ -890,7 +890,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1676"
+        "source": "TARS/src/lib/actions/Actions.py:1684"
       },
       {
         "description": "Open or close the galaxy map from the SRV.",
@@ -909,7 +909,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2432"
+        "source": "TARS/src/lib/actions/Actions.py:2440"
       },
       {
         "description": "Open or Close Galaxy Map",
@@ -919,7 +919,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2613"
+        "source": "TARS/src/lib/actions/Actions.py:2621"
       },
       {
         "description": "Generate, modify, reset, or undo the game overlay UI. Use an instruction to update the overlay, or set undo=true to delete the most recent saved version and restore the previous one. Undo and instruction are mutually exclusive.",
@@ -957,7 +957,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2692"
+        "source": "TARS/src/lib/actions/Actions.py:2700"
       },
       {
         "description": "Control SRV headlights - toggle or set to specific mode (off/low/high)",
@@ -979,7 +979,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2270"
+        "source": "TARS/src/lib/actions/Actions.py:2278"
       },
       {
         "description": "Use health pack",
@@ -989,7 +989,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2589"
+        "source": "TARS/src/lib/actions/Actions.py:2597"
       },
       {
         "description": "Toggle landing gear",
@@ -999,7 +999,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2085"
+        "source": "TARS/src/lib/actions/Actions.py:2093"
       },
       {
         "description": "Launch a ship-launched fighter",
@@ -1019,7 +1019,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1989"
+        "source": "TARS/src/lib/actions/Actions.py:1997"
       },
       {
         "description": "Undock from station or lift off from planet",
@@ -1029,7 +1029,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2124"
+        "source": "TARS/src/lib/actions/Actions.py:2132"
       },
       {
         "description": "Manage power distribution between ship systems. Apply pips to one or more power systems or balance the power across two or if unspecified, across all 3",
@@ -1074,7 +1074,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1607"
+        "source": "TARS/src/lib/actions/Actions.py:1615"
       },
       {
         "description": "Manage power distribution between buggy power systems. Apply pips to one or more power systems or balance the power across two or if unspecified, across all 3",
@@ -1119,7 +1119,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2327"
+        "source": "TARS/src/lib/actions/Actions.py:2335"
       },
       {
         "description": "Toggle night vision",
@@ -1129,7 +1129,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1879"
+        "source": "TARS/src/lib/actions/Actions.py:1887"
       },
       {
         "description": "Toggle night vision",
@@ -1139,7 +1139,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2291"
+        "source": "TARS/src/lib/actions/Actions.py:2299"
       },
       {
         "description": "Order NPC crew ship",
@@ -1168,7 +1168,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1961"
+        "source": "TARS/src/lib/actions/Actions.py:1969"
       },
       {
         "description": "Plot a navigation route to a system, station, or body. Uses Spansh to resolve the target, then plots via the galaxy map or navigates in the current system map when already there. Set clear_nav_route to true to clear the current navigation route; when a route exists this plots to the final stop in that route.",
@@ -1195,7 +1195,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1651"
+        "source": "TARS/src/lib/actions/Actions.py:1659"
       },
       {
         "description": "Plot a navigation route to a system, station, or body from the SRV. Set clear_nav_route to true to clear the current navigation route; when a route exists this plots to the final stop in that route.",
@@ -1222,7 +1222,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2407"
+        "source": "TARS/src/lib/actions/Actions.py:2415"
       },
       {
         "description": "Primary interact action",
@@ -1232,7 +1232,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2478"
+        "source": "TARS/src/lib/actions/Actions.py:2486"
       },
       {
         "description": "Recall or dismiss ship",
@@ -1242,7 +1242,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2395"
+        "source": "TARS/src/lib/actions/Actions.py:2403"
       },
       {
         "description": "Recall or dismiss ship",
@@ -1252,7 +1252,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2639"
+        "source": "TARS/src/lib/actions/Actions.py:2647"
       },
       {
         "description": "Recall or dismiss ship",
@@ -1262,7 +1262,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2180"
+        "source": "TARS/src/lib/actions/Actions.py:2188"
       },
       {
         "description": "Request docking",
@@ -1272,7 +1272,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2112"
+        "source": "TARS/src/lib/actions/Actions.py:2120"
       },
       {
         "description": "Request docking with ship",
@@ -1282,7 +1282,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2171"
+        "source": "TARS/src/lib/actions/Actions.py:2179"
       },
       {
         "description": "Scroll the currently displayed UI tab",
@@ -1316,7 +1316,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2490"
+        "source": "TARS/src/lib/actions/Actions.py:2498"
       },
       {
         "description": "Select target",
@@ -1326,7 +1326,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2315"
+        "source": "TARS/src/lib/actions/Actions.py:2323"
       },
       {
         "description": "Change flight thrust",
@@ -1355,7 +1355,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1553"
+        "source": "TARS/src/lib/actions/Actions.py:1561"
       },
       {
         "description": "Toggle ship spotlight",
@@ -1365,7 +1365,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1844"
+        "source": "TARS/src/lib/actions/Actions.py:1852"
       },
       {
         "description": "Display a specific tab to the user via UI",
@@ -1444,7 +1444,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2137"
+        "source": "TARS/src/lib/actions/Actions.py:2145"
       },
       {
         "description": "Open or close system map",
@@ -1463,7 +1463,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1695"
+        "source": "TARS/src/lib/actions/Actions.py:1703"
       },
       {
         "description": "Open/close system map.",
@@ -1482,7 +1482,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2450"
+        "source": "TARS/src/lib/actions/Actions.py:2458"
       },
       {
         "description": "Open or Close System Map",
@@ -1492,7 +1492,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2626"
+        "source": "TARS/src/lib/actions/Actions.py:2634"
       },
       {
         "description": "Target a ship - cycle to next/previous target or select highest threat",
@@ -1521,7 +1521,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1714"
+        "source": "TARS/src/lib/actions/Actions.py:1722"
       },
       {
         "description": "Target a subsystem on locked ship",
@@ -1548,7 +1548,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1893"
+        "source": "TARS/src/lib/actions/Actions.py:1901"
       },
       {
         "description": "When we have a nav route set, this will automatically target the next system in the route",
@@ -1558,10 +1558,10 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2046"
+        "source": "TARS/src/lib/actions/Actions.py:2054"
       },
       {
-        "description": "Send message to commander or local",
+        "description": "Type/send a message INTO Elite Dangerous chat ONLY on explicit commander request. Never use for ordinary conversation, jokes, tell me, or answers to the user. Commander channel requires a named recipient; never send to self. Success requires Elite SendText confirmation.",
         "name": "textMessage",
         "parameters": {
           "properties": {
@@ -1582,7 +1582,7 @@
               "type": "string"
             },
             "recipient": {
-              "description": "Commander name to send message to. Only used if channel is commander.",
+              "description": "Explicit recipient named by the user; required for commander channel. Never use the current commander or infer a recipient.",
               "example": "RatherRude.TTV",
               "type": "string"
             }
@@ -1594,7 +1594,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2651"
+        "source": "TARS/src/lib/actions/Actions.py:2659"
       },
       {
         "description": "Toggles cargo scoop",
@@ -1604,7 +1604,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2060"
+        "source": "TARS/src/lib/actions/Actions.py:2068"
       },
       {
         "description": "Toggle cargo scoop",
@@ -1614,7 +1614,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2371"
+        "source": "TARS/src/lib/actions/Actions.py:2379"
       },
       {
         "description": "Toggle drive assist",
@@ -1624,7 +1624,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2197"
+        "source": "TARS/src/lib/actions/Actions.py:2205"
       },
       {
         "description": "Toggle flashlight",
@@ -1634,7 +1634,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2541"
+        "source": "TARS/src/lib/actions/Actions.py:2549"
       },
       {
         "description": "Toggle night vision",
@@ -1644,7 +1644,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2553"
+        "source": "TARS/src/lib/actions/Actions.py:2561"
       },
       {
         "description": "Toggle shields",
@@ -1654,7 +1654,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2565"
+        "source": "TARS/src/lib/actions/Actions.py:2573"
       },
       {
         "description": "Toggle turret mode",
@@ -1664,7 +1664,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2303"
+        "source": "TARS/src/lib/actions/Actions.py:2311"
       },
       {
         "description": "Toggle wing nav lock",
@@ -1674,7 +1674,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:1777"
+        "source": "TARS/src/lib/actions/Actions.py:1785"
       },
       {
         "description": "Use shield cell",
@@ -1684,7 +1684,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/Actions.py:2099"
+        "source": "TARS/src/lib/actions/Actions.py:2107"
       },
       {
         "description": "Request a detailed report about information from the game, including news, system, station, body, engineers, blueprint, material lookups and commander data(owned ships and modules, statistics, super power reputation, elite ranks, squadron, owned fleet carriers). Use this tool whenever the user asks about anything related to external or global information.",
@@ -1702,7 +1702,7 @@
           "type": "object"
         },
         "registration": "ActionManager.registerAction",
-        "source": "TARS/src/lib/actions/actions_web.py:2704"
+        "source": "TARS/src/lib/actions/actions_web.py:2707"
       }
     ],
     "registration_conditions": {

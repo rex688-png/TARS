@@ -13,6 +13,7 @@ from .Plotter import Plotter
 from .actions_ui import register_ui_actions
 from .actions_genui import register_genui_actions
 
+from ..ActionPolicy import validate_chat_message, latest_user_intent, wait_for_send
 from ..Logger import log, show_chat_message
 from ..Screenshot import get_windows_game_window_handle, screenshot_game_window, set_game_window_active
 from ..EDKeys import EDKeys
@@ -1318,6 +1319,9 @@ def format_image(image, query=""):
 
 
 def send_message(obj, projected_states):
+    read_events = lambda: list(event_manager.processed) + list(event_manager.pending)
+    commander = get_state_dict(projected_states, 'Commander').get('Name', '')
+    validate_chat_message(obj, commander, latest_user_intent(read_events()))
     from pyautogui import typewrite
     setGameWindowActive()
 
@@ -1335,7 +1339,7 @@ def send_message(obj, projected_states):
         on_foot = flags2.get('OnFoot')
 
         while start < len(obj.get("message", "")):
-            return_message = "Message sent"
+            return_message = "Message not confirmed"
             if start != 0:
                 sleep(0.25)
             chunk = obj.get("message", "")[start:start + chunk_size]
@@ -1383,6 +1387,7 @@ def send_message(obj, projected_states):
             else:
                 log('debug', f'invalid channel {obj.get("channel")}')
 
+            baseline = {id(event) for event in read_events()}
             sleep(0.05)
             typewrite(chunk, interval=0.02)
 
@@ -1391,6 +1396,9 @@ def send_message(obj, projected_states):
             keys.send_key('Down', 'Key_Enter')
             sleep(0.05)
             keys.send_key('Up', 'Key_Enter')
+            if not wait_for_send(read_events, baseline, chunk, obj['channel'].lower(), obj.get('recipient', '')):
+                return "Message transmission not confirmed: timed out waiting for Elite SendText. Do not claim it was sent."
+            return_message = "Elite confirmed message sent"
 
     return return_message + '.'
 
@@ -2648,7 +2656,7 @@ def register_actions(actionManager: ActionManager, eventManager: EventManager, p
         "ship pickup": {},
     })
 
-    actionManager.registerAction('textMessage', "Send message to commander or local", {
+    actionManager.registerAction('textMessage', "Type/send a message INTO Elite Dangerous chat ONLY on explicit commander request. Never use for ordinary conversation, jokes, tell me, or answers to the user. Commander channel requires a named recipient; never send to self. Success requires Elite SendText confirmation.", {
         "type": "object",
         "properties": {
             "message": {
@@ -2663,7 +2671,7 @@ def register_actions(actionManager: ActionManager, eventManager: EventManager, p
             },
             "recipient": {
                 "type": "string",
-                "description": "Commander name to send message to. Only used if channel is commander.",
+                "description": "Explicit recipient named by the user; required for commander channel. Never use the current commander or infer a recipient.",
                 "example": "RatherRude.TTV",
             },
         },

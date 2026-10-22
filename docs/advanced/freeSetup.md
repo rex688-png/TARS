@@ -1,5 +1,10 @@
 # Getting started for "free"
 
+> **Upstream reference:** This inherited COVAS:NEXT guide is not the current
+> TARS installation procedure. Some provider links, model suggestions and
+> manual plugin-folder steps below do not apply to the controlled TARS profile.
+> Use the [TARS provider setup](../tars-alpha-provider-setup.md) instead.
+
 **Recommended:** For free local STT, TTS and embedding with the least amount of configuration, use the [official COVAS Labs plugins](../plugins/index.md#first-official-plugins). They provide ready-to-use Parakeet (STT), Supertonic (TTS) and Gemma (embedding) with minimal setup.
 
 ---

@@ -1,3 +1,7 @@
+import { TarsActionPermissionsComponent } from '../tars-action-permissions/tars-action-permissions.component';
+import { TarsSetupComponent } from '../tars-setup/tars-setup.component';
+import { TarsDiagnosticsComponent } from "../tars-diagnostics/tars-diagnostics.component";
+import { TarsPromptSettingsComponent } from "../tars-prompt-settings/tars-prompt-settings.component";
 import { Component, EventEmitter, OnDestroy, OnInit, Output, ViewChild } from "@angular/core";
 import { MatCardModule } from "@angular/material/card";
 import { MatTabsModule } from "@angular/material/tabs";
@@ -16,7 +20,6 @@ import {
     AdvancedSettingsFocusTarget,
 } from "../advanced-settings/advanced-settings.component";
 import { ActionsSettingsComponent } from "../actions-settings/actions-settings.component";
-import { CharacterSettingsComponent } from "../character-settings/character-settings.component";
 import { EventReactionsSettingsComponent } from "../event-reactions-settings/event-reactions-settings.component";
 import {
     GeneralSettingsComponent,
@@ -46,6 +49,8 @@ import { QuestsSettingsComponent } from "../quests-settings/quests-settings.comp
     selector: "app-settings-menu",
     standalone: true,
     imports: [
+        TarsSetupComponent,
+        TarsActionPermissionsComponent,
         CommonModule,
         MatInputModule,
         MatFormFieldModule,
@@ -64,9 +69,10 @@ import { QuestsSettingsComponent } from "../quests-settings/quests-settings.comp
         PluginSettingsComponent,
         AdvancedSettingsComponent,
         ActionsSettingsComponent,
-        CharacterSettingsComponent,
         EventReactionsSettingsComponent,
         GeneralSettingsComponent,
+        TarsPromptSettingsComponent,
+        TarsDiagnosticsComponent,
         ModelUsageAnalyticsComponent,
         QuestsSettingsComponent,
         MatButtonModule,
@@ -76,6 +82,8 @@ import { QuestsSettingsComponent } from "../quests-settings/quests-settings.comp
 })
 export class SettingsMenuComponent implements OnInit, OnDestroy {
     @ViewChild(AdvancedSettingsComponent) private advancedSettings?: AdvancedSettingsComponent;
+    @ViewChild(GeneralSettingsComponent) private generalSettings?: GeneralSettingsComponent;
+    @Output() categoryChange = new EventEmitter<number>();
 
     config: Config | null = null;
     has_plugin_settings: boolean = false;
@@ -104,6 +112,11 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
         );
     }
 
+    selectCategory(index: number): void {
+        this.selectedIndex = index;
+        this.categoryChange.emit(index);
+    }
+
     acceptUsageDisclaimer() {
         this.policyService.acceptUsageDisclaimer();
     }
@@ -120,10 +133,11 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
     public openSettingsTarget(target: GeneralSettingsTarget): void {
         switch (target) {
             case "commander":
-                this.focusAdvancedSetting("commander-name");
+                this.selectedIndex = 0;
+                window.setTimeout(() => this.generalSettings?.setActivePreflightItem("commander"), 0);
                 break;
             case "character":
-                this.selectedIndex = 1;
+                this.selectedIndex = 2;
                 break;
             case "audio-input":
                 this.focusAdvancedSetting("stt-input-device");
@@ -135,16 +149,20 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
                 this.focusAdvancedSetting("overlay-mode");
                 break;
             case "actions":
-                this.selectedIndex = 3;
+                this.selectedIndex = 4;
                 break;
         }
     }
 
     private focusAdvancedSetting(target: AdvancedSettingsFocusTarget): void {
-        this.selectedIndex = 4;
+        this.selectedIndex = 1;
         window.setTimeout(() => {
             this.advancedSettings?.focusSetting(target);
         }, 100);
+    }
+
+    openPromptEditor(): void {
+        this.selectedIndex = 2;
     }
 
     ngOnInit() {
@@ -197,7 +215,7 @@ export class SettingsMenuComponent implements OnInit, OnDestroy {
 
     async onConfigChange(partialConfig: Partial<Config>) {
         if (this.config) {
-            console.log("Sending config update to backend:", partialConfig);
+            // Backups/config updates can contain API keys; never log their values.
 
             try {
                 await this.configService.changeConfig(partialConfig);

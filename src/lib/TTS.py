@@ -1,6 +1,8 @@
+from . import SpeechTrace as speech_trace
+from .TTSOutcome import TTSAttempt, TTSResult
+from uuid import uuid4
 import queue
 import math
-import re
 import random
 import threading
 import traceback
@@ -8,7 +10,7 @@ from collections import deque
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from time import sleep, time
+from time import sleep, time, monotonic
 from typing import Any, Callable, Generator, Optional, cast, final
 import wave
 
@@ -19,7 +21,7 @@ import pyaudio
 import samplerate
 import strip_markdown
 from numpy.typing import NDArray
-from num2words import num2words
+from .SpeechText import normalize_spoken_quantities
 
 from .Config import (
     CharacterTTSChorusConfig,
@@ -37,15 +39,85 @@ from .Models import TTSModel, OpenAITTSModel
 
 
 class TTSLine:
-    def __init__(self) -> None:
+    """Legacy waiting API plus a single immutable terminal result.
+
+    'completed' means the write loop returned; it never promises that the
+    listener heard the audio. Completion callbacks are invoked once.
+    """
+    def __init__(self, on_complete: Callable[[], None] | None = None) -> None:
+        self._playback_evidence = "unknown"  # compatibility with existing callers
+        self.trace_id = speech_trace.current.get()
+        self.line_id = speech_trace.new_id() or uuid4().hex
         self._speaking = threading.Event()
         self._completed = threading.Event()
+        self._result_lock = threading.Lock()
+        self._result: TTSResult | None = None
+        self._attempts: list[TTSAttempt] = []
+        self._on_complete = on_complete
+
+    @property
+    def result(self) -> TTSResult | None:
+        with self._result_lock:
+            return self._result
+
+    def wait_for_result(self, timeout: float | None = None) -> TTSResult | None:
+        self._completed.wait(timeout)
+        return self.result
+
+    def record_attempt(self, attempt: TTSAttempt) -> None:
+        with self._result_lock:
+            if self._result is None:
+                self._attempts.append(attempt)
+        speech_trace.emit("tts_attempt_finished", trace_id=self.trace_id,
+                          line_id=self.line_id, attempt_id=attempt.attempt_id,
+                          outcome=attempt.outcome, written_bytes=attempt.written_bytes,
+                          output_drained=attempt.output_drained)
+
+    def settle(self, outcome: str, *, reason: str = "") -> bool:
+        """Finalize exactly once, outside the lock invoke any legacy callback."""
+        with self._result_lock:
+            if self._result is not None:
+                return False
+            attempts = tuple(self._attempts)
+            last = attempts[-1] if attempts else None
+            finished = monotonic()
+            result = TTSResult(
+                line_id=self.line_id, outcome=outcome,
+                started_at=attempts[0].started_at if attempts else finished,
+                ended_at=finished, attempts=attempts,
+                written_bytes=last.written_bytes if last else 0,
+                output_drained=last.output_drained if last else None,
+                reason=reason,
+            )
+            self._result = result
+            self._playback_evidence = (
+                "output_written" if result.output_written else
+                "cancelled" if outcome in ("cancelled_before_start", "interrupted") else
+                "failed" if outcome in ("output_failed", "synthesis_failed") else
+                outcome
+            )
+            self._completed.set()
+            callback = self._on_complete
+            self._on_complete = None
+        speech_trace.emit("line_completed", trace_id=self.trace_id, line_id=self.line_id,
+                          outcome=outcome, playback_success="unknown",
+                          written_bytes=result.written_bytes,
+                          output_drained=result.output_drained)
+        if callable(callback):
+            try:
+                callback()
+            except Exception as exc:
+                log('warn', 'TTS on_complete callback failed', exc)
+        return True
 
     def mark_speaking(self) -> None:
-        self._speaking.set()
+        if not self._completed.is_set():
+            self._speaking.set()
 
     def mark_completed(self) -> None:
-        self._completed.set()
+        # Older callers can still signal terminal completion without claiming
+        # any playback success.
+        self.settle("unknown", reason="legacy_completion")
 
     def is_speaking(self) -> bool:
         return self._speaking.is_set() and not self._completed.is_set()
@@ -62,7 +134,6 @@ class TTSLine:
 
     def wait_for_completion(self) -> None:
         self._completed.wait()
-
 
 @dataclass
 class LowpassState:
@@ -127,6 +198,7 @@ class TTS:
         self.output_volume_multiplier = max(0.0, min(1.5, float(output_volume_multiplier)))
         self.read_queue = queue.Queue()
         self.is_aborted = False
+        self._abort_revision = 0
         self._is_playing = False
         self.prebuffer_size = 4
         self.output_format = pyaudio.paInt16
@@ -172,6 +244,8 @@ class TTS:
                 "on_complete": item.get("on_complete"),
                 "drop_if": item.get("drop_if"),
                 "line": item.get("line"),
+                "_retries": item.get("_retries", 0),
+                "_abort_revision": item.get("_abort_revision"),
             }
         return {
             "type": "text",
@@ -219,6 +293,7 @@ class TTS:
             try:
                 self._playback_loop()
             except Exception as e:
+                speech_trace.emit("playback_worker_failed")
                 log('error', 'An error occurred during speech synthesis', e, traceback.format_exc())
                 show_chat_message('error', 'An error occurred during speech synthesis:', e)
                 sleep(backoff)
@@ -233,7 +308,7 @@ class TTS:
             rate=24_000,
             frames_per_buffer=self.frames_per_buffer,
             output=True,
-            output_device_index=output_index  
+            output_device_index=output_index,
         )
         while True:
             self.is_aborted = False
@@ -242,60 +317,121 @@ class TTS:
                 if not self.read_queue.empty():
                     self._is_playing = True
                     item = self._normalize_queue_item(self.read_queue.get())
-                    item_type = item.get("type")
-                    text = item.get("text")
-                    context = item.get("context")
-                    file_path = item.get("file_path")
-                    voice = item.get("voice")
-                    postprocessing = item.get("postprocessing")
-                    postprocessing_layers = item.get("postprocessing_layers")
-                    on_start = item.get("on_start")
-                    on_complete = item.get("on_complete")
-                    drop_if = item.get("drop_if")
                     line = item.get("line")
-                    if callable(drop_if) and drop_if():
-                        if isinstance(line, TTSLine):
-                            line.mark_completed()
+                    if isinstance(line, TTSLine) and line.is_completed():
                         continue
+
+                    # A queued item retains the abort epoch from its original
+                    # submission across all retries. Late requeues after abort
+                    # must not revive a cancelled utterance on worker restart.
+                    revision = getattr(self, '_abort_revision', 0)
+                    queued_revision = item.get("_abort_revision")
+                    on_complete = item.get("on_complete")
+                    trace_token = speech_trace.current.set(getattr(line, "trace_id", None)) if speech_trace.enabled else None
+                    line_token = speech_trace.current_line.set(getattr(line, "line_id", None)) if speech_trace.enabled else None
+                    attempt_id = uuid4().hex
+                    started = monotonic()
+                    evidence = "no_audio"
+                    written = {"written_bytes": 0}
                     requeued = False
+                    attempted = False
+                    reason = ""
                     try:
-                        if isinstance(line, TTSLine):
-                            line.mark_speaking()
-                        if callable(on_start):
-                            try:
-                                on_start()
-                            except Exception as callback_error:
-                                log('warn', 'TTS on_start callback failed', callback_error)
-                        if item_type == "audio_file":
-                            if not isinstance(file_path, str) or not file_path:
-                                continue
-                            self._playback_audio_file(file_path, stream)
+                        speech_trace.emit("playback_dequeued", line_id=getattr(line, "line_id", None),
+                                          attempt_id=attempt_id)
+                        if (self.is_aborted or getattr(self, '_abort_revision', 0) != revision or
+                                (queued_revision is not None and queued_revision != revision)):
+                            evidence = "cancelled_before_start"
                         else:
-                            if not isinstance(text, str) or not text:
-                                continue
-                            self._playback_one(
-                                text,
-                                stream,
-                                context if isinstance(context, str) else "speech",
-                                voice if isinstance(voice, str) else None,
-                                cast(CharacterTTSPostprocessingConfig | None, postprocessing if isinstance(postprocessing, dict) else None),
-                                cast(list[CharacterTTSPostprocessingConfig | None] | None, postprocessing_layers if isinstance(postprocessing_layers, list) else None),
-                            )
-                    except Exception as e:
-                        self.read_queue.put(item)
-                        requeued = True
-                        raise e
+                            drop_if = item.get("drop_if")
+                            if callable(drop_if) and drop_if():
+                                evidence = "dropped"
+                                reason = "drop_if"
+                                speech_trace.emit("playback_discarded", line_id=getattr(line, "line_id", None),
+                                                  reason=reason)
+                            else:
+                                attempted = True
+                                if isinstance(line, TTSLine):
+                                    line.mark_speaking()
+                                on_start = item.get("on_start")
+                                if callable(on_start) and (not isinstance(line, TTSLine) or
+                                                           not getattr(line, '_start_callback_called', False)):
+                                    if isinstance(line, TTSLine):
+                                        line._start_callback_called = True
+                                    try:
+                                        on_start()
+                                    except Exception as callback_error:
+                                        log('warn', 'TTS on_start callback failed', callback_error)
+                                if item.get("type") == "audio_file":
+                                    file_path = item.get("file_path")
+                                    if isinstance(file_path, str) and file_path:
+                                        evidence, written["written_bytes"] = self._playback_audio_file(
+                                            file_path, stream, written)
+                                    else:
+                                        evidence = "no_audio"
+                                else:
+                                    txt = item.get("text")
+                                    if isinstance(txt, str) and txt:
+                                        evidence, written["written_bytes"] = self._playback_one(
+                                            txt,
+                                            stream,
+                                            item.get("context") if isinstance(item.get("context"), str) else "speech",
+                                            item.get("voice") if isinstance(item.get("voice"), str) else None,
+                                            cast(CharacterTTSPostprocessingConfig | None,
+                                                 item.get("postprocessing") if isinstance(item.get("postprocessing"), dict) else None),
+                                            cast(list[CharacterTTSPostprocessingConfig | None] | None,
+                                                 item.get("postprocessing_layers") if isinstance(item.get("postprocessing_layers"), list) else None),
+                                            attempt_metrics=written,
+                                        )
+                                    else:
+                                        evidence = "no_audio"
+                        if self.is_aborted or getattr(self, '_abort_revision', 0) != revision:
+                            evidence = "interrupted" if attempted else "cancelled_before_start"
+                    except Exception as exc:
+                        evidence = "interrupted" if (self.is_aborted or getattr(self, '_abort_revision', 0) != revision) else "output_failed"
+                        reason = "playback_exception"
+                        retries = item.get("_retries", 0)
+                        if evidence == "output_failed" and retries < 2:
+                            item["_retries"] = retries + 1
+                            self.read_queue.put(item)
+                            requeued = True
+                        speech_trace.emit("playback_failed", line_id=getattr(line, "line_id", None),
+                                          attempt_id=attempt_id, requeued=requeued)
+                        # Preserve legacy worker restart/backoff after device errors.
+                        raise
                     finally:
-                        if isinstance(line, TTSLine) and not requeued:
-                            line.mark_completed()
-                        if callable(on_complete):
+                        if isinstance(line, TTSLine):
+                            terminal = {
+                                "output_written": "completed", "cancelled": "interrupted",
+                                "cancelled_before_start": "cancelled_before_start",
+                                "interrupted": "interrupted", "dropped": "dropped",
+                                "failed": "synthesis_failed", "no_audio": "no_audio",
+                                "output_failed": "output_failed",
+                                "synthesis_failed": "synthesis_failed",
+                            }.get(evidence, "unknown")
+                            line.record_attempt(TTSAttempt(
+                                attempt_id=attempt_id, outcome=terminal,
+                                started_at=started, ended_at=monotonic(),
+                                written_bytes=written["written_bytes"],
+                                output_drained=None, reason=reason,
+                            ))
+                            if requeued:
+                                line._playback_evidence = "failed"
+                            else:
+                                line.settle(terminal, reason=reason)
+                        elif not requeued and callable(on_complete):
+                            # Compatibility for pre-existing queue items without a
+                            # line token; new text/audio_file paths always have one.
                             try:
                                 on_complete()
                             except Exception as callback_error:
                                 log('warn', 'TTS on_complete callback failed', callback_error)
+                        if trace_token is not None:
+                            speech_trace.current.reset(trace_token)
+                        if line_token is not None:
+                            speech_trace.current_line.reset(line_token)
 
                 self._is_playing = False
-
                 sleep(0.1)
             self._is_playing = False
             stream.stop_stream()
@@ -309,14 +445,15 @@ class TTS:
         voice_override: str | None = None,
         postprocessing_override: CharacterTTSPostprocessingConfig | None = None,
         postprocessing_layers: list[CharacterTTSPostprocessingConfig | None] | None = None,
+        attempt_metrics: dict[str, int] | None = None,
     ):
-        # Fix numberformatting for different providers
-        text = re.sub(r"\d+(,\d{3})*(\.\d+)?", self._number_to_text, text)
         text = strip_markdown.strip_markdown(text)
+        text = normalize_spoken_quantities(text)
         # print('reading:', text)
         start_time = time()
         first_byte_time = None
         total_audio_bytes = 0
+        written_audio_bytes = 0
         first_chunk = True
         underflow_count = 0
         empty_buffer_available = stream.get_write_available()
@@ -350,13 +487,24 @@ class TTS:
                     self._apply_output_gain_pcm16(chunk),
                     exception_on_underflow=False,
                 )  # this may throw for various system reasons
+                if not written_audio_bytes and chunk:
+                    speech_trace.emit("playback_started", evidence="pcm_write_returned")
+                written_audio_bytes += len(chunk)
+                if attempt_metrics is not None:
+                    attempt_metrics["written_bytes"] = written_audio_bytes
                 first_chunk = False
             except IOError as e:
                 if not first_chunk:
                     underflow_count += 1
                     # log('debug', 'tts underflow detected', underflow_count)
                 stream.write(self._apply_output_gain_pcm16(chunk), exception_on_underflow=False)
-        
+                if not written_audio_bytes and chunk:
+                    speech_trace.emit("playback_started", evidence="pcm_write_returned")
+                written_audio_bytes += len(chunk)
+                if attempt_metrics is not None:
+                    attempt_metrics["written_bytes"] = written_audio_bytes
+
+        speech_trace.emit("playback_returned", outcome="cancelled" if self.is_aborted else "write_loop_completed" if written_audio_bytes else "no_audio", audio_bytes=written_audio_bytes, playback_success="unknown")
         if underflow_count > 0:
             self.prebuffer_size *= 2
             log('debug', 'tts underflow detected, total', underflow_count, 'increasing prebuffer size to', self.prebuffer_size)
@@ -380,6 +528,9 @@ class TTS:
             ),
             text_usage=TextUsageStats(input_chars=len(text)),
         )
+        outcome = ("cancelled" if self.is_aborted else "synthesis_failed" if stream_metrics.get("synthesis_failed")
+                   else "output_written" if written_audio_bytes else "no_audio")
+        return outcome, written_audio_bytes
 
 
     def _reset_postprocessing_state(self) -> None:
@@ -562,11 +713,15 @@ class TTS:
                 if metrics is not None:
                     metrics["response_ms"] = (time() - started_at) * 1000
             except Exception as e:
+                if metrics is not None:
+                    metrics['synthesis_failed'] = 1.0
+                speech_trace.emit('synthesis_failed')
                 log('error', 'TTS synthesis error', e, traceback.format_exc())
                 show_chat_message('error', 'TTS synthesis error:', str(e))
 
     @observe()
-    def _playback_audio_file(self, file_path: str, stream: pyaudio.Stream):
+    def _playback_audio_file(self, file_path: str, stream: pyaudio.Stream,
+                             attempt_metrics: dict[str, int] | None = None):
         resolved = Path(file_path)
         if not resolved.exists():
             raise FileNotFoundError(f"Audio file not found: {resolved}")
@@ -578,23 +733,19 @@ class TTS:
             sample_rate=24000,
             frames_to_read=frames_to_read,
         )
+        written = 0
         for frame in pcm_stream:
             if self.is_aborted:
                 break
+            chunk = frame.tobytes()
             stream.write(
-                self._apply_output_gain_pcm16(frame.tobytes()),
+                self._apply_output_gain_pcm16(chunk),
                 exception_on_underflow=False,
             )
-
-    def _number_to_text(self, match: re.Match[str]):
-        """Converts numbers like 100,203.12 to one hundred thousand two hundred three point one two"""
-        if len(match.group()) <= 2:
-            return match.group()
-        if isinstance(self.tts_model, OpenAITTSModel):
-            # OpenAI TTS doesn't read large numbers correctly, so we convert them to words
-            return num2words(match.group().replace(",", ""))
-        else:
-            return match.group()
+            written += len(chunk)
+            if attempt_metrics is not None:
+                attempt_metrics["written_bytes"] = written
+        return ("interrupted" if self.is_aborted else "output_written" if written else "no_audio"), written
 
     def _apply_time_pitch_effect(
         self,
@@ -1359,7 +1510,8 @@ class TTS:
         on_complete: Callable[[], None] | None = None,
         drop_if: Callable[[], bool] | None = None,
     ) -> TTSLine:
-        line = TTSLine()
+        line = TTSLine(on_complete=on_complete)
+        speech_trace.emit("tts_queued", line_id=line.line_id)
         self.read_queue.put(
             {
                 "text": text,
@@ -1371,6 +1523,7 @@ class TTS:
                 "on_complete": on_complete,
                 "drop_if": drop_if,
                 "line": line,
+                "_abort_revision": getattr(self, "_abort_revision", 0),
             },
         )
         return line
@@ -1383,6 +1536,7 @@ class TTS:
         on_complete: Callable[[], None] | None = None,
         drop_if: Callable[[], bool] | None = None,
     ):
+        line = TTSLine(on_complete=on_complete)
         self.read_queue.put(
             {
                 "type": "audio_file",
@@ -1392,6 +1546,8 @@ class TTS:
                 "on_start": on_start,
                 "on_complete": on_complete,
                 "drop_if": drop_if,
+                "line": line,
+                "_abort_revision": getattr(self, "_abort_revision", 0),
             },
         )
 
@@ -1404,13 +1560,28 @@ class TTS:
         )
 
     def abort(self):
-        while not self.read_queue.empty():
-            item = self._normalize_queue_item(self.read_queue.get())
+        # Set the cancellation flag before draining the queue so an active
+        # worker cannot requeue a failed line behind the drain unnoticed.
+        self._abort_revision = getattr(self, '_abort_revision', 0) + 1
+        self.is_aborted = True
+        speech_trace.emit("playback_abort_requested")
+        while True:
+            try:
+                item = self._normalize_queue_item(self.read_queue.get_nowait())
+            except queue.Empty:
+                break
             line = item.get("line")
             if isinstance(line, TTSLine):
-                line.mark_completed()
-
-        self.is_aborted = True
+                speech_trace.emit("playback_cancelled", trace_id=line.trace_id,
+                                  line_id=line.line_id, reason="queued_abort")
+                line.settle("cancelled_before_start", reason="queued_abort")
+            else:
+                callback = item.get("on_complete")
+                if callable(callback):
+                    try:
+                        callback()
+                    except Exception as callback_error:
+                        log('warn', 'TTS on_complete callback failed', callback_error)
 
     def get_is_playing(self):
         return self._is_playing or not self.read_queue.empty()

@@ -1,3 +1,6 @@
+from .JournalFacts import SALE_EVENTS, sale_description
+from .ResponsePresentation import RESPONSE_POLICY, current_fact_envelope
+from .SpeechPolicy import LIVE_EXPLORATION_SPEECH_POLICY
 from datetime import timedelta, datetime, timezone
 from functools import lru_cache
 from typing import Any, Callable, cast, Dict, Union, List, Optional
@@ -882,7 +885,7 @@ class PromptGenerator:
         if event_name == 'FSSAllBodiesFound':
             fss_all_bodies_event = cast(FSSAllBodiesFoundEvent, content)
             system_name = fss_all_bodies_event.get('SystemName', 'current system')
-            body_count = fss_all_bodies_event.get('Count', 0)
+            body_count = fss_all_bodies_event.get('Count', 'unconfirmed number of')
             return f"{self.commander_name} has discovered all {body_count} bodies in the {system_name} system."
             
         if event_name == 'FSSDiscoveryScan':
@@ -890,7 +893,7 @@ class PromptGenerator:
             progress = fss_discovery_scan_event.get('Progress', 0) * 100
             body_count = fss_discovery_scan_event.get('BodyCount', 0)
             non_body_count = fss_discovery_scan_event.get('NonBodyCount', 0)
-            return f"{self.commander_name} performed an FSS discovery scan. Progress: {progress:.1f}%, Bodies detected: {body_count}, Non-body signals: {non_body_count}."
+            return f"{self.commander_name} performed an FSS discovery scan. Progress: {progress:.1f}%, Provisional discovery snapshot for {content.get("SystemName", "an unidentified source system")}: {body_count} bodies detected, not a final confirmed total. Non-body signals: {non_body_count}."
             
         if event_name == 'FSSSignalDiscovered':
             return None
@@ -950,7 +953,7 @@ class PromptGenerator:
             
         if event_name == 'SAAScanComplete':
             saa_scan_complete_event = cast(SAAScanCompleteEvent, content)
-            body_name = saa_scan_complete_event.get('BodyName', 'the current body')
+            body_name = saa_scan_complete_event.get('BodyName') or ('source BodyID ' + str(saa_scan_complete_event['BodyID']) if 'BodyID' in saa_scan_complete_event else 'an unidentified source body')
             probes_used = saa_scan_complete_event.get('ProbesUsed', 0)
             efficiency_target = saa_scan_complete_event.get('EfficiencyTarget', 0)
             efficiency_text = f" (Efficiency target was {efficiency_target})" if efficiency_target else ""
@@ -992,33 +995,8 @@ class PromptGenerator:
             
             return f"{self.commander_name} has purchased exploration data for the {system_name} system for {cost:,} credits."
             
-        if event_name == 'SellExplorationData':
-            sell_exploration_data_event = cast(SellExplorationDataEvent, content)
-            systems = sell_exploration_data_event.get('Systems', [])
-            systems_text = ', '.join(systems[:3])
-            if len(systems) > 3:
-                systems_text += f" and {len(systems) - 3} more"
-                
-            discovered_bodies = sell_exploration_data_event.get('Discovered', [])
-            discovered_count = len(discovered_bodies)
-            
-            base_value = sell_exploration_data_event.get('BaseValue', 0)
-            bonus = sell_exploration_data_event.get('Bonus', 0)
-            total = sell_exploration_data_event.get('TotalEarnings', 0)
-            
-            return f"{self.commander_name} has sold exploration data for {systems_text} ({discovered_count} bodies) for {total:,} credits (base: {base_value:,}, bonus: {bonus:,})."
-            
-        if event_name == 'MultiSellExplorationData':
-            multi_sell_event = cast(MultiSellExplorationDataEvent, content)
-            discovered_systems = multi_sell_event.get('Discovered', [])
-            system_count = len(discovered_systems)
-            body_count = sum(system.get('NumBodies', 0) for system in discovered_systems)
-            
-            base_value = multi_sell_event.get('BaseValue', 0)
-            bonus = multi_sell_event.get('Bonus', 0)
-            total = multi_sell_event.get('TotalEarnings', 0)
-            
-            return f"{self.commander_name} has sold exploration data for {system_count} systems ({body_count} bodies) for {total:,} credits (base: {base_value:,}, bonus: {bonus:,})."
+        if event_name in SALE_EVENTS:
+            return sale_description(content)
             
         if event_name == 'NavBeaconScan':
             nav_beacon_scan_event = cast(NavBeaconScanEvent, content)
@@ -1553,28 +1531,6 @@ class PromptGenerator:
             else:
                 item_names = [r.get('Name_Localised', r.get('Name', 'unknown item')) for r in resources]
                 return f"{self.commander_name} has sold various microresources ({', '.join(item_names)}) for {price:,} credits."
-                
-        if event_name == 'SellOrganicData':
-            data_event = cast(Dict[str, Any], content)
-            biodata = data_event.get('BioData', [])
-            total_value = sum(data.get('Value', 0) for data in biodata)
-            total_bonus = sum(data.get('Bonus', 0) for data in biodata)
-            
-            if len(biodata) == 1:
-                species = biodata[0].get('Species_Localised', biodata[0].get('Species', 'unknown species'))
-                variant = biodata[0].get('Variant_Localised', biodata[0].get('Variant', ''))
-                if variant and variant != species:
-                    life_form = f"{variant} ({species})"
-                else:
-                    life_form = species
-                    
-                value = biodata[0].get('Value', 0)
-                bonus = biodata[0].get('Bonus', 0)
-                total = value + bonus
-                return f"{self.commander_name} has sold organic data for {life_form} for {total:,} credits (base: {value:,}, bonus: {bonus:,})."
-            else:
-                total = total_value + total_bonus
-                return f"{self.commander_name} has sold organic data for {len(biodata)} species for a total of {total:,} credits (base: {total_value:,}, bonus: {total_bonus:,})."
                 
         if event_name == 'SellSuit':
             suit_event = cast(Dict[str, Any], content)
@@ -2383,7 +2339,7 @@ class PromptGenerator:
         if event_name == "Market":
             return None
 
-        log('debug', f'fallback for event', event_name, content)
+        log('debug', 'fallback for event', event_name, 'content omitted')
 
         return f"Event: {event_name}\n{yaml.dump(content)}"
 
@@ -3009,8 +2965,8 @@ class PromptGenerator:
                 quests[quest_id] = quest
         return quests
 
-    def generate_status_message(self, projected_states: ProjectedStates, search_agent_context: bool = False):
-        status_entries: list[tuple[str, Any]] = []
+    def generate_status_message(self, projected_states: ProjectedStates, search_agent_context: bool = False, freshness: str = "LAST KNOWN"):
+        status_entries: list[tuple[str, Any]] = [("Preferred current commander facts (one value per fact)", current_fact_envelope(projected_states, freshness=freshness))]
 
         current_status = get_state_dict(projected_states, 'CurrentStatus')
         status_fuel = current_status.get('Fuel')
@@ -3039,6 +2995,12 @@ class PromptGenerator:
         
         # Create a copy of ship_info so we don't modify the original
         ship_display = dict(ship_info)
+        # The raw Elite identifier is retained in the projection for logic, but
+        # the model-facing summary should use its authoritative display name.
+        if ship_display.get('Model') and ship_display['Model'] != 'Unknown':
+            ship_display.pop('Type', None)
+        else:
+            ship_display.pop('Model', None)
         ship_display.pop('JetConeBoost', None)
         ship_display.pop('DriveMaxFuel', None)
         ship_display.pop('DrivePowerConst', None)
@@ -3744,13 +3706,29 @@ class PromptGenerator:
                         }
                         conversational_pieces += [piece]
                 except Exception as e:
-                    log('error', f"Error executing prompt event handler for {event}: {e}", traceback.format_exc())
+                    log('error', 'Prompt event handler failed', type(e).__name__)
             
             # If we added a single piece, add its length to history
             if piece:
                 usage_stats.conversation_chars += len(json.dumps(piece))
 
-        status_msg_content = self.generate_status_message(projected_states)
+        from datetime import timezone
+        now_utc = datetime.now(timezone.utc)
+        def recent_live_game_event(event):
+            if not isinstance(event, GameEvent) or event.historic:
+                return False
+            try:
+                stamp = datetime.fromisoformat(event.content.get('timestamp', event.timestamp))
+                if stamp.tzinfo is None:
+                    stamp = stamp.replace(tzinfo=timezone.utc)
+                age = (now_utc - stamp).total_seconds()
+                return 0 <= age < 90
+            except (TypeError, ValueError):
+                return False
+        freshness = ('LIVE' if any(recent_live_game_event(e) for e in events[-50:])
+                     else 'CURRENT SNAPSHOT' if any(isinstance(e, StatusEvent) for e in pending_events)
+                     else 'LAST KNOWN')
+        status_msg_content = self.generate_status_message(projected_states, freshness=freshness)
         usage_stats.status_chars = len(status_msg_content)
         conversational_pieces.append(
             {
@@ -3792,8 +3770,11 @@ class PromptGenerator:
                     + "Do not use markdown in your responses, and no commas in numbers. " \
                     + "Your purpose is to provide information, status updates, and execute tools as required. Only use tools you are given from me. " \
                     + "Be specific about amounts and percentages for inquiries as the commander can not see the game events' text description but lives in the universe. " \
-                    + "You do not ask questions or initiate conversations. You respond only when addressed and in a single sentence. " \
-                    + "Don't repeat the same words and sentences, mix it up. " \
+                    + "Answer direct questions when addressed. You may also speak when an enabled and prioritized ship, exploration, navigation, safety or Chatter event deserves a response; silence is valid for routine events. " \
+                    + "Use a natural length appropriate to the significance instead of enforcing one sentence. " \
+                    + "Do not ask unnecessary follow-up questions or repeat the same wording. " \
+                    + LIVE_EXPLORATION_SPEECH_POLICY \
+                    + RESPONSE_POLICY \
                     + "Your character prompt is: " + self.character_prompt.format(commander_name=self.commander_name)
             
             usage_stats.system_chars = len(system_prompt_content)
@@ -3804,21 +3785,19 @@ class PromptGenerator:
                 }
             )
         except Exception as e:
-            log('error', e, traceback.format_exc())
+            log('error', 'Invalid character prompt', type(e).__name__)
             log('error', 'Invalid character prompt, please keep the {commander_name} placeholder in the prompt.')
 
         conversational_pieces.reverse()  # Restore the original order
 
         #log('debug', 'states', json.dumps(projected_states))
         prompt_json = json.dumps(conversational_pieces)
-        log('debug', 'conversation', prompt_json)
+        log('debug', 'conversation prepared', len(prompt_json), 'characters')
         if self.previous_prompt_json:
-            # find first changed character position, debug log the previous and next 30 characters
+            # Report reuse without logging private prompt or conversation slices.
             for i in range(min(len(self.previous_prompt_json), len(prompt_json))):
                 if self.previous_prompt_json[i] != prompt_json[i]:
-                    start = max(0, i - 30)
-                    end = min(len(prompt_json), i + 30)
-                    log('debug', 'prompt change', f"Change at position {i}/{len(prompt_json)} ({(i/len(prompt_json) * 100):.2f}%):\nPrevious: {self.previous_prompt_json[start:end]}\nCurrent:  {prompt_json[start:end]}")
+                    log('debug', 'prompt change', f'First change at position {i}/{len(prompt_json)}')
                     usage_stats.reuse_chars = i
                     break
         self.previous_prompt_json = prompt_json
