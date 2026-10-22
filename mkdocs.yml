@@ -4,7 +4,6 @@ repo_url: https://github.com/rex688-png/TARS
 
 theme:
     name: material
-    custom_dir: docs/overrides
     palette:
         scheme: slate
         primary: orange
@@ -31,3 +30,62 @@ markdown_extensions:
         emoji_generator: !!python/name:material.extensions.emoji.to_svg
     - pymdownx.tasklist: {}
     - pymdownx.superfences: {}
+
+nav:
+  - Getting Started:
+      - TARS manual: index.md
+      - What TARS does: 30_description.md
+      - Installation and upgrading: tars-installation.md
+      - First steps: 05_first_steps.md
+  - Configuration:
+      - AI providers and downloads: tars-alpha-provider-setup.md
+      - Voice input and output: voice.md
+      - Personality and memory: personality-memory.md
+      - Event reactions: 25_reactions.md
+  - Using TARS:
+      - Game awareness and vision: game-awareness.md
+      - Actions and approvals: 20_actions.md
+  - Official TARS Plugins:
+      - The six plugins: plugins/index.md
+      - Observatory feed: elite-observatory-bridge.md
+  - Troubleshooting:
+      - Diagnostics and common problems: troubleshooting.md
+      - FAQ: 10_faq.md
+      - Support: 60_support.md
+  - Development and Releases:
+      - Contributing: 55_contributing.md
+      - Development: development.md
+      - Release readiness: release-readiness.md
+      - MSI version policy: msi-versioning.md
+  - Credits and Attribution:
+      - Credits: 70_credits.md
+      - License: license.md
+
+# nav alone does not prevent unlisted pages or assets from being published.
+# Default-deny publication; admit only the reviewed public manual below.
+exclude_docs: |
+  **
+  !/index.md
+  !/30_description.md
+  !/tars-installation.md
+  !/05_first_steps.md
+  !/tars-alpha-provider-setup.md
+  !/voice.md
+  !/personality-memory.md
+  !/25_reactions.md
+  !/game-awareness.md
+  !/20_actions.md
+  !/plugins/index.md
+  !/elite-observatory-bridge.md
+  !/troubleshooting.md
+  !/10_faq.md
+  !/60_support.md
+  !/55_contributing.md
+  !/development.md
+  !/release-readiness.md
+  !/msi-versioning.md
+  !/70_credits.md
+  !/license.md
+  # MkDocs Material bundled CSS, JavaScript, icons and favicon.
+  !/assets/
+  !/assets/**

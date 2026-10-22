@@ -1,0 +1,1676 @@
+# Actions
+
+Actions (also called tools or commands) are operations TARS can perform in Elite Dangerous or outside. You can ask TARS naturally; available actions depend on runtime readiness and Elite bindings.
+Primarily, these actions can be used to control various ship/srv/suit operations, such as firing weapons, adjusting speed, deploying heat sinks, and more.
+Additionally, the AI can fetch internet data if it deems it relevant for the conversation, by either your inquiry or game events happening.
+
+## Keyboard and Mouse Bindings
+
+TARS uses your Elite Dangerous control bindings to emulate button presses for supported ship/SRV/suit operations.
+Keyboard and mouse bindings are supported. When both keyboard and mouse buttons are assigned for the same game action, COVAS:NEXT will prefer the keyboard binding. If there are multiple keyboard buttons assigned for one game action, COVAS:NEXT will prefer the secondary binding unless configured otherwise.
+
+Supported mouse inputs:
+
+- `Mouse_1` through `Mouse_5` (left, right, middle, mouse 4, mouse 5)
+- Mouse wheel up/down via `Pos_Mouse_ZAxis` and `Neg_Mouse_ZAxis`
+
+*If you run out of keyboard buttons* keep in mind that you can not only assign a button as press, but also as hold. Keys are also combinable in Elite: Dangerous, so each key can be combined with one or multiple other keys.
+
+## Usage with HOTAS or other Controllers
+
+A common workaround is to assign keyboard bindings alongside your controller bindings, even if you don't use a keyboard. This allows TARS to use these keybindings for its commands, while you continue to use your controller for the game.
+
+## Available Game Actions
+
+This is a list of all currently supported actions the AI can perform. Just talk to it naturally and it will understand your intent.
+
+### Main Ship Actions
+
+1. **Fire weapons** (primary, secondary, discovery scanner)
+
+    - `weaponType`: String (options: "primary", "secondary", "discovery_scanner")
+    - `action`: String (options: "fire", "start", "stop")
+    - `duration`: Number (optional, seconds)
+    - `repetitions`: Integer (optional, 0-10)
+
+    <details>
+    <summary>Examples</summary>
+    
+    - fire primary weapon
+    - fire
+    - fire secondary
+    - fire missiles
+    - start firing
+    - open fire
+    - stop firing
+    - cease fire
+    - weapons fire
+    - engage weapons
+    - discovery scanner
+    - honk
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - PlayerHUDModeToggle
+    - CycleFireGroupNext
+    - PrimaryFire
+    - SecondaryFire
+    </details>
+
+    #### Custom Weapon Types
+
+    You can define custom weapon types for more precise control over your hardpoints. Since Elite: Dangerous doesn't expose detailed weapon data, **you must manually configure these in the UI**.
+
+    ![Custom Weapon Types](screen/firegroups.png)
+
+2. **Set flight thrust speed**
+
+    - `speed`: String (options: "Minus100", "Minus75", "Minus50", "Minus25", "Zero", "25", "50", "75", "100")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - full stop
+    - half speed
+    - full speed
+    - reverse
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - SetSpeedMinus100
+    - SetSpeedMinus75
+    - SetSpeedMinus50
+    - SetSpeedMinus25
+    - SetSpeedZero
+    - SetSpeed25
+    - SetSpeed50
+    - SetSpeed75
+    - SetSpeed100
+    </details>
+
+3. **Deploy heat sink**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - heat sink
+    - deploy heat sink
+    - use heat sink
+    - activate heat sink
+    - heatsink
+    - deploy heatsink
+    - cooling
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - DeployHeatSink
+    </details>
+
+4. **Toggle hardpoints**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - hardpoints
+    - deploy hardpoints
+    - retract hardpoints
+    - toggle hardpoints
+    - hardpoints up
+    - hardpoints down
+    - weapons out
+    - weapons away
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - DeployHardpointToggle
+    </details>
+
+5. **Manage power distribution**
+
+    - `power_category`: Array of strings (options: "Engines", "Weapons", "Systems")
+    - `balance_power`: Boolean (whether to balance power)
+    - `pips`: Array of integers (1-4, number of pips per category)
+
+    <details>
+    <summary>Examples</summary>
+    
+    - balance power
+    - reset power
+    - four pips to engines
+    - four pips to weapons
+    - four pips to systems
+    - max engines
+    - max weapons
+    - max systems
+    - pips to engines
+    - pips to weapons
+    - pips to systems
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ResetPowerDistribution
+    - IncreaseEnginesPower
+    - IncreaseWeaponsPower
+    - IncreaseSystemsPower
+    </details>
+
+6. **Open galaxy map**
+
+    - `system_name`: String (optional)
+    - `start_navigation`: Boolean (optional)
+
+    <details>
+    <summary>Examples</summary>
+    
+    - galaxy map
+    - open galaxy map
+    - galmap
+    - navigation
+    - star map
+    - show galaxy map
+    - nav map
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - GalaxyMapOpen
+    - CamZoomIn
+    - UI_Up
+    - UI_Left
+    - UI_Right
+    - UI_Select
+    - UI_Back
+    - CamZoomOut
+    </details>
+
+7. **Close galaxy map**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - close galaxy map
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - GalaxyMapOpen
+    </details>
+
+8. **Toggle system map**
+
+    - `desired_state`: String (options: "open", "close")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - system map
+    - open system map
+    - close system map
+    - orrery
+    - local map
+    - sysmap
+    - show system map
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - SystemMapOpen
+    - UI_Back
+    </details>
+
+9. **Target ship**
+
+    - `mode`: String (options: "next", "previous", "highest_threat", "next_hostile", "previous_hostile", "wingman_1", "wingman_2", "wingman_3", "wingman_1_target", "wingman_2_target", "wingman_3_target")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - next target
+    - previous target
+    - highest threat
+    - target highest threat
+    - target biggest threat
+    - next hostile
+    - next enemy
+    - cycle hostile
+    - hostile target
+    - previous hostile
+    - previous enemy
+    - first wingman
+    - target first wingman
+    - first wingmate
+    - target first wingmate
+    - first teammate
+    - target first teammate
+    - second wingman
+    - target second wingman
+    - second wingmate
+    - target second wingmate
+    - second teammate
+    - target second teammate
+    - third wingman
+    - target third wingman
+    - third wingmate
+    - target third wingmate
+    - third teammate
+    - target third teammate
+    - first wingman target
+    - target first wingman's target
+    - first wingmate target
+    - target first wingmate's target
+    - first teammate target
+    - target first teammate's target
+    - second wingman target
+    - target second wingman's target
+    - second wingmate target
+    - target second wingmate's target
+    - second teammate target
+    - target second teammate's target
+    - third wingman target
+    - target third wingman's target
+    - third wingmate target
+    - target third wingmate's target
+    - third teammate target
+    - target third teammate's target
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - CycleNextTarget
+    - CyclePreviousTarget
+    - SelectHighestThreat
+    - CycleNextHostileTarget
+    - CyclePreviousHostileTarget
+    - TargetWingman0
+    - TargetWingman1
+    - TargetWingman2
+    - SelectTargetsTarget
+    </details>
+
+10. **Toggle wing nav lock**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - wing nav lock
+    - toggle wing nav lock
+    - wing navigation lock
+    - wing nav
+    - nav lock
+    - navigation lock
+    - wing follow
+    - follow wing
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - WingNavLock
+    </details>
+
+11. **Cycle fire group**
+
+    - `direction`: String (options: "next", "previous")
+    - `fire_group`: Integer (optional, 0-7 for fire groups A-H)
+
+    <details>
+    <summary>Examples</summary>
+    
+    - next fire group
+    - previous fire group
+    - select next fire group
+    - select previous fire group
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - CycleFireGroupNext
+    - CycleFireGroupPrevious
+    </details>
+
+12. **Switch HUD mode**
+
+    - `hud mode`: String (options: "combat", "analysis", "toggle")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - combat mode
+    - analysis mode
+    - switch to combat
+    - switch to analysis
+    - toggle hud mode
+    - hud mode
+    - change hud
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - PlayerHUDModeToggle
+    </details>
+
+13. **Toggle ship spotlight**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - ship light
+    - lights
+    - lights on
+    - turn on lights
+    - lights off
+    - toggle lights
+    - toggle the lights
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ShipSpotLightToggle
+    </details>
+
+14. **Fire chaff launcher**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - chaff
+    - fire chaff
+    - launch chaff
+    - deploy chaff
+    - countermeasures
+    - evade
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - FireChaffLauncher
+    </details>
+
+15. **Engine boost** (main ship, SLF, or Nomad)
+
+    <details>
+    <summary>Examples</summary>
+
+    - engine boost
+    - boost
+    - boost engines
+    - use boost
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UseBoostJuice
+    </details>
+
+16. **Toggle night vision**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - nightvision
+    - night vision
+    - toggle nightvision
+    - thermal vision
+    - enhanced vision
+    - infrared
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - NightVisionToggle
+    </details>
+
+17. **Target subsystem on locked ship**
+
+    - `subsystem`: String (options: "Drive", "Shield Generator", "Power Distributor", "Life Support", "FSD", "Point Defence Turret", "Power Plant")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - target drive
+    - target drives
+    - target power distributor
+    - target distributor
+    - target shields
+    - target shield generator
+    - target life support
+    - target frame shift drive
+    - target fsd
+    - target power
+    - target power plant
+    - target the drive
+    - target the drives
+    - target the power distributor
+    - target the distributor
+    - target the shields
+    - target the shield generator
+    - target the life support
+    - target the frame shift drive
+    - target the fsd
+    - target the power
+    - target the power plant
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - CyclePreviousSubsystem
+    </details>
+
+18. **Charge ECM**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - ecm
+    - charge ecm
+    - electronic countermeasures
+    - activate ecm
+    - ecm blast
+    - disrupt
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ChargeECM
+    </details>
+
+19. **Charge shutdown field neutraliser**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - field neutraliser
+    - charge field neutraliser
+    - shutdown field neutraliser
+    - activate field neutraliser
+    - neutralise shutdown field
+    </details>
+
+    <details>
+    <summary>Notes</summary>
+
+    - Automatically balances pips to 4 SYS / 2 ENG / 0 WEP before holding the neutraliser for ~10s.
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ResetPowerDistribution
+    - IncreaseEnginesPower
+    - IncreaseSystemsPower
+    - TriggerFieldNeutraliser
+    </details>
+
+20. **NPC crew orders**
+
+    - `orders`: Array of strings (options: "DefensiveBehaviour", "AggressiveBehaviour", "FocusTarget", "HoldFire", "HoldPosition", "Follow", "ReturnToShip", "LaunchFighter1", "LaunchFighter2")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - launch fighter
+    - deploy fighter
+    - recall fighter
+    - attack my target
+    - engage target
+    - defend me
+    - be aggressive
+    - hold fire
+    - cease fire
+    - hold position
+    - follow me
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - FocusRadarPanel
+    - UI_Left
+    - UI_Right
+    - UI_Up
+    - UI_Down
+    - UI_Select
+    - UIFocus
+    - OrderDefensiveBehaviour
+    - OrderAggressiveBehaviour
+    - OrderFocusTarget
+    - OrderHoldFire
+    - OrderHoldPosition
+    - OrderFollow
+    - OrderRequestDock
+    </details>
+
+### Main Ship Operations
+
+1. **Initiate FSD jump**
+
+    - `jump_type`: String (options: "next_system", "supercruise", "auto")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - jump
+    - engage fsd
+    - frame shift drive
+    - jump to next system
+    - hyperspace jump
+    - supercruise
+    - enter supercruise
+    - punch it
+    - let's go
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - Hyperspace (if NextJumpTarget set)
+    - Supercruise (if jump_type == supercruise)
+    - HyperSuperCombination (auto)
+    - SetSpeed100
+    - LandingGearToggle (auto retract when down)
+    - ToggleCargoScoop (auto retract when deployed)
+    - DeployHardpointToggle (auto retract when deployed)
+    </details>
+
+2. **Target next system in route**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - next system
+    - target next system
+    - next destination
+    - next waypoint
+    - continue route
+    - next in route
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - TargetNextRouteSystem
+    </details>
+
+3. **Toggle cargo scoop**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - cargo scoop
+    - scoop
+    - deploy scoop
+    - retract scoop
+    - toggle scoop
+    - open cargo scoop
+    - close cargo scoop
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ToggleCargoScoop
+    </details>
+
+4. **Eject all cargo**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - eject cargo
+    - dump cargo
+    - jettison cargo
+    - drop cargo
+    - emergency cargo drop
+    - purge cargo
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - EjectAllCargo
+    </details>
+
+5. **Toggle landing gear**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - landing gear
+    - gear
+    - deploy gear
+    - retract gear
+    - landing gear up
+    - landing gear down
+    - gear up
+    - gear down
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - LandingGearToggle
+    </details>
+
+6. **Use shield cell**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - shield cell
+    - use shield cell
+    - scb
+    - activate scb
+    - shield boost
+    - repair shields
+    - restore shields
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UseShieldCell
+    </details>
+
+7. **Request docking**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - request docking
+    - dock
+    - docking request
+    - permission to dock
+    - requesting docking
+    - docking permission
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - FocusLeftPanel
+    - CyclePreviousPanel
+    - UI_Left
+    - UI_Right
+    - UI_Up
+    - UI_Select
+    - UIFocus
+    </details>
+
+8. **Undock ship**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - undock
+    - launch
+    - depart
+    - leave station
+    - takeoff
+    - disengage
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UI_Down
+    - UI_Up
+    - UI_Select
+    </details>
+
+9. **Station services** (docked main ship only)
+
+    - `service`: Array of strings (one or more of "refuel", "repair", "rearm")
+
+    <details>
+    <summary>Examples</summary>
+
+    - rearm
+    - refuel
+    - repair
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UIFocus
+    - UI_Up
+    - UI_Left
+    - UI_Right
+    - UI_Select
+    </details>
+
+### Ship Launched Fighter (SLF) Actions
+
+1. **Request docking with main ship**
+
+    <details>
+    <summary>Examples</summary>
+
+    - request docking
+    - dock
+    - docking request
+    - permission to dock
+    - requesting docking
+    - docking permission
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - OrderRequestDock
+    </details>
+
+### Nomad Actions
+
+1. **Request docking with main ship**
+
+    <details>
+    <summary>Examples</summary>
+
+    - request docking
+    - dock with ship
+    - return to ship
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UIFocus
+    - FocusRadarPanel
+    - CyclePreviousPanel
+    - CycleNextPanel
+    - UI_Right
+    - UI_Select
+    </details>
+
+2. **Recall or dismiss ship**
+
+    <details>
+    <summary>Examples</summary>
+
+    - recall ship
+    - dismiss ship
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UIFocus
+    - FocusRadarPanel
+    - CyclePreviousPanel
+    - CycleNextPanel
+    - UI_Right
+    - UI_Select
+    </details>
+
+### Vehicle Transition Actions
+
+1. **Deploy SRV** (main ship)
+
+    - `vehicle_number`: Integer (optional, SRV bay slot)
+
+    <details>
+    <summary>Examples</summary>
+
+    - deploy srv
+    - launch srv
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UIFocus
+    - FocusRadarPanel
+    - CycleNextPanel
+    - CyclePreviousPanel
+    - UI_Right
+    - UI_Down
+    - UI_Select
+    </details>
+
+2. **Dock SRV** (SRV)
+
+    <details>
+    <summary>Examples</summary>
+
+    - dock srv
+    - return to ship
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UIFocus
+    - FocusRadarPanel
+    - CyclePreviousPanel
+    - CycleNextPanel
+    - UI_Right
+    - UI_Select
+    </details>
+
+3. **Disembark** (main ship, SRV, or Nomad)
+
+    <details>
+    <summary>Examples</summary>
+
+    - disembark
+    - exit vehicle
+    - leave vehicle
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - UIFocus
+    - FocusRadarPanel
+    - CyclePreviousPanel
+    - UI_Right
+    - UI_Select
+    </details>
+
+4. **Embark** (on foot)
+
+    <details>
+    <summary>Examples</summary>
+
+    - embark
+    - enter vehicle
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidPrimaryInteractButton
+    - UI_Select
+    </details>
+
+### Surface Reconnaissance Vehicle (SRV) Actions
+
+1. **Toggle Drive Assist**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - drive assist
+    - toggle drive assist
+    - assistance
+    - auto drive
+    - driving assistance
+    - stability
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ToggleDriveAssist
+    </details>
+
+2. **Fire SRV weapons**
+
+    - `weaponType`: String (options: "primary", "secondary")
+    - `action`: String (options: "fire", "start", "stop")
+    - `duration`: Number (optional, seconds)
+    - `repetitions`: Integer (optional, 0-10)
+
+    <details>
+    <summary>Examples</summary>
+    
+    - fire srv weapons
+    - shoot
+    - fire plasma
+    - fire missiles
+    - srv weapons
+    - engage weapons
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - BuggyPrimaryFireButton
+    - BuggySecondaryFireButton
+    </details>
+
+3. **Toggle Auto-Brake**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - auto brake
+    - toggle brake
+    - automatic braking
+    - brake assist
+    - handbrake
+    - parking brake
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - AutoBreakBuggyButton
+    </details>
+
+4. **Toggle Headlights**
+
+    - `desired_state`: String (options: "off", "low", "high", "toggle")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - lights
+    - headlights
+    - toggle lights
+    - lights on
+    - lights off
+    - bright lights
+    - dim lights
+    - full beam
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HeadlightsBuggyButton
+    </details>
+
+5. **Toggle Night Vision**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - nightvision
+    - night vision
+    - toggle nightvision
+    - thermal vision
+    - enhanced vision
+    - infrared
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - NightVisionToggle
+    </details>
+
+6. **Toggle Turret Mode**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - turret
+    - toggle turret
+    - turret mode
+    - gun turret
+    - deploy turret
+    - retract turret
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ToggleBuggyTurretButton
+    </details>
+
+7. **Select Target**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - target
+    - select target
+    - lock target
+    - acquire target
+    - scan
+    - focus
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - SelectTarget_Buggy
+    </details>
+
+8. **Manage Power Distribution**
+
+    - `power_category`: Array of strings (options: "Engines", "Weapons", "Systems")
+    - `balance_power`: Boolean (whether to balance power)
+    - `pips`: Array of integers (1-4, number of pips per category)
+
+    <details>
+    <summary>Examples</summary>
+    
+    - balance power
+    - reset power
+    - four pips to engines
+    - four pips to weapons
+    - four pips to systems
+    - max engines
+    - max weapons
+    - max systems
+    - pips to engines
+    - pips to weapons
+    - pips to systems
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ResetPowerDistribution_Buggy
+    - IncreaseEnginesPower_Buggy
+    - IncreaseWeaponsPower_Buggy
+    - IncreaseSystemsPower_Buggy
+    </details>
+
+9. **Toggle Cargo Scoop**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - cargo scoop
+    - scoop
+    - deploy scoop
+    - retract scoop
+    - toggle scoop
+    - collect materials
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - ToggleCargoScoop_Buggy
+    </details>
+
+10. **Eject All Cargo**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - eject cargo
+    - dump cargo
+    - jettison cargo
+    - drop cargo
+    - purge cargo
+    - drop materials
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - EjectAllCargo_Buggy
+    </details>
+
+11. **Recall/Dismiss Ship**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - recall ship
+    - dismiss ship
+    - call ship
+    - send ship away
+    - summon ship
+    - ship pickup
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidOpenAccessPanelButton
+    - UI_Left
+    - UI_Up
+    - UI_Select
+    </details>
+
+12. **Open/Close Galaxy Map**
+
+    - `desired_state`: String (options: "open", "close")
+    - `system_name`: String (optional)
+    - `start_navigation`: Boolean (optional)
+
+    <details>
+    <summary>Examples</summary>
+    
+    - galaxy map
+    - open galaxy map
+    - close galaxy map
+    - galmap
+    - navigation
+    - star map
+    - nav map
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - GalaxyMapOpen_Buggy
+    - CamZoomIn
+    - UI_Up
+    - UI_Left
+    - UI_Right
+    - UI_Select
+    - UI_Back
+    - CamZoomOut
+    </details>
+
+13. **Open/Close System Map**
+
+    - `desired_state`: String (options: "open", "close")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - system map
+    - open system map
+    - close system map
+    - orrery
+    - local map
+    - sysmap
+    - show system map
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - SystemMapOpen_Buggy
+    </details>
+
+### On-Foot (Suits) Actions
+
+1. **Primary Interaction**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - interact
+    - primary interact
+    - use
+    - activate
+    - press
+    - engage
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidPrimaryInteractButton
+    </details>
+
+2. **Secondary Interaction**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - secondary interact
+    - alternate use
+    - secondary action
+    - hold interact
+    - long press
+    - alternative
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidSecondaryInteractButton
+    </details>
+
+3. **Equip Gear**
+
+    - `equipment`: String (options: "HumanoidSelectPrimaryWeaponButton", "HumanoidSelectSecondaryWeaponButton", "HumanoidSelectUtilityWeaponButton", "HumanoidSwitchToRechargeTool", "HumanoidSwitchToCompAnalyser", "HumanoidSwitchToSuitTool", "HumanoidHideWeaponButton", "HumanoidSelectFragGrenade", "HumanoidSelectEMPGrenade", "HumanoidSelectShieldGrenade")
+
+    <details>
+    <summary>Examples</summary>
+    
+    - primary weapon
+    - secondary weapon
+    - utility weapon
+    - recharge tool
+    - comp analyser
+    - composition scanner
+    - suit tool
+    - hide weapon
+    - holster
+    - frag grenade
+    - emp grenade
+    - shield grenade
+    - scanner
+    - energylink
+    - profile analyser
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidSelectPrimaryWeaponButton
+    - HumanoidSelectSecondaryWeaponButton
+    - HumanoidSelectUtilityWeaponButton
+    - HumanoidSwitchToRechargeTool
+    - HumanoidSwitchToCompAnalyser
+    - HumanoidSwitchToSuitTool
+    - HumanoidHideWeaponButton
+    - HumanoidSelectFragGrenade
+    - HumanoidSelectEMPGrenade
+    - HumanoidSelectShieldGrenade
+    </details>
+
+4. **Toggle Flashlight**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - flashlight
+    - torch
+    - lights
+    - toggle lights
+    - illumination
+    - helmet light
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidToggleFlashlightButton
+    </details>
+
+5. **Toggle Night Vision**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - nightvision
+    - night vision
+    - toggle nightvision
+    - thermal vision
+    - enhanced vision
+    - infrared
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidToggleNightVisionButton
+    </details>
+
+6. **Toggle Shields**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - suit shields
+    - personal shields
+    - toggle shields
+    - energy shield
+    - shield generator
+    - protective field
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidToggleShieldsButton
+    </details>
+
+7. **Clear Authority Level**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - clear authority
+    - reset authority
+    - clear wanted level
+    - clear notoriety
+    - authority reset
+    - clean record
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidClearAuthorityLevel
+    </details>
+
+8. **Use Health Pack**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - health pack
+    - medkit
+    - heal
+    - use medkit
+    - medical
+    - first aid
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidHealthPack
+    </details>
+
+9. **Use Battery Pack**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - battery
+    - energy cell
+    - recharge
+    - power up
+    - restore power
+    - charge suit
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - HumanoidBattery
+    </details>
+
+10. **Open/Close Galaxy Map**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - galaxy map
+    - open galaxy map
+    - galmap
+    - navigation
+    - star map
+    - nav map
+    - show galaxy map
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - GalaxyMapOpen_Humanoid
+    </details>
+
+11. **Open/Close System Map**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - system map
+    - open system map
+    - close system map
+    - orrery
+    - local map
+    - sysmap
+    - show system map
+    </details>
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - SystemMapOpen_Humanoid
+    </details>
+
+12. **Recall/Dismiss Ship**
+
+    <details>
+    <summary>Examples</summary>
+    
+    - recall ship
+    - dismiss ship
+    - call ship
+    - send ship away
+    - summon ship
+    - ship pickup
+    </details>
+
+## Search Agent
+
+The search agent is a secondary LLM that is started by the main conversational model whenever a query requires deeper lookup work. The main model packages your question together with a snapshot of the current game state and hands it off to this agent. From there, the search agent runs its own internal loop: it decides which tools to call, inspects the results, and keeps chaining further tool calls until it can construct a complete answer. Only when this internal loop converges does the search agent return a synthesized summary back to the main LLM, which then presents that final answer to you.
+
+The tools available to the search agent fall into two groups.
+
+### External lookup tools
+
+These call external services or game APIs (Galnet, Spansh):
+
+1. **Galnet News (`get_galnet_news`)**
+
+    Retrieves current interstellar news from Galnet and answers questions about recent events.
+
+    Key option:
+
+    - `query`: what you want the news summary to focus on, such as Thargoids, power politics, or recent events in a region.
+
+2. **System Finder (`system_finder`)** (utilizes [Spansh API](https://spansh.co.uk/systems))
+
+    Finds star systems that match political, economic or conflict filters, either near a system or along a specified route.
+
+    Key options:
+
+    - `reference_system`: search around a single system.
+    - `reference_route`: search along a route from `source` to `destination` instead of around one system.
+    - `name`: require text in the system name.
+    - `distance`: maximum search radius.
+    - `allegiance`: limit by controlling power bloc, such as Alliance, Empire, Federation, Independent, or Thargoid.
+    - `state`: limit by faction/system state, such as Boom, War, Famine, or Civil Unrest.
+    - `government`: limit by government type, such as Democracy, Dictatorship, or Corporate.
+    - `power`: limit by Powerplay power.
+    - `primary_economy`: limit by economy type, such as Industrial, High Tech, or Extraction.
+    - `security`: limit by security level.
+    - `population`: filter for systems above or below a given population.
+    - `sort_by`: order results by distance or population.
+    - `size`: number of results to return.
+
+3. **Station Finder (`station_finder`)** (utilizes [Spansh API](https://spansh.co.uk/stations))
+
+    Finds stations for ships, modules, markets, services, and traders, with sensible distance/price-aware sorting.
+
+    Key options:
+
+    - `reference_system`: search around a single system.
+    - `reference_route`: search along a route from `source` to `destination`.
+    - `name`: require text in the station name.
+    - `distance`: maximum search radius.
+    - `has_large_pad`: only include stations with large pads.
+    - `include_planetary_stations`: include planetary stations. Defaults to `true`; set to `false` to return only non-planetary stations.
+    - `material_trader`: look for Raw, Manufactured, or Encoded material traders.
+    - `technology_broker`: look for Human or Guardian tech brokers.
+    - `modules`: search for specific outfitting items; can further narrow by class and rating.
+    - `commodities`: search for markets buying or selling a named commodity, with requested amount.
+    - `market_days_old`: maximum age in days for commodity market data. Used only with `commodities` and defaults to `2`; results state the effective limit.
+    - `ships`: search for shipyards stocking a named ship.
+    - `services`: look for special services such as Black Market or Interstellar Factors.
+    - `sort_by`: order results by distance or best price.
+    - `include_player_fleetcarrier`: include player-owned Drake-Class Carriers in the results. Defaults to `false`.
+    - `unfiltered_results`: return full commodity/module/ship data instead of only the matched entries.
+    - `size`: number of results to return.
+
+4. **Body Finder (`body_finder`)** (utilizes [Spansh API](https://spansh.co.uk/bodies))
+
+    Finds celestial bodies such as mining hotspots or worlds with specific surface signals near you or along a route.
+
+    Key options:
+
+    - `reference_system`: search around a single system.
+    - `reference_route`: search along a route from `source` to `destination`.
+    - `name`: require text in the body name.
+    - `distance`: maximum search radius.
+    - `subtype`: limit by body type, such as a specific planet or star subtype.
+    - `landmark_subtype`: limit by landmark type.
+    - `rings`: search for ring bodies with a named material and a minimum number of hotspots.
+    - `signals`: limit by surface signal type: Biological, Geological, Human, Guardian, or Thargoid.
+    - `size`: number of results to return.
+
+### Internal game-state tools
+
+These are driven primarily by local projections and static data; they never perform network requests:
+
+1. **Engineer Finder (`engineer_finder`)**
+
+    Uses both static engineer definitions and your current in-game engineer progress to build a filtered overview of ship and suit engineers.
+
+    Key options:
+
+    - `name`: find a specific engineer by name.
+    - `system`: limit by engineer location or system.
+    - `modifications`: search by what the engineer can modify, such as FSD range or multi-cannons.
+    - `progress`: limit by your unlock state: Unknown, Known, Invited, or Unlocked.
+
+    Results combine static engineer data with your live save data, including unlock progress, next steps, rank progress where relevant, and distance from your current location.
+
+2. **Blueprint Finder (`blueprint_finder`)**
+
+    Cross-references static engineering blueprints with your current inventories and engineer progress to answer questions like “who can do this mod, at which grade, and what materials am I missing?”.
+
+    Key options:
+
+    - `modifications`: one or more modification names, such as Increased FSD Range or Overcharged Power Plant.
+    - `engineer`: limit to a specific engineer.
+    - `module`: limit to a specific module or weapon.
+    - `grade`: limit to a specific blueprint grade.
+
+    It checks blueprint definitions, calculates total material costs by grade, compares them against your ship and suit inventories, and lists missing materials together with engineers that can apply the blueprint. Results are returned in YAML so larger blueprint trees stay readable.
+
+3. **Material Finder (`material_finder`)**
+
+    Searches engineering and suit materials across your live inventories and known sourcing information, so the agent can see both how many you have and where to obtain more.
+
+    Key options:
+
+    - `name`: one or more material names, with fuzzy matching for partial names.
+    - `grade`: limit by ship-material grade from 1 to 5.
+    - `type`: narrow by category: `raw`, `manufactured`, `encoded` for ship materials; `items`, `components`, `data`, `consumables` for Odyssey materials; or the broader `ship` and `suit` groups.
+
+    It reads your live material counts from `Materials` and `ShipLocker`, merges them where needed, and supplements them with known sourcing and trader information so the agent can explain both what you are missing and where to get it.
+
+4. **Stored Ships (`get_stored_ships`)**
+
+    Lists ships at the current station and in remote storage, grouped by location. Includes ship type, custom name, HOT status, and transfer times where relevant.
+
+5. **Stored Ship Modules (`get_stored_ship_modules`)**
+
+    Lists stored modules grouped by star system. Includes localized names where available, engineering modifications and grades, and HOT status.
+
+6. **Fleet Carriers (`get_fleet_carriers`)**
+
+    Summarizes known carriers, including name, type, system, callsign, docking rules, fuel, jump range, crew, installed services, finances, and active trade orders.
+
+7. **Commander Data (`get_commander_data`)**
+
+    Aggregates commander profile, reputation, rank progress, squadron data, and statistics so the agent can ground its answer in your current progression.
+
+## UI Actions
+
+1. **Show UI**
+
+    - `tab`: String (options: "chat", "status", "navigation", "storage", "station", "tasks", "logbook", "search")
+    - `submenu`: Optional string. Available submenus depend on the selected tab:
+      - Navigation: "location", "list", "route"
+      - Storage: "colonisation", "cargo", "carriers", "materials", "locker", "engineers", "blueprints", "modules", "ships"
+      - Tasks: "missions", "quests", "community-goals"
+
+    The action rejects a submenu that does not belong to the selected tab. Some submenus are only available when their related game data exists, such as Cargo, Carriers, Colonisation, and Quests.
+
+    <details>
+    <summary>Examples</summary>
+    
+    - display chat
+    - show status
+    - open storage
+    - open station tab
+    - show location
+    - show list
+    - show route
+    - show colonisation
+    - show cargo
+    - show carriers
+    - show materials
+    - show locker
+    - show engineers
+    - show blueprints
+    - show modules
+    - show ships
+    - show missions
+    - show quests
+    - show community goals
+    </details>
+
+2. **Scroll UI**
+
+    Scrolls the currently displayed tab.
+
+    - `direction`: String (options: "top", "up", "down", "bottom")
+
+    <details>
+    <summary>Examples</summary>
+
+    - scroll down
+    - scroll up
+    - scroll to top
+    - scroll to bottom
+    </details>
+
+## Generative UI (HUD)
+
+The **Generative UI (HUD)** is an overlay that displays AI-generated Preact components visualizing your current game state (ship status, cargo, location, etc.). The Agent LLM can create and update these components in response to your requests, so you can have a custom HUD that shows exactly what you care about.
+
+- **Enable/disable:** In the app, go to **Settings → Advanced → Agent LLM Settings** and turn the **Generative UI (HUD)** toggle on or off.
+- **Behavior:** When enabled, the overlay appears (with the other overlay elements) and shows the current generated UI. You can ask the AI to change what is displayed (e.g. “show my fuel and jump range”) and it will generate or edit the overlay components accordingly.
+- **Technical note:** The overlay is built from a small set of editable Preact components (with a root `App` component) that receive game state via projections; the Agent LLM has tools to list, read, edit, and validate these components. Changes may take a while to complete.
+
+## Miscellaneous Actions
+
+1. Get Visuals
+
+    - `query`: String
+
+    Describe what's currently visible to the Commander. Answers the question that lead to tool usage.
+
+2. Remember Memories
+
+    - `query`: String (required)
+    - `top_k`: Integer (optional, 1-20, default: 5)
+
+    Retrieve the top matching long-term memory notes via semantic search (requires embeddings to be configured).
+
+3. Send Message
+
+   - `message`: String (required)
+   - `channel`: String (required, options: "local", "system", "wing", "squadron", "commander")
+   - `recipient`: String (optional, only used if channel is "commander")
+
+    Send a direct message to another commander. Can also send to system, local, wing and squadron chat.
+
+    <details>
+    <summary>Required Keyboard Binds</summary>
+
+    - QuickCommsPanel (ship)
+    - QuickCommsPanel_Buggy (SRV)
+    - QuickCommsPanel_Humanoid (on-foot)
+    - UI_Down (for system channel selection)
+    - UI_Select
+    </details>
+
+### Tabbed Chat Channels
+
+In Elite: Dangerous, you can configure certain chat channels to be **tabbed** instead of appearing in the main chat flow. Tabbed channels require different macros to send messages.
+
+![Tabbed Chat Configuration](screen/tabbed_chat.png)

@@ -1,23 +1,31 @@
-# Contributing
+# Contributing to TARS
 
-First of all, thank you for considering contributing to the project! We appreciate your help and are happy to welcome you to the community. Our project is open-source and we are always looking for new contributors to help us improve the AI in any way you can – and you don't even need to understand coding.
+Use the [TARS repository](https://github.com/rex688-png/TARS) for issues and pull
+requests. For substantial work, discuss the problem and proposed scope in a TARS
+issue first. No upstream Discord server is designated here as TARS support.
 
-## Discord Support
+A useful bug report includes the reviewed build/source, Windows version, steps
+to reproduce, expected versus actual behavior and sanitized diagnostics. Follow
+[reporting guidance](60_support.md). Report security problems privately using the
+[security policy](https://github.com/rex688-png/TARS/blob/main/SECURITY.md).
 
-The easiest way to help us it to be an active member of our community on Discord. You can help us by answering questions, providing feedback, or just keeping the spirit up. We are always looking for new ideas and suggestions, so feel free to share your thoughts with us.
+## Documentation and code
 
-## Reporting Bugs
+Check claims against current TARS code and interface labels. Do not copy an
+upstream guide as evidence that TARS enables a feature. Keep historical reports
+clearly separate from current user instructions and preserve attribution.
 
-If you find a bug, please report it to us. You can do this by creating an issue on our GitHub page. Please provide as much information as possible, including the steps to reproduce the bug, the expected behavior, and the actual behavior. This will help us to identify and fix the bug as quickly as possible.
+For source setup and focused checks, see [development](development.md). Submit a
+small, reviewable PR against main and describe what changed, why, the checks
+actually run and any Windows/live-game limitations. Never include credentials,
+user profiles, journals, voice recordings or personal memory databases.
 
-## Documentation
+The host owns its runtime and packaging. The separate
+[TARS-Plugins repository](https://github.com/rex688-png/TARS-Plugins) owns the
+canonical behavior-plugin sources; a host change must preserve its documented
+pin/provenance unless plugin synchronization is explicitly part of the work.
+Do not edit bundled payloads casually or change a user's settings to make tests pass.
 
-If you are good at writing, you can help us improve our documentation. We are always looking for new contributors to help us write new guides, tutorials, and other documentation. You can also help us by translating the documentation into other languages.
-
-## Spread the Word
-
-If you like our project, you can help us by spreading the word. Tell your friends about us, share our project on social media, or write a post about us. The more people know about our project, the more likely we are to get new contributors and users.
-
-## Code Contributions
-
-If you have experience in the software development field and want to contribute directly, please reach out to us on Discord. We are moving fast and goals are changing, so it's best to discuss your ideas with us before you start coding. We are always open to new ideas and suggestions, so feel free to reach out to us.
+TARS is derived from COVAS:NEXT. Follow the [license and attribution](70_credits.md)
+when redistributing or adapting inherited work. This page invites contributions
+to TARS and does not speak for upstream maintainers.

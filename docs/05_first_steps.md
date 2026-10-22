@@ -1,26 +1,34 @@
 # First steps
 
-Install the Windows MSI or unpack the portable build using the
-[installation guide](tars-installation.md). Open Settings to enter your API
-credentials and select your microphone, output device, and PTT or voice
-activation. Local speech, voice, and embedding providers are [optional separate
-downloads](tars-alpha-provider-setup.md); wait for installation to complete and restart
-before selecting one.
+1. Install a reviewed Windows MSI, or extract the **entire** portable ZIP, using
+   [installation and upgrading](tars-installation.md). Launch **TARS.exe**.
+2. Open **Settings → General**. Review the local-use notice, enter your commander
+   name and configure your API credentials. The Setup guide can help an incomplete
+   profile. Its readiness summary is not a physical device or live-game test.
+3. Review **AI & Voice**. The factory main, agent and vision model is OpenAI
+   `gpt-6-luna`; access depends on your API account. A ChatGPT subscription does
+   not include API usage. Alternative LLM configuration includes OpenRouter.
+4. Under **Plugins → TARS Provider Setup**, explicitly install the selected local
+   providers. Wait for **Installed — Restart required**, restart TARS and select
+   the registered providers. Follow the [provider guide](tars-alpha-provider-setup.md).
+5. Select your input/output devices and listening mode. Try Push-to-Talk and a
+   headset first. Start TARS, ask a short question, check the transcript in Chat
+   and confirm audible speech. See [voice](voice.md).
+6. Start Elite Dangerous. Review journal and status readiness and missing
+   keybinds in **Diagnostics**. Saved **Last Known** data is not a live connection.
+   See [game-state awareness](game-awareness.md).
 
-Start TARS from the persistent TARS screen. The conversation remains available
-when the backend is stopped. With Elite Dangerous running, check that journal
-data is live and review missing keybinds in Diagnostics. Saved journal data can
-show **Last Known** while Elite is closed; that is not live telemetry. Observatory
-Bridge and its external event feed are optional.
+## Make TARS your companion
 
-The TARS prompt is editable under Settings and offers Save, Reload saved, and
-Reset to TARS Default. Reactions can also be configured there. The canonical
-TARS avatar is an existing asset rendered by the interface; its source image
-is not altered during setup.
+Edit **Settings → Personality → System prompt**, then **Save**. Changes apply
+to the next session. **Reload saved** discards unsaved edits; **Reset to TARS
+Default** restores the bundled prompt. Review [personality and memory](personality-memory.md)
+before resetting or clearing anything.
 
-Use a reviewed TARS update package rather than an upstream COVAS installer.
-Back up `%APPDATA%\TARS` privately before upgrading because it contains
-credentials and personal state.
+Keep the factory exploration reactions initially: Explorer already selects useful
+callouts. [Chatter](plugins/index.md#chatter) can choose silence, and missing
+Observatory is normal if you have not installed its separate writer.
 
-Check Diagnostics for the package version and frontend build SHA. A temporary
-Actions build is not an official release; follow the [release checklist](release-readiness.md).
+If a stage fails, use [diagnostics](troubleshooting.md) before changing several
+settings at once. Back up `%APPDATA%\TARS` privately before upgrading. Physical
+Windows/audio/Elite acceptance remains pending for the future beta.

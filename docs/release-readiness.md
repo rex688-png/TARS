@@ -1,119 +1,76 @@
-# Beta release approval and infrastructure
+# Release readiness and approval
 
-This is a release procedure, not a published beta announcement. No beta version,
-tag or release has been approved by this document. RC20 is integrated into main;
-automated Windows builds passed. Physical acceptance of a future beta remains
-pending. The owner reports successful upgrades of earlier installations, which
-is useful practical evidence but does not prove every MSI upgrade path.
+This is the current release procedure, not a beta announcement. RC20 and the
+release-infrastructure/MSI sprints are integrated into main. The authoritative
+root `package.json` and its existing mirrors remain **0.0.0**, an unreleased
+placeholder. An illustrative version such as `0.5.0-beta.1` is not an assignment
+or approval to publish.
 
-## Version authority and MSI policy
+## What automation proves
 
-The authoritative release version is the root `package.json` `version`.
-`electron/package.json`, the root lockfile's top-level version and
-`packages[""].version` are mirrors that CI now checks. No new version/config file
-is introduced. They currently remain **0.0.0**, an unreleased placeholder.
+Windows CI builds/tests the backend, frontend and Electron application, produces
+MSI and portable ZIP packages, and validates a clean packaged profile and E2E.
+It also inspects actual MSI identity/upgrade tables and runs a disposable real
+MSI sequence: legacy 0.0.0 → beta.1 → beta.2 → stable, reinstall, rebuilt-version
+replacement and downgrade rejection with a synthetic profile. The fixture payload
+is inert; this is installer-mechanism evidence, not full runtime acceptance.
 
-Proposed convention: `MAJOR.MINOR.PATCH-beta.N`, starting with an owner-approved
-candidate such as **0.5.0-beta.1**. This is an example, not a version assignment.
-The corresponding future tag must be exactly `v<version>`. CI rejects mismatched
-tags and placeholder `v0.0.0`. A future version-adoption PR must update the four
-existing manifest/lock fields together; do not change `com.rex688.tars`, the
-product name, executable name, user-data directory or MSI UpgradeCode derivation.
+Sprint 2's [validated Windows run](https://github.com/rex688-png/TARS/actions/runs/39762690801)
+passed these checks. Always examine the checks for the **exact future candidate
+commit** as well; an older run is not evidence for a changed binary.
 
-The [MSI policy and acceptance procedure](msi-versioning.md) maps semantic patch
-and beta/stable rank into the third Windows Installer version field. The existing
-0.0.0 installer identity/version is preserved. Beta adoption still requires review
-of actual Windows MSI metadata and the disposable install/upgrade report, plus
-physical acceptance; no package version is assigned here. The policy rejects
-out-of-range or unsupported versions instead of allowing collisions.
+The [MSI policy](msi-versioning.md) preserves `com.rex688.tars`, UpgradeCode
+continuity and `%APPDATA%\TARS`. Semantic version/tag validation rejects placeholder
+releases, unsupported mappings and mismatched tags. Versions and architecture
+are checked before release staging.
 
-## Existing pipeline and exact provenance
+## Temporary builds versus official releases
 
-The existing workflow builds the backend, runs backend/bundle checks, builds the
-UI/Electron app and MSI, validates the unpacked clean profile, runs E2E on a fresh
-Windows VM and produces a portable ZIP. These steps and the packaging config are
-retained. Temporary Actions artifacts remain SHA-named and expire after seven
-days. A PR build SHA can be GitHub's synthetic merge commit; check its workflow
-source/parents and tree rather than treating it as an unrelated source build.
+[Actions artifacts](https://github.com/rex688-png/TARS/actions/workflows/build-executable.yml)
+are temporary SHA-named build outputs, not official releases. They can expire.
+An official release is an owner-reviewed, manually published entry on
+[TARS Releases](https://github.com/rex688-png/TARS/releases).
 
-Only a **future approved tag push** may enter the existing draft-release job;
-a workflow dispatch on a tag cannot create a draft release. That job still
-requires successful Electron packaging, E2E and real MSI upgrade acceptance. It checks out the tagged source,
-checks matching package/tag versions and verifies that HEAD and the peeled tag
-commit equal the workflow SHA. Both producer and release staging require x64.
-Downloaded MSI/ZIP selection must yield exactly one of each.
-
-Official staged asset names are:
+Only a future explicitly approved version tag push can enter the existing draft
+release job; it depends on successful packaging, E2E and real MSI acceptance.
+Staging verifies the tag/source, selects exactly one MSI and portable ZIP, and
+produces:
 
 - `TARS-<version>-windows-x64.msi`
 - `TARS-<version>-windows-x64-portable.zip`
-- `release-provenance.json` (version, mapped MSI ProductVersion/UpgradeCode, tag,
-  full source commit, workflow URL, architecture, exact plugin pin and asset hashes)
-- `SHA256SUMS.txt` (MSI, ZIP and provenance file digests)
+- `release-provenance.json` with source, version, architecture, plugin pin and hashes
+- `SHA256SUMS.txt`
 
-This is source traceability and artifact verification, not a claim of bit-for-bit
-reproducible binaries: hosted runner images, `node-version: lts/*`, dependency
-installation and build tools still have mutable inputs. No dependencies or build
-tool versions are changed in this sprint. Artifact names do not alter MSI metadata.
+A published release is refused. Existing assets are not overwritten; an existing
+draft requires review of its version/channel and checksums. Do not publish or
+edit a draft while the upload job is running. This is traceability, not a claim
+of bit-for-bit reproducible binaries or an automatic update service.
 
-The GitHub token is read-only outside the existing release job, where contents
-write is required. Creation uses `--verify-tag --draft`; beta tags additionally
-set the prerelease flag. A published release is refused. An existing draft may
-receive missing assets, but existing assets are never overwritten (`--clobber`
-is removed); a duplicate-name retry fails for manual review. Do not delete/retry
-assets automatically. The draft state is rechecked immediately before upload.
-Do not publish or otherwise edit the draft while the job is running: GitHub's
-separate state-check/upload calls are not an atomic publication lock. Existing
-draft version/channel and checksums must be reviewed before any manual publication.
+## Owner checklist for a future release
 
-## Owner approval checklist (future action only)
+1. Separately approve a supported semantic version and its MSI mapping; update
+   root/Electron manifests and both lockfile version mirrors consistently.
+2. Require green security, Windows build, actual MSI inspection/upgrade,
+   packaging and E2E checks on the exact candidate source.
+3. Privately back up the full profile. Test the real MSI on Windows 11, including
+   upgrade from the relevant existing install and retention of personality,
+   provider/plugin settings, credentials and memory. Check installation scope,
+   shortcuts and duplicate application registrations.
+4. Launch TARS.exe. Test real microphone/speaker devices, provider registration,
+   speech and interruption, Elite journal/Status updates, Explorer, Chatter,
+   Navigator, Galaxy, Expedition, memory and vision. Test Observatory if in use.
+   Full-payload device/game testing remains pending; automated fixtures do not
+   complete it. Prior successful owner upgrades do not prove every upgrade path.
+5. Explicitly approve the exact commit and `v<version>` tag, then inspect the
+   resulting draft, assets, provenance and checksums.
+6. Publish manually only after separate release approval. An existing published
+   release must not have its assets silently replaced.
 
-1. Approve the semantic version and Windows MSI upgrade strategy in a separate
-   review; inspect ProductVersion/UpgradeCode and test old-to-new installation.
-2. Merge reviewed release infrastructure/version changes; require green Windows,
-   security, packaging and E2E checks on the exact candidate source.
-3. Back up the private TARS profile. Complete Windows 11 install, launch, audio,
-   providers, Elite, Explorer/Chatter, memory, vision and TTS acceptance. Record
-   outcomes; mocked tests and the owner's previous upgrades are not substitutes.
-4. Explicitly approve the exact commit and `v<version>` tag. An authorized owner
-   may then push that tag; this sprint creates no tags, draft releases or assets.
-5. Wait for the tag workflow, inspect the draft, source/provenance, architecture,
-   release notes and checksums. Do not equate an uploaded Actions artifact with
-   an approved release. If a published release already exists, stop; do not replace it.
-6. Publish manually only after a separate explicit release approval. Retain the
-   checked files/checksums and acceptance notes. No updater is added.
+## Documentation deployment
 
-## GitHub Pages diagnosis and manual configuration
-
-For failed run 39739980184, `mkdocs build` succeeded and `configure-pages@v5`
-failed to retrieve the Pages site with HTTP 404. In this audit the public repository
-API reports **has_pages: false**, `/repos/rex688-png/TARS/pages` returns 404, and
-an existing `github-pages` Actions environment has no protection rules. The actor
-can read repository administration metadata. This supports Pages not being
-enabled, rather than an invalid MkDocs build or a demonstrated permission failure.
-An environment named github-pages does not itself enable the site.
-
-If the owner wants the documentation site: open **Repository Settings → Pages →
-Build and deployment → Source → GitHub Actions**, enable/save the site as offered
-by GitHub, and review environment deployment restrictions for main. Then explicitly
-approve a later documentation workflow run and verify its deployment. No Pages
-setting is changed here. The workflow already has `pages: write`, `id-token: write`,
-a github-pages environment and configure/upload/deploy actions in the right order.
-There is no evidence requiring an Actions-only workaround. MkDocs link warnings
-are separate from the Pages-site 404 and are reported by local validation.
-
-## Remote Sprint 1 verification scope
-
-Offline tests use synthetic files and a fake `gh` executable, never real release
-creation, tag pushes, asset uploads or deployment. Existing package mirrors are
-consistent at 0.0.0; no package/lock/installer version was changed. The six-plugin
-27-file bundle remains pinned to 6f85f5b8dee4f8ea399df4e86d7cb0a5df03bcc2.
-Full production MSI metadata and disposable fixture upgrades are checked in
-Windows CI; physical Windows 11 full-installer acceptance remains pending.
-
-Local strict MkDocs validation fails with the same two warnings on both base
-9c545a700409ba6e991b0c583b5e25c254cff73f and this sprint: the historical
-runtime-hardening-audit.md link to ../test/fixtures/elite/README.md and the upstream
-plugins/Development.md link to ./CONTRIBUTING.md. Ordinary `mkdocs build` succeeds.
-These pre-existing historical/upstream links are left unchanged; no new warnings
-were introduced. This is independent of the GitHub Pages site not being enabled.
+The TARS manual is deployed through GitHub Pages using the existing GitHub
+Actions workflow. No new Pages setup is required by this manual. Historical
+Sprint 1 Pages-404 diagnosis and old strict-build warnings are preserved in the
+repository archive; they are not current setup instructions. A documentation PR
+is reviewed before main's normal deployment. It does not assign a product version
+or authorize a release.
