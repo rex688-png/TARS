@@ -12,6 +12,14 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = re.compile(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.([1-9]\d*))?')
 
 
+def msi_version_info(version):
+    result = subprocess.run(['node', str(Path(__file__).with_name('msi-version.cjs')), version],
+                            capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError('Invalid MSI version: ' + result.stderr.strip())
+    return json.loads(result.stdout)
+
+
 def validate(root=ROOT, tag=None):
     package = json.loads((root / 'package.json').read_text())
     electron = json.loads((root / 'electron/package.json').read_text())
@@ -19,6 +27,7 @@ def validate(root=ROOT, tag=None):
     version = package['version']  # Authoritative; the other fields are checked mirrors.
     if not VERSION.fullmatch(version):
         raise ValueError('Version must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-beta.N')
+    msi_version_info(version)  # Reject out-of-range/aliasing versions before packaging.
     if any(value != version for value in (electron['version'], lock['version'], lock['packages']['']['version'])):
         raise ValueError('Root/Electron manifests and root lockfile versions must agree')
     if package['build']['appId'] != 'com.rex688.tars' or electron['name'] != 'com.rex688.tars':
@@ -52,7 +61,9 @@ def prepare(assets, tag, source, run_url, architecture, root=ROOT):
         shutil.copyfile(source_file, destination)
         hashes[name] = hashlib.sha256(destination.read_bytes()).hexdigest()
     pin = json.loads((root / 'vendor/tars-plugins/provenance.json').read_text())['source_revision']
-    provenance = {'version': version, 'tag': tag, 'source_commit': source,
+    msi = msi_version_info(version)
+    provenance = {'msi_product_version': msi['product_version'], 'msi_upgrade_code': msi['upgrade_code'],
+                  'version': version, 'tag': tag, 'source_commit': source,
                   'workflow_run': run_url, 'platform': 'windows', 'architecture': 'x64',
                   'plugin_source_revision': pin, 'assets_sha256': hashes}
     metadata = output / 'release-provenance.json'

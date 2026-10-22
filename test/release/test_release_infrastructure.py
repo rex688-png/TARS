@@ -68,6 +68,8 @@ def test_versioned_asset_hashes_and_source_provenance(packages,monkeypatch):
     metadata=json.loads((output/'release-provenance.json').read_text())
     assert metadata['source_commit']==SOURCE and metadata['plugin_source_revision']==PIN
     assert metadata['architecture']=='x64' and metadata['version']=='0.5.0-beta.1'
+    assert metadata['msi_product_version']=='0.5.1'
+    assert metadata['msi_upgrade_code']=='AC5C2268-982F-5911-BC2F-9D5E9DFDCDF9'
     assert set(metadata['assets_sha256'])=={'TARS-0.5.0-beta.1-windows-x64.msi','TARS-0.5.0-beta.1-windows-x64-portable.zip'}
     for line in (output/'SHA256SUMS.txt').read_text().splitlines():
         digest,name=line.split('  ');assert hashlib.sha256((output/name).read_bytes()).hexdigest()==digest
@@ -92,7 +94,7 @@ def test_release_workflow_preserves_safety_gates():
     w=workflow();job=w['jobs']['draft-release']
     assert w['permissions']=={'contents':'read'}
     assert job['permissions']=={'contents':'write'}
-    assert job['needs']==['electron-build','e2e']
+    assert job['needs']==['electron-build','e2e','msi-upgrade-tests']
     assert job['if']=="github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')"
     run=job['steps'][-1]['run']
     assert '--clobber' not in run and '--verify-tag' in run and '--draft' in run

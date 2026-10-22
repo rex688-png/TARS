@@ -6,7 +6,7 @@ automated Windows builds passed. Physical acceptance of a future beta remains
 pending. The owner reports successful upgrades of earlier installations, which
 is useful practical evidence but does not prove every MSI upgrade path.
 
-## Version authority and deferred MSI decision
+## Version authority and MSI policy
 
 The authoritative release version is the root `package.json` `version`.
 `electron/package.json`, the root lockfile's top-level version and
@@ -20,17 +20,12 @@ tags and placeholder `v0.0.0`. A future version-adoption PR must update the four
 existing manifest/lock fields together; do not change `com.rex688.tars`, the
 product name, executable name, user-data directory or MSI UpgradeCode derivation.
 
-Do not adopt the example until Windows installer versioning is reviewed. The
-locked Electron Builder's MSI target calls
-`AppInfo.getVersionInWeirdWindowsForm()`: it takes numeric major/minor/patch and
-an optional numeric build number, defaulting to zero. With the current config,
-`0.5.0-beta.1` and `0.5.0-beta.2` both map to `0.5.0.0`. Windows Installer upgrade
-comparison must not be assumed to distinguish these prereleases or a fourth
-version component. Its UpgradeCode is derived from the existing app ID. The
-sprint does not change this mapping or installer identity. Review a monotonic MSI
-ProductVersion strategy and inspect the actual MSI Property table on Windows
-before approving multiple beta upgrades; no second independent version source
-is introduced remotely to guess a solution.
+The [MSI policy and acceptance procedure](msi-versioning.md) maps semantic patch
+and beta/stable rank into the third Windows Installer version field. The existing
+0.0.0 installer identity/version is preserved. Beta adoption still requires review
+of actual Windows MSI metadata and the disposable install/upgrade report, plus
+physical acceptance; no package version is assigned here. The policy rejects
+out-of-range or unsupported versions instead of allowing collisions.
 
 ## Existing pipeline and exact provenance
 
@@ -43,7 +38,7 @@ source/parents and tree rather than treating it as an unrelated source build.
 
 Only a **future approved tag push** may enter the existing draft-release job;
 a workflow dispatch on a tag cannot create a draft release. That job still
-requires successful Electron packaging and E2E. It checks out the tagged source,
+requires successful Electron packaging, E2E and real MSI upgrade acceptance. It checks out the tagged source,
 checks matching package/tag versions and verifies that HEAD and the peeled tag
 commit equal the workflow SHA. Both producer and release staging require x64.
 Downloaded MSI/ZIP selection must yield exactly one of each.
@@ -52,8 +47,8 @@ Official staged asset names are:
 
 - `TARS-<version>-windows-x64.msi`
 - `TARS-<version>-windows-x64-portable.zip`
-- `release-provenance.json` (version, tag, full source commit, workflow URL,
-  architecture, exact plugin pin and asset hashes)
+- `release-provenance.json` (version, mapped MSI ProductVersion/UpgradeCode, tag,
+  full source commit, workflow URL, architecture, exact plugin pin and asset hashes)
 - `SHA256SUMS.txt` (MSI, ZIP and provenance file digests)
 
 This is source traceability and artifact verification, not a claim of bit-for-bit
@@ -113,7 +108,8 @@ Offline tests use synthetic files and a fake `gh` executable, never real release
 creation, tag pushes, asset uploads or deployment. Existing package mirrors are
 consistent at 0.0.0; no package/lock/installer version was changed. The six-plugin
 27-file bundle remains pinned to 6f85f5b8dee4f8ea399df4e86d7cb0a5df03bcc2.
-Physical MSI ProductVersion inspection and upgrade acceptance remain deferred.
+Full production MSI metadata and disposable fixture upgrades are checked in
+Windows CI; physical Windows 11 full-installer acceptance remains pending.
 
 Local strict MkDocs validation fails with the same two warnings on both base
 9c545a700409ba6e991b0c583b5e25c254cff73f and this sprint: the historical
