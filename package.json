@@ -74,7 +74,8 @@
         "from": "ui/dist/covas-next-ui/browser",
         "to": "ui"
       }
-    ]
+    ],
+    "msiProjectCreated": "./tools/msi-version.cjs"
   },
   "dependencies": {
     "@covas-labs/electron-overlay": "^0.5.2",

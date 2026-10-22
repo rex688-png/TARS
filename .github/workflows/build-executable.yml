@@ -131,6 +131,14 @@ jobs:
         working-directory: .
         run: npm run package
 
+      - name: Inspect actual packaged MSI identity and upgrade tables
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem dist/*.msi)
+          if ($packages.Count -ne 1) { throw 'Expected exactly one production MSI' }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          ./e2e/MsiMetadata.ps1 -MsiPath $packages[0].FullName -Version $version -OutputPath dist/msi-inspection.json
+
       - name: Validate clean packaged TARS profile
         run: |
           python tools/verify_tars_bundle.py --bundle .\dist\win-unpacked\resources\tars-plugins
@@ -190,9 +198,45 @@ jobs:
           python --version
           python e2e/test_ChatExecutable.py
 
+  msi-upgrade-tests:
+    name: MSI upgrade acceptance
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - name: Test bounded MSI mapping and unchanged identity
+        run: node --test test/release/msi-version.test.cjs
+      - name: Build disposable MSI fixtures with locked Electron Builder
+        run: node e2e/build_MsiFixtures.cjs
+      - name: Inspect tables and run real install-upgrade-downgrade sequence
+        shell: pwsh
+        run: |
+          try {
+            ./e2e/test_MsiMetadata.ps1 -InspectFixture
+            ./e2e/test_MsiUpgrades.ps1
+          } catch {
+            Write-Host "::error title=MSI acceptance failure::$($_.Exception.Message)"
+            throw
+          }
+      - name: Upload synthetic MSI acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TARS_MSI_ACCEPTANCE_${{ github.sha }}
+          path: ${{ runner.temp }}/tars-msi-acceptance/acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 7
+
   draft-release:
     name: Add Windows Artifacts to Draft Release
-    needs: [electron-build, e2e]
+    needs: [electron-build, e2e, msi-upgrade-tests]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     concurrency:
