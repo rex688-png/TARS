@@ -1,10 +1,10 @@
 {
-  "source_revision": "6f85f5b8dee4f8ea399df4e86d7cb0a5df03bcc2",
+  "source_revision": "a302b33b742d787df27cc8089f3a716fac54e5cd",
   "files": {
     "plugins/TARSExplorer/REACTS_QUICK_GUIDE.txt": "901b8e796223b0e8552680217e148950b6b73bc6629449b674986c59babaa2fd",
     "plugins/TARSExplorer/README.txt": "2de3d1bd108453870d3239ae04de73e53d4c0de2e751ce09d3c59684a0982c89",
     "plugins/TARSExplorer/SOURCES.txt": "df275e25889b1a1e35093d406d96ed221de90122f0af687ca9478785b2d2bf0b",
-    "plugins/TARSExplorer/TARSExplorer.py": "ed80d6617e535e82c54b5985fbb7731e0052b645437d843371f7543b332a7944",
+    "plugins/TARSExplorer/TARSExplorer.py": "a2a500469d40dacbda75e0b47fa0f7a97528dae378df74c40319fa704a83366f",
     "plugins/TARSExplorer/TARSExplorerSession.py": "3f95b18826382cc89500d9521c9c3e9319820767acc18204940288fb4e132b3c",
     "plugins/TARSExplorer/manifest.json": "b0275decf0009ef694a7c0901200906c119334225b3f15771d6405a684f6c10d",
     "plugins/TARSNavigator/README.txt": "bb3ec6f67c99d5d38239f242d9c16597084cf17f4e7ea7435892edf127ae4f89",
@@ -17,7 +17,7 @@
     "plugins/TARSGalaxy/manifest.json": "ca4f00d8b6016129657c47fd9ac8c3839abb3eced811a072dc9ab3f118f2b435",
     "plugins/TARSChatter/README.txt": "d8ed7dc007ac0b3a3b9d8211ffa84d158800ea23eb8e79398ecd22973fb1148a",
     "plugins/TARSChatter/SOURCES.txt": "57ede83335051f6cbd3747954c2dbf83d9c2ffd88c2faf9d436e37efc11f1bb3",
-    "plugins/TARSChatter/TARSChatter.py": "50ddeeae39fb2e8d9206dcdcd63756eedc2ba7d95fe3c7592bccc650c305ba24",
+    "plugins/TARSChatter/TARSChatter.py": "0ef7738345b0e56e64e99cfd04ee7c64925e5144a40a33a9ac18ace846866a3d",
     "plugins/TARSChatter/TARSChatterSession.py": "4164004a55824860b18a142cf15b4e707d6aab9cb85bee1291cb1b0e6ccd78c1",
     "plugins/TARSChatter/manifest.json": "236836e733bd392d368c68ea00e67054d974801b6509c018a3287078a4ecabcf",
     "plugins/TARSExpedition/README.txt": "08d8173484a59a2fb73554815c41ff55909599cf7fa7ae06b1377d6f2e8ca577",
@@ -25,7 +25,7 @@
     "plugins/TARSExpedition/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "plugins/TARSExpedition/manifest.json": "9cb5258d9b0b2e503b9f53df8e20d0c995c9cbab8b21a4a202ec09f9f4b7867c",
     "plugins/TARSObservatoryBridge/README.txt": "9fd7d2b33d041c499f4283853a58133d2a38bc4e12ddaa425ee907ac95042779",
-    "plugins/TARSObservatoryBridge/TARSObservatoryBridge.py": "4b721c64f763604f9c23922ee1da38eb8287575dbd9dfeff740a8b5a366f15ea",
+    "plugins/TARSObservatoryBridge/TARSObservatoryBridge.py": "47d72981276189fbb07ad29d9c6b1fecb20b015c4c950ab566a4d35e7f296bf9",
     "plugins/TARSObservatoryBridge/manifest.json": "33ee96d5f2cc9cf91ca77a843270b524fa7dd9b7551927761f5dcc2800886185",
     "prompt/prompt.txt": "802f042ac643da3583f0e0595caefb6d5a072746a8c0c0d17f64ec9dc29af4d7"
   }

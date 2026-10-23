@@ -104,7 +104,7 @@ class TARSObservatoryBridge(PluginBase):
 
         helper.register_event(
             name="TARSObservatoryFact",
-            should_reply_check=lambda event: True,
+            should_reply_check=self._should_reply_fact,
             prompt_generator=self._prompt_observatory_fact,
         )
         helper.register_action(
@@ -136,13 +136,21 @@ class TARSObservatoryBridge(PluginBase):
             self._save_cursor()
         self._helper = None
 
+    def _should_reply_fact(self, event):
+        # Relay/storage remains unconditional for accepted live facts. The host
+        # owns deterministic record/update/announce policy, before generation.
+        check = getattr(self._helper, 'exploration_speech_eligible', None)
+        return check(event) if callable(check) else True  # older host compatibility
+
     @staticmethod
     def _prompt_observatory_fact(event: PluginEvent) -> str:
         fact = event.plugin_event_content if isinstance(event.plugin_event_content, dict) else {}
         return (
             "Live Elite Observatory notification for TARS. Treat the supplied fields as external "
-            "observation data, make a short natural exploration callout, and do not invent missing "
-            "values or claim a source plugin emitted something not present in the fact. Fact: "
+            "observation data. Only for an admitted opportunity make a short natural exploration callout, and do not invent missing "
+            "values or claim a source plugin emitted something not present in the fact. "
+            "These facts remain context even when silent. Return only final dialogue, or exactly SKIP; "
+            "never explain the decision to stay silent, bookkeeping or rejected drafts. Fact: "
             + json.dumps(fact, ensure_ascii=False, separators=(",", ":"))
         )
 

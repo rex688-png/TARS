@@ -17,7 +17,7 @@ spec = importlib.util.spec_from_file_location('release_metadata', ROOT / 'tools/
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 SOURCE = 'a' * 40
-PIN = '6f85f5b8dee4f8ea399df4e86d7cb0a5df03bcc2'
+PIN = 'a302b33b742d787df27cc8089f3a716fac54e5cd'
 
 
 @pytest.fixture

@@ -92,7 +92,7 @@ def test_empty_model_response_marks_turn_complete_without_visible_placeholder():
         ast.arg(arg='self'),ast.arg(arg='response_text'),ast.arg(arg='response_actions'),
         ast.arg(arg='max_conversation_processed')],vararg=None,kwonlyargs=[],kw_defaults=[],
         kwarg=None,defaults=[]),body=[copy.deepcopy(empty)],decorator_list=[])
-    namespace={'speech_trace':speech_trace, 'time':lambda:0.0,'log':lambda *args:None}
+    namespace={'speech_trace':speech_trace, 'time':lambda:0.0,'log':lambda *args:None, 'direct_turn':False}
     exec(compile(ast.fix_missing_locations(ast.Module(body=[branch],type_ignores=[])),
                  str(ROOT/'src/lib/Assistant.py'),'exec'),namespace)
     manager=SimpleNamespace(short_term_memory=SimpleNamespace(replied_before=Mock()),

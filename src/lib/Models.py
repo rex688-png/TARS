@@ -24,6 +24,54 @@ class LLMError(Exception):
         super().__init__(message)
         self.original_error = original_error
 
+def _raise_provider_rejection(error, messages):
+    """Never print request headers/body, provider free text or response objects."""
+    body = error.body[0] if isinstance(error.body, list) and error.body else error.body
+    body = body if isinstance(body, dict) else {}
+    detail = body.get('error', body)
+    code = detail.get('code') if isinstance(detail, dict) else None
+    safe_code = code if code in ('invalid_prompt', 'invalid_api_key', 'rate_limit_exceeded',
+        'insufficient_quota', 'context_length_exceeded', 'model_not_found') else 'provider_error'
+    from . import SpeechTrace
+    SpeechTrace.emit('provider_rejected', status=error.status_code, code=safe_code,
+                     message_count=len(messages),
+                     input_chars=sum(len(str(m.get('content', ''))) for m in messages))
+    log('error', f'LLM request failed: HTTP {error.status_code}; code={safe_code}')
+    raise LLMError(f'Model request failed (HTTP {error.status_code}; {safe_code})') from None
+
+
+def _single_response_text(response):
+    """SDK output_text concatenates *all* assistant messages without separators.
+
+    Select the explicit final_answer when supplied; never concatenate competing
+    messages or guess that the last unlabelled alternative is the right one.
+    Multiple text parts within one final message retain their provider ordering.
+    """
+    messages = []
+    saw_message = False
+    has_tools = False
+    for item in getattr(response, 'output', []) or []:
+        item = _model_dump_compatible(item)
+        if isinstance(item, dict) and item.get('type') == 'function_call':
+            has_tools = True
+        if isinstance(item, dict) and item.get('type') == 'message' and item.get('role') == 'assistant':
+            saw_message = True
+            if item.get('status', 'completed') == 'completed':
+                messages.append(item)
+    if not messages:
+        return None if saw_message else getattr(response, 'output_text', None) or None
+    finals = [m for m in messages if m.get('phase') == 'final_answer']
+    candidates = finals or [m for m in messages if m.get('phase') in (None, '')]
+    if not candidates and has_tools:
+        return None
+    if len(candidates) != 1:
+        from . import SpeechTrace
+        SpeechTrace.emit('response_discarded', reason='multiple_or_missing_final_messages', count=len(candidates))
+        raise LLMError('Model returned no unambiguous final answer')
+    return ''.join(part.get('text', '') for part in candidates[0].get('content', [])
+                   if isinstance(part, dict) and part.get('type') == 'output_text') or None
+
+
 class LLMModel(ABC):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -282,19 +330,9 @@ class OpenAILLMModel(LLMModel):
             completion = raw_response.parse()
             retry_attempts = raw_response.retries_taken
         except APIStatusError as e:
-            log("debug", "LLM error request:", e.request.method, e.request.url, e.request.headers, e.request.read().decode('utf-8', errors='replace'))
-            log("debug", "LLM error response:", e.response.status_code, e.response.headers, e.response.read().decode('utf-8', errors='replace'))
-            log("error", f"LLM request failed for {self.provider_name or 'unknown'}/{self.model_name}: HTTP {e.status_code}: {e.body}")
-            
-            try:
-                error: dict = e.body[0] if hasattr(e, 'body') and e.body and isinstance(e.body, list) else e.body # pyright: ignore[reportAssignmentType]
-                message = error.get('error', {}).get('message', e.body if e.body else 'Unknown error')
-            except:
-                message = e.message
-            
-            raise LLMError(f'LLM {e.response.reason_phrase}: {message}', e)
+            _raise_provider_rejection(e, messages)
         except Exception as e:
-            raise LLMError(f'LLM Error: {str(e)}', e)
+            raise LLMError(f'Model request failed ({type(e).__name__})') from None
 
         if not isinstance(completion, ChatCompletion) or hasattr(completion, 'error'):
             log("debug", "LLM completion error; response content omitted")
@@ -610,22 +648,12 @@ class OpenAIResponsesLLMModel(LLMModel):
             response = raw_response.parse()
             retry_attempts = raw_response.retries_taken
         except APIStatusError as e:
-            log("debug", "LLM error request:", e.request.method, e.request.url, e.request.headers, e.request.read().decode('utf-8', errors='replace'))
-            log("debug", "LLM error response:", e.response.status_code, e.response.headers, e.response.read().decode('utf-8', errors='replace'))
-            log("error", f"LLM request failed for {self.provider_name or 'unknown'}/{self.model_name}: HTTP {e.status_code}: {e.body}")
-
-            try:
-                error: dict = e.body[0] if hasattr(e, 'body') and e.body and isinstance(e.body, list) else e.body # pyright: ignore[reportAssignmentType]
-                message = error.get('error', {}).get('message', e.body if e.body else 'Unknown error')
-            except:
-                message = e.message
-
-            raise LLMError(f'LLM {e.response.reason_phrase}: {message}', e)
+            _raise_provider_rejection(e, messages)
         except Exception as e:
-            raise LLMError(f'LLM Error: {str(e)}', e)
+            raise LLMError(f'Model request failed ({type(e).__name__})') from None
 
         if getattr(response, "error", None):
-            log("debug", "LLM response error:", response)
+            log("debug", "LLM response error; response content omitted")
             raise LLMError("LLM error: No valid response received")
 
         usage_metadata = ModelUsageStats(
@@ -643,7 +671,7 @@ class OpenAIResponsesLLMModel(LLMModel):
                 usage_metadata.cached_tokens = getattr(response.usage.input_tokens_details, "cached_tokens", 0)
             usage_metadata.reasoning_tokens = _get_reasoning_tokens(response.usage)
 
-        response_text = getattr(response, "output_text", None) or None
+        response_text = _single_response_text(response)
         response_actions = self._extract_tool_calls(response)
 
         if response_text is None and response_actions is None:
@@ -723,8 +751,7 @@ class OpenAISTTModel(STTModel):
 
             transcription = self.client.audio.transcriptions.create(**kwargs)
         except APIStatusError as e:
-            log("debug", "STT error request:", e.request.method, e.request.url, e.request.headers)
-            log("debug", "STT error response:", e.response.status_code, e.response.headers, e.response.read().decode('utf-8', errors='replace'))
+            log("debug", "Audio provider request failed; content omitted", e.status_code)
             
             try:
                 error: dict = e.body[0] if hasattr(e, 'body') and e.body and isinstance(e.body, list) else e.body # pyright: ignore[reportAssignmentType]
@@ -782,8 +809,7 @@ class OpenAIMultiModalSTTModel(STTModel):
                 ]
             )
         except APIStatusError as e:
-            log("debug", "STT mm error request:", e.request.method, e.request.url, e.request.headers, e.request.read().decode('utf-8', errors='replace'))
-            log("debug", "STT mm error response:", e.response.status_code, e.response.headers, e.response.read().decode('utf-8', errors='replace'))
+            log("debug", "Audio provider request failed; content omitted", e.status_code)
             
             try:
                 error: dict = e.body[0] if hasattr(e, 'body') and e.body and isinstance(e.body, list) else e.body # pyright: ignore[reportAssignmentType]
@@ -894,8 +920,7 @@ class OpenAITTSModel(TTSModel):
                 for chunk in response.iter_bytes(1024):
                     yield chunk
         except APIStatusError as e:
-            log("debug", "TTS error request:", e.request.method, e.request.url, e.request.headers, e.request.read().decode('utf-8', errors='replace'))
-            log("debug", "TTS error response:", e.response.status_code, e.response.headers, e.response.read().decode('utf-8', errors='replace'))
+            log("debug", "Audio provider request failed; content omitted", e.status_code)
             
             try:
                 error: dict = e.body[0] if hasattr(e, 'body') and e.body and isinstance(e.body, list) else e.body # pyright: ignore[reportAssignmentType]

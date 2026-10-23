@@ -2,7 +2,8 @@ from .JournalFacts import SALE_EVENTS, sale_key
 from .SpeechArbiter import SpeechArbiter, SOURCES as SPEECH_SOURCES
 from . import SpeechTrace as speech_trace
 from .ActionPolicy import spoken_activity, latest_user_intent, action_intent_allowed
-from .ResponsePresentation import ExplorationCalloutDeduper, format_display_quantities, is_silence_sentinel
+from .ResponsePresentation import format_display_quantities, is_silence_sentinel, unsolicited_output_rejection
+from .ExplorationSpeech import SOURCES as EXPLORATION_SOURCES
 from .BodyPresentation import known_body_labels, format_body_identifiers
 from .ExplorerSpeech import departure_warning, warning_text
 import copy
@@ -33,7 +34,7 @@ from .Config import (
     TTS_ENVIRONMENT_EFFECTS_OVERHEATING,
 )
 from .Database import QuestDatabase, QuestState
-from .Event import ConversationEvent, Event, GameEvent, StatusEvent, ToolEvent, ExternalEvent, ProjectedEvent, MemoryEvent, QuestEvent
+from .Event import PluginEvent, ConversationEvent, Event, GameEvent, StatusEvent, ToolEvent, ExternalEvent, ProjectedEvent, MemoryEvent, QuestEvent
 from .EventManager import EventManager
 from .ActionManager import ActionManager
 from .PromptGenerator import PromptGenerator
@@ -890,25 +891,41 @@ class Assistant:
     @observe()
     @speech_trace.reply_scope
     def reply_thread(self, projected_states: ProjectedStates):
-        execution = None
-        if self.config.get('speech_director_mode', 'observe') == 'enforce':
-            execution = self.__dict__.setdefault('_speech_execution_lock', Lock())
-            if not execution.acquire(blocking=False):
+        # Snapshot before acquiring execution ownership. A commander/tool turn
+        # can preempt a blocked optional model call; stale optional output is
+        # invalidated by note_event's epoch before it can reach TTS/UI.
+        events = list(reversed(self.event_manager.get_short_term_memory(150)))
+        urgent = any(isinstance(e, (ConversationEvent, ToolEvent)) and e.kind in ('user', 'tool')
+                     and e.responded_at is None and not getattr(e, 'do_not_reply', False)
+                     for e in events)
+        direct_execution = self.__dict__.setdefault('_speech_direct_execution_lock', Lock()) if urgent else None
+        if direct_execution is not None and not direct_execution.acquire(blocking=False):
+            self._speech_retry_requested = True
+            self.reply_pending = True
+            return
+        execution = self.__dict__.setdefault('_speech_execution_lock', Lock())
+        if not execution.acquire(blocking=False):
+            if not urgent:
                 self._speech_retry_requested = True
                 self.reply_pending = True
                 return
+            execution = None  # direct generation owns its separate priority lock
         retrying = bool(getattr(self, '_speech_deferred', {}) or
                         getattr(self, '_speech_retry_requested', False))
         self._speech_retry_requested = False
         self.__dict__.setdefault('_speech_deferred', {})
         self.reply_pending = False
-        self.is_replying = True
+        execution_state = self.__dict__.setdefault('_speech_execution_state_lock', Lock())
+        with execution_state:
+            self._speech_execution_count = getattr(self, '_speech_execution_count', 0) + 1
+            self.is_replying = True
         admission = None
         playback_evidence = "unknown"
+        exploration_claims, exploration_epoch = {}, None
+        direct_turn = False
         arbiter = self.speech_arbiter()
+        arbiter.configure(self.config.get('speech_director_mode', 'observe'))
         try:
-            events = self.event_manager.get_short_term_memory(150)
-            events = list(reversed(events))
             def event_key(event):
                 return (event.kind, event.timestamp, event.processed_at,
                         getattr(event, 'plugin_event_name', None))
@@ -931,6 +948,18 @@ class Assistant:
             removed_sale_only = bool(new_events) and not filtered
             new_events = filtered
             self._speech_deferred = {}
+            direct_turn = any(isinstance(e, (ConversationEvent, ToolEvent)) and
+                              (e.kind in ('user', 'tool')) and not getattr(e, 'do_not_reply', False)
+                              for e in new_events)
+            if not direct_turn:
+                had_exploration = any(getattr(e, 'plugin_event_name', None) in EXPLORATION_SOURCES for e in new_events)
+                new_events, exploration_claims, exploration_epoch = arbiter.exploration_candidates(new_events, projected_states)
+                if had_exploration and not any(
+                    isinstance(e, (PluginEvent, ProjectedEvent, QuestEvent, ExternalEvent)) or
+                    isinstance(e, GameEvent) and e.content.get('event') in self.enabled_game_events or
+                    isinstance(e, StatusEvent) and e.status.get('event') in self.enabled_game_events
+                    for e in new_events):
+                    return  # Full events/history remain queryable; no empty UI turn.
             self.pending = []
             if removed_sale_only:
                 return
@@ -939,7 +968,6 @@ class Assistant:
             mode = arbiter.configure(self.config.get('speech_director_mode', 'observe'))
             if mode != 'off':
                 arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
-                from .Event import PluginEvent
                 candidates = [event for event in new_events if
                     (isinstance(event, ConversationEvent) and event.kind == 'user'
                      and not getattr(event, 'do_not_reply', False)) or
@@ -1070,6 +1098,10 @@ class Assistant:
 
                     log_llm_usage("assistant", model_usage=model_usage, prompt_usage=prompt_usage, llm_model=self.llmModel)
 
+                    rejection = unsolicited_output_rejection(response_text) if not direct_turn and not response_actions else None
+                    if rejection:
+                        speech_trace.emit('response_discarded', reason=rejection)
+                        response_text = None
                     if is_silence_sentinel(response_text):
                         response_text = None
                         speech_trace.emit("response_discarded", reason="silence_sentinel")
@@ -1079,6 +1111,8 @@ class Assistant:
                             return
 
                     if not response_text and not response_actions:
+                        if direct_turn:
+                            show_chat_message('error', 'The model returned no answer. Please retry or check provider status.')
                         speech_trace.emit("response_discarded", reason="empty_model_turn")
                         # An empty model turn is not a spoken or visible reply.
                         self.event_manager.short_term_memory.replied_before(max_conversation_processed)
@@ -1087,24 +1121,17 @@ class Assistant:
                     end_time = time()
                     log('debug', 'Response time LLM', end_time - start_time)
                 except LLMError as e:
-                    speech_trace.emit("reply_generation_failed")
-                    show_chat_message('error', 'LLM Error:', str(e))
+                    speech_trace.emit("reply_generation_failed", error_type=type(e).__name__)
+                    if direct_turn:
+                        show_chat_message('error', 'The model request failed. Check provider status and diagnostics.')
                     return
 
-            if response_text and not response_actions:
-                from .Event import PluginEvent
-                exploration = any(isinstance(event, PluginEvent) and event.plugin_event_name in
-                    ('TARSExplorerTarget', 'TARSObservatoryFact') for event in new_events)
-                location = get_state_dict(projected_states, 'Location')
-                context = (location.get('StarSystem'), location.get('Body'))
-                if not hasattr(self, '_exploration_callouts'):
-                    self._exploration_callouts = ExplorationCalloutDeduper()
-                response_text = self._exploration_callouts.assemble(response_text,
-                    context=context if context[0] else None, exploration=exploration and not user_input and not tool_uses)
-                if not response_text:
-                    speech_trace.emit("response_discarded", reason="exploration_deduplication")
-                    self.event_manager.short_term_memory.replied_before(max_conversation_processed)
-                    self.event_manager.add_assistant_complete_event()
+            if not direct_turn and response_text and (not arbiter.exploration_still_current(new_events, projected_states, exploration_epoch) or
+                    any(e.kind in ('user', 'user_speaking', 'tool') for e in self.pending)):
+                speech_trace.emit('response_discarded', reason='superseded_generation')
+                return
+            # Cross-turn exploration suppression is based on source evidence and
+            # completed delivery, never a sentence cached before playback.
             if response_text and not response_actions:
                 labels = known_body_labels(projected_states, new_events)
                 response_text = format_body_identifiers(format_display_quantities(response_text), known_labels=labels)
@@ -1119,6 +1146,9 @@ class Assistant:
                 self.event_manager.add_conversation_event('assistant', response_text, reasons=reasons, processed_at=max_conversation_processed)
                 line.wait_for_completion()
                 terminal = getattr(line, "result", None)
+                if not direct_turn:
+                    arbiter.confirm_exploration(exploration_claims, exploration_epoch, terminal, new_events, response_text)
+                speech_trace.emit('response_delivery', outcome=getattr(terminal, 'outcome', 'unknown'))
                 sale_history = self.__dict__.setdefault('_sale_reaction_keys', {})
                 for event in new_events:
                     key = sale_key(event)
@@ -1159,11 +1189,15 @@ class Assistant:
         finally:
             arbiter.note_cancellation(getattr(self.tts, '_abort_revision', None))
             arbiter.finish(admission, playback_evidence)
-            self.is_replying = False
+            with execution_state:
+                self._speech_execution_count -= 1
+                self.is_replying = self._speech_execution_count > 0
             self.reply_pending = (self.reply_pending or bool(self._speech_deferred)
                                   or bool(self._speech_retry_requested))
             if execution is not None:
                 execution.release()
+            if direct_execution is not None:
+                direct_execution.release()
 
     def should_reply(self, states:dict[str, Any]):
         character = self.config['characters'][self.config['active_character_index']]
@@ -1173,6 +1207,10 @@ class Assistant:
         for event in self.pending:
             if isinstance(event, GameEvent) and event.content.get('event') in SALE_EVENTS:
                 if event.historic or sale_key(event) in getattr(self, '_sale_reaction_keys', {}):
+                    continue
+            if getattr(event, 'plugin_event_name', None) in EXPLORATION_SOURCES:
+                selected, _, _ = self.speech_arbiter().exploration_candidates([event], states)
+                if not selected:
                     continue
             # check if pending contains conversational events
             if isinstance(event, ConversationEvent) and event.kind == "user":
