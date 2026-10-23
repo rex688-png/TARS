@@ -13,6 +13,7 @@ import json
 from .Event import ConversationEvent, GameEvent, PluginEvent, StatusEvent, ToolEvent
 from . import SpeechTrace
 from .SpeechPolicy import routine_first_discovery_tally
+from .ExplorationSpeech import DeliveryLedger, SOURCES as EXPLORATION_SOURCES
 
 SOURCES = {'TARSExplorerTarget': 'explorer', 'TARSObservatoryFact': 'observatory',
            'TARSNavigatorTarget': 'navigator', 'TARSChatter': 'chatter'}
@@ -130,6 +131,7 @@ class SpeechArbiter:
         self.attempt_window = attempt_window
         self._lock = RLock()
         self._recent = {}
+        self._delivery_ledger = DeliveryLedger()
         self._active = None
         self._epoch = 0
         self._mode = None
@@ -257,6 +259,34 @@ class SpeechArbiter:
             if token:
                 self._active = token
             return Admission(mode != 'enforce' or proposed, decisions, token, self._epoch, claims)
+
+    def exploration_candidates(self, events, states):
+        with self._lock:
+            fresh = []
+            for event in events:
+                if (isinstance(event, PluginEvent) and event.plugin_event_name in EXPLORATION_SOURCES
+                        and self._freshness(event, states)):
+                    SpeechTrace.observe_event('speech_eligibility', event, disposition='update', reason='stale_source')
+                else:
+                    fresh.append(event)
+            selected, claims = self._delivery_ledger.select(fresh)
+            return selected, claims, self._epoch
+
+    def confirm_exploration(self, claims, epoch, terminal, events, text):
+        with self._lock:
+            if (epoch == self._epoch and getattr(terminal, 'outcome', None) == 'completed'
+                    and getattr(terminal, 'output_written', False) is True):
+                self._delivery_ledger.confirm(self._delivery_ledger.covered(claims, events, text))
+
+    def exploration_still_current(self, events, states, epoch):
+        with self._lock:
+            return epoch == self._epoch and all(
+                not self._freshness(event, states) for event in events
+                if isinstance(event, PluginEvent) and event.plugin_event_name in EXPLORATION_SOURCES)
+
+    def current_epoch(self):
+        with self._lock:
+            return self._epoch
 
     def finish(self, admission, evidence='unknown'):
         if admission is None or admission.token is None:

@@ -98,6 +98,15 @@ class PluginHelper():
         self._config = config
         self._assistant = assistant
 
+    def exploration_speech_eligible(self, event):
+        """Facts still dispatch/store; this only selects standalone generation."""
+        from .ExplorationSpeech import eligibility
+        return eligibility(event).disposition == 'announce'
+
+    def unsolicited_output_rejection(self, text):
+        from .ResponsePresentation import unsolicited_output_rejection
+        return unsolicited_output_rejection(text)
+
     def get_plugin_data_path(self, plugin_manifest: 'PluginManifest') -> str:
         """Get a plugin data path, from the plugin data folder"""
         plugin_data_path = os.path.abspath(os.path.join(self.PLUGIN_DATA_PATH, plugin_manifest.guid))

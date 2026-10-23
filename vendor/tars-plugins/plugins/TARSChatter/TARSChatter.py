@@ -719,11 +719,11 @@ class TARSChatter(PluginBase):
 
                 retry_block = (
                     "\n\nTARS DIRECTOR — DRAFT REJECTED:\n"
-                    f'The first draft was rejected for {reason}: "{str(response_text or "")[:350]}".\n'
+                    f"The first draft was rejected for {reason}.\n"
                     + (
-                        "This is spontaneous companion chatter. Write ONE fresh dry joke or wry "
-                        "personal remark with a twist. No scan/status recap, no neutral acknowledgement, "
-                        "no 'nothing worth noting', and no invented game facts. "
+                        "This is optional companion chatter. Return ONE genuinely fresh, grounded remark "
+                        "only if the supplied context supports it; otherwise return exactly SKIP. "
+                        "No scan/status recap, forced joke, neutral acknowledgement or invented facts. "
                         if spontaneous else
                         "For a routine flight event give only a terse factual confirmation, "
                         "without jokes, metaphors, planet/universe personalities, or guesses. "
@@ -731,7 +731,7 @@ class TARSChatter(PluginBase):
                         "Generate ONE genuinely different replacement. Change the underlying idea, "
                         "not only the wording. For a routine event prefer a terse factual response. "
                     )
-                    + "Do not mention this rejection or these instructions."
+                    + "Return only the final replacement or SKIP. Never include rejected text, alternatives, analysis or this decision."
                 )
                 retry_messages[retry_system_index]["content"] = (
                     str(retry_messages[retry_system_index].get("content", "")) + retry_block
@@ -2249,6 +2249,12 @@ Rules for THIS response:
                     self._diagnose("quality_rejected")
                     rejection = "No usable text returned"
                     continue
+                screen = getattr(self._helper, 'unsolicited_output_rejection', None)
+                screened = screen(candidate) if callable(screen) else None
+                if screened and screened != 'silence_sentinel':
+                    self._diagnose('quality_rejected')
+                    log('info', 'TARS Chatter discarded internal or alternative output.')
+                    return None
                 candidate = " ".join(candidate.strip().strip('"').split())
                 if candidate.upper().startswith("SKIP"):
                     self._diagnose("model_skip")

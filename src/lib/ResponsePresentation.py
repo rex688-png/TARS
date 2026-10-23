@@ -1,4 +1,4 @@
-"""Response assembly preserves source facts; only exact repeated sentences are suppressed."""
+"""Final display formatting and narrow unsolicited-output validation."""
 from . import SpeechTrace as speech_trace
 import re
 from time import monotonic
@@ -96,3 +96,24 @@ def is_silence_sentinel(text):
     if not isinstance(text, str):
         return False
     return bool(re.fullmatch(r"skip[.!]?", text.strip(" \t\r\n\"'`“”‘’").casefold()))
+
+
+def unsolicited_output_rejection(text):
+    """Narrow final-output contract, never applied to direct questions/tool replies.
+
+    Do not classify arbitrary multi-sentence speech or infer hidden reasoning.
+    Only explicit internal decisions or explicitly labeled alternatives fail.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return 'empty'
+    if is_silence_sentinel(text):
+        return 'silence_sentinel'
+    if re.search(r'(?im)^\s*(?:no final output\b|(?:analysis|internal (?:note|decision)|rejected draft|response selection)\s*:|we already acknowledged\b|(?:no new facts|nothing (?:new|worth announcing))\s*[.!]?$)', text):
+        return 'internal_decision'
+    if re.search(r'(?i)\b(?:does not merit unsolicited|should (?:remain|stay) silent|no (?:final )?(?:response|output) (?:is )?(?:needed|required)|do not (?:speak|respond|announce)|no new facts\s*[.!]?$)', text):
+        return 'internal_decision'
+    if re.search(r'(?im)^\s*(?:alternative|candidate|option|response)\s*[12AB]\s*[:.)-]', text) and len(re.findall(r'(?im)^\s*(?:alternative|candidate|option|response)\s*[12AB]\s*[:.)-]', text)) >= 2:
+        return 'multiple_candidates'
+    if len(re.findall(r'(?im)^\s*(?:final answer|assistant)\s*:', text)) > 1:
+        return 'multiple_candidates'
+    return None

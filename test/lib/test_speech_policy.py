@@ -93,7 +93,7 @@ def test_counter_notice_with_scientific_detail_is_not_suppressed(detail):
     assert not routine_first_discovery_tally(event)
 
 
-@pytest.mark.parametrize('mode,expected', [('off', 1), ('observe', 1), ('enforce', 0)])
+@pytest.mark.parametrize('mode,expected', [('off', 0), ('observe', 0), ('enforce', 0)])
 def test_tally_suppression_reaches_real_host_without_changing_history(mode, expected, arbiter):
     event = _fact('New personal best: 321 first-discovered systems')
     event.plugin_event_content['_guard'] = {'triggered_at': 1000.0}
@@ -112,7 +112,10 @@ def test_tally_does_not_hide_science_or_direct_questions(arbiter, with_question)
     other = user() if with_question else finding()
     obj = replay('enforce', arbiter, [[tally, other]])
     assert obj.llmModel.calls == 1
-    assert obj.prompt_generator.generate_prompt.call_args.kwargs['pending_events'] == [tally, other]
+    args = obj.prompt_generator.generate_prompt.call_args.kwargs
+    assert args['pending_events'] == ([tally, other] if with_question else [other])
+    assert tally in args['events'] and other in args['events']
+    assert tally.responded_at is None
 
 
 def test_policy_preserves_possible_codex_and_missing_observatory_information():

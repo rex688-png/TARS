@@ -2,7 +2,7 @@
 
 These behavior plugins are bundled with TARS and contribute to **one companion**.
 You do not install six separate assistants. The verified payload is pinned to
-`TARS-Plugins@6f85f5b8dee4f8ea399df4e86d7cb0a5df03bcc2`; its 27 file hashes are
+`TARS-Plugins@a302b33b742d787df27cc8089f3a716fac54e5cd`; its 27 file hashes are
 recorded in the bundled provenance manifest. Update them through a reviewed TARS
 package, not by copying arbitrary folders into the profile.
 

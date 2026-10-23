@@ -99,7 +99,7 @@ def test_empty_and_failed_generation_never_queue_speech(records, response, stage
     assert 'PRIVATE' not in json.dumps(records())
 
 
-def test_duplicate_explorer_observatory_events_still_generate_before_dedup(records, monkeypatch):
+def test_unidentified_sources_fail_open_without_commander_location_guessing(records, monkeypatch):
     monkeypatch.setattr('lib.ResponsePresentation.monotonic', lambda: 100.0)
     obj = assistant([], ['A unique finding.', 'A unique finding.'])
     state = {'Location': {'StarSystem': 'PRIVATE system', 'Body': 'PRIVATE body'}}
@@ -107,9 +107,9 @@ def test_duplicate_explorer_observatory_events_still_generate_before_dedup(recor
         event = PluginEvent(plugin_event_name=name, plugin_event_content={'private': 'PRIVATE'}, responded_at=None)
         obj.event_manager.get_short_term_memory.return_value = [event]
         obj.reply_thread(state)
-    assert obj.llmModel.calls == 2  # Existing deduplication happens after generation.
-    assert obj.tts.say.call_count == 1
-    assert any(r.get('reason') == 'exploration_deduplication' for r in records())
+    assert obj.llmModel.calls == 2
+    assert obj.tts.say.call_count == 2  # Text alone cannot prove the same source body/fact.
+    assert not any(r.get('reason') == 'exploration_deduplication' for r in records())
     assert {r.get('trigger') for r in records()} >= {'TARSExplorerTarget', 'TARSObservatoryFact'}
     assert 'PRIVATE' not in json.dumps(records())
 

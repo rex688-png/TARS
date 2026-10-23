@@ -746,6 +746,8 @@ class TARSExplorer(PluginBase):
                 "Give one short TARS-like system wrap-up using only player-facing supplied facts: concise, dry and observant, with light sarcasm only when natural. Prioritize genuinely useful discoveries or remaining targets. "
                 "Never say internal bookkeeping words such as announced, unannounced, score, threshold, category, detector or cooldown. "
                 "Do not repeat a body/fact that Explorer already called out unless needed to make the summary useful. "
+                "For a best mapping target use mapping_recommendation, not the first unannounced body. "
+                "Do not infer travel order from exploration priority or arrival distance. "
                 "FSS complete means all bodies identified, NOT all bodies DSS mapped. NEVER describe FSS completion as mapped, fully mapped, mapping complete, or all mapped. Use identified, found, or FSS complete instead. Vary wording between systems and avoid canned phrases. "
                 "Use system_composition when supplied: distinguish stars, planets, moons and belt clusters instead of treating body_count as planets. "
                 "If zero_planets_confirmed is true, you may naturally point out that the system has no planets or moons and FSS needs no further work; a dry TARS remark is welcome, but do not force the same joke repeatedly. "
@@ -811,13 +813,48 @@ class TARSExplorer(PluginBase):
             return f"suppressed: same-body cooldown ({elapsed:.1f}s)"
         return None
 
+    def _speech_body_facts(self, body):
+        return {
+            'body_id': body.body_id, 'body_name': body.name or None,
+            'system_address': self._system_address,
+            'planet_class': body.planet_class or None, 'terraformable': body.terraformable,
+            'landable': body.landable, 'dss_mapped': body.dss_mapped,
+            'biological_signals': body.biological_signals,
+            'confirmed_genuses': list(body.confirmed_genuses),
+            'organic_completions': [{'species': p.species or p.variant or p.genus, 'variant': p.variant or None, 'genus': p.genus or None}
+                                    for p in body.organics.values() if p.complete],
+        }
+
+    def _ranked_targets(self):
+        # One ordering for summaries, proactive completion and direct questions.
+        return sorted((b for b in self._planet_bodies() if self._priority_score(b) > 0),
+                      key=lambda b: (-self._priority_score(b), (b.name or '').casefold(),
+                                     b.body_id if b.body_id is not None else -1))
+
+    def _mapping_recommendation(self):
+        target = next((b for b in self._ranked_targets() if not b.dss_mapped), None)
+        return {
+            'criterion': 'highest exploration priority among known unmapped bodies',
+            'body': self._display_name(target) if target else None,
+            'reasons': self._interesting_reasons(target) if target else [],
+            'travel_order': 'unknown; arrival distance is not distance between targets',
+            'assistant_instruction': 'Use this body for value-ranked mapping recommendations. '
+                'Do not invent a nearest or most efficient route. Explain a different objective only with actual supporting facts.',
+        }
+
     def _dispatch_target_callout(self, body: BodyState, callout_kind: str, reasons: list[str]) -> str:
         if self._helper is None:
             return "suppressed: helper unavailable"
         if not self._auto_callouts_enabled():
             return "suppressed: automatic callouts disabled"
         body_key = self._body_key(body.name, body.body_id)
-        key = f"{body_key}:{callout_kind}"
+        signature = ''
+        if callout_kind == 'biology' and body.confirmed_genuses:
+            signature = ':' + repr(sorted(g.casefold() for g in body.confirmed_genuses))
+        elif callout_kind == 'organic_complete':
+            signature = ':' + repr(sorted(((p.species or p.variant or p.genus).casefold(), (p.variant or '').casefold())
+                                          for p in body.organics.values() if p.complete))
+        key = f"{body_key}:{callout_kind}{signature}"
         if key in self._announced_callouts:
             return "suppressed: already announced"
 
@@ -825,7 +862,7 @@ class TARSExplorer(PluginBase):
         # same body arrive within a few seconds. Do not mark the later category as
         # announced, so a later journal update can still surface genuinely new facts.
         now = time.monotonic()
-        if callout_kind in ("scan_value", "biology"):
+        if callout_kind in ("scan_value", "biology") and not (callout_kind == "biology" and body.confirmed_genuses):
             cooldown = self._body_callout_cooldown(body_key, now)
             if cooldown:
                 return cooldown
@@ -851,10 +888,10 @@ class TARSExplorer(PluginBase):
         try:
             self._helper.dispatch_event(PluginEvent(
                 plugin_event_name="TARSExplorerTarget",
-                plugin_event_content=self._guarded_event_data(payload),
+                plugin_event_content=self._guarded_event_data({**payload, **self._speech_body_facts(body)}),
             ))
             self._last_any_callout_at = time.monotonic()
-            log("info", f"TARS Explorer callout dispatched for {self._display_name(body)}: {', '.join(reasons)}")
+            log("info", f"TARS Explorer callout dispatched: {callout_kind}; reason_count={len(reasons)}")
             return "dispatched"
         except Exception as exc:
             self._announced_callouts.discard(key)
@@ -890,7 +927,7 @@ class TARSExplorer(PluginBase):
             return cooldown
 
         data = dict(payload)
-        data.update(body_name=body.name or None, body_id=body.body_id, system_address=self._system_address)
+        data.update(self._speech_body_facts(body))
         data["callout_kind"] = callout_kind
         data.setdefault("system", self._system_name or None)
         self._announced_callouts.add(key)
@@ -934,7 +971,7 @@ class TARSExplorer(PluginBase):
         planets = self._planet_bodies()
         composition = self._system_composition()
         notable = [b for b in planets if self._interesting_reasons(b)]
-        notable.sort(key=lambda b: self._priority_score(b), reverse=True)
+        notable = [b for b in self._ranked_targets() if self._interesting_reasons(b)]
 
         # Only expose player-facing facts. Announcement state, detector categories,
         # scores and suppression metadata belong in diagnostics, never speech.
@@ -971,6 +1008,7 @@ class TARSExplorer(PluginBase):
             "bodies_with_biology": sum(1 for b in planets if b.biological_signals > 0),
             "total_biological_signals": sum(b.biological_signals for b in planets),
             "remaining_noteworthy_targets": remaining,
+            "mapping_recommendation": self._mapping_recommendation(),
         }
 
     def _record_callout_decision(self, body: BodyState, category: str, expected: bool, outcome: str, reasons: list[str] | None = None):
@@ -1454,8 +1492,8 @@ class TARSExplorer(PluginBase):
                     if not missing:
                         self._dispatch_milestone(
                             "biology_body_complete",
-                            {"body": self._display_name(body), "confirmed_genuses": body.confirmed_genuses},
-                            f"biology-complete:{self._body_key(body.name, body.body_id)}",
+                            {"body": self._display_name(body), **self._speech_body_facts(body)},
+                            f"biology-complete:{self._body_key(body.name, body.body_id)}:{sorted(body.confirmed_genuses)}",
                         )
             return
 
@@ -1839,7 +1877,7 @@ class TARSExplorer(PluginBase):
 
         planets = self._planet_bodies()
         notable = [b for b in planets if self._interesting_reasons(b)]
-        notable.sort(key=lambda b: self._priority_score(b), reverse=True)
+        notable = [b for b in self._ranked_targets() if self._interesting_reasons(b)]
 
         counts = {
             "known_planets_or_moons": len(planets),
@@ -1862,6 +1900,7 @@ class TARSExplorer(PluginBase):
             "known_body_records": len(self._bodies),
             "counts": counts,
             "noteworthy_bodies": [self._body_payload(b) for b in notable[:20]],
+            "mapping_recommendation": self._mapping_recommendation(),
             "current_body_context": {
                 "body": self._current_body_name or None,
                 "body_id": self._current_body_id,
@@ -1873,6 +1912,7 @@ class TARSExplorer(PluginBase):
             "unfinished_targets": self._unfinished_targets(),
             "assistant_instruction": (
                 "Answer from these facts only. Lead with high-value/noteworthy worlds and biology. "
+                "For where to map first use mapping_recommendation; do not infer a nearest or efficient route. "
                 "Water worlds, Earth-like worlds, ammonia worlds and terraformables must not be omitted when present. "
                 "FSS complete means all bodies were identified; it does NOT mean they were DSS mapped. Use system_composition to distinguish stars, planets, moons and belt clusters; before composition_confirmed, counts are known-so-far only. "
                 "If the journal state is incomplete, say 'known so far' rather than inventing missing facts."
@@ -1880,8 +1920,7 @@ class TARSExplorer(PluginBase):
         })
 
     def _action_priority_targets(self, args: EmptyArgs, context: dict) -> str:
-        ranked = [b for b in self._planet_bodies() if self._priority_score(b) > 0]
-        ranked.sort(key=lambda b: self._priority_score(b), reverse=True)
+        ranked = self._ranked_targets()
         targets = []
         for body in ranked[:15]:
             targets.append({
@@ -1896,8 +1935,11 @@ class TARSExplorer(PluginBase):
             "system": self._system_name or None,
             "fss_complete": self._fss_complete,
             "targets": targets,
+            "mapping_recommendation": self._mapping_recommendation(),
             "assistant_instruction": (
-                "Recommend targets in the returned order, but explain the concrete reasons rather than quoting an internal score. "
+                "For value-ranked mapping recommendations use mapping_recommendation. The targets list is the full "
+                "exploration ranking and includes already mapped bodies; it is not a travel itinerary. "
+                "Explain the concrete criterion rather than quoting an internal score. "
                 "For already DSS-mapped bodies, say they are mapped. For biology, distinguish signal count from DSS-confirmed genera."
             ),
         })

@@ -57,6 +57,8 @@ def routine_first_discovery_tally(event: object) -> bool:
 # Included by host prompt generation rather than by a particular character
 # preset, so existing saved custom characters receive the same safety rules.
 LIVE_EXPLORATION_SPEECH_POLICY = (
+    "For unsolicited turns return only final commander-facing dialogue, or exactly SKIP for silence. "
+    "Never output a response-selection decision, rejected draft, alternatives, analysis or bookkeeping. "
     "Spontaneous exploration speech: Do not announce cumulative first-discovered "
     "or undiscovered system totals, or a new personal-best total at every jump. "
     "Store the facts as normal and answer direct questions about progress; do "
