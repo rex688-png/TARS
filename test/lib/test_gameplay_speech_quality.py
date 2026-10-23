@@ -423,7 +423,7 @@ def test_commentary_with_tool_request_is_not_a_spoken_final():
 
 
 @pytest.mark.parametrize('mode', MODES)
-def test_direct_question_preempts_blocked_optional_generation(pipeline, mode):
+def test_direct_question_preempts_blocked_optional_generation(pipeline, mode, monkeypatch):
     import threading
     from lib.Logger import ModelUsageStats
     host,run=pipeline(mode)
@@ -447,7 +447,18 @@ def test_direct_question_preempts_blocked_optional_generation(pipeline, mode):
         host.speech_arbiter().note_event(question)
         host.event_manager.get_short_term_memory.return_value=[question,first]
         host.pending.append(question)
-        host.reply_thread({})
+        assert host.can_start_reply()  # production Chat-loop scheduling gate
+        import importlib
+        started=[]
+        def start_thread(*args, **kwargs):
+            thread=threading.Thread(*args, **kwargs)
+            started.append(thread)
+            return thread
+        monkeypatch.setattr(importlib.import_module('lib.Assistant'), 'Thread', start_thread)
+        host.reply({})
+        assert len(started)==1
+        started[0].join(2)
+        assert not started[0].is_alive()
         assert host.tts.say.call_count==1  # answer delivered before optional call unblocks
         assert host.tts.say.call_args.args[0]=='Direct commander answer.'
     finally:

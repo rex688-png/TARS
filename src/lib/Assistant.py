@@ -881,8 +881,18 @@ class Assistant:
             return
 
 
+    def can_start_reply(self):
+        if not self.is_replying:
+            return True
+        direct_lock = self.__dict__.get('_speech_direct_execution_lock')
+        if direct_lock is not None and direct_lock.locked():
+            return False
+        return any(isinstance(event, (ConversationEvent, ToolEvent)) and
+                   event.kind in ('user', 'tool') and event.responded_at is None and
+                   not getattr(event, 'do_not_reply', False) for event in self.pending)
+
     def reply(self, projected_states: ProjectedStates):
-        if self.is_replying:
+        if not self.can_start_reply():
             log('debug', 'Cache: Reply already in progress, skipping new reply')
             return
         thread = Thread(target=self.reply_thread, args=(projected_states,), daemon=True)

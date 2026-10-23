@@ -898,7 +898,7 @@ class Chat:
 
                 if (
                     self.assistant.reply_pending
-                    and not self.assistant.is_replying
+                    and self.assistant.can_start_reply()
                     and not self.stt.recording
                     and not self.tts.get_is_playing()
                 ):

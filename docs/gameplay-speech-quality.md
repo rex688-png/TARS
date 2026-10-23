@@ -26,7 +26,9 @@ eligibility (`record`, `update`, `announce`) -> existing SpeechArbiter admission
 Facts are not removed from history. Raw React / No reaction / Hidden configuration
 is unchanged. Normal questions retain all available context and bypass automatic
 eligibility. A direct turn has a separate priority execution lock: it can finish
-while an obsolete automatic HTTP request is still blocked. Automatic peers remain
+while an obsolete automatic HTTP request is still blocked. The outer Chat-loop
+scheduling gate uses the same priority check; its entry-point regression failed
+before the gate correction and passes in both modes afterward. Automatic peers remain
 serialized; stale automatic output is discarded after generation. The underlying
 synchronous HTTP request cannot be forcibly cancelled by this change.
 
@@ -77,7 +79,7 @@ plugin mute.
 
 - Host `ExplorationSpeech`: eligibility, semantic identities, delivery coverage.
 - `SpeechArbiter`: candidate selection, freshness and terminal confirmation.
-- `Assistant.should_reply` / `reply_thread`: pre-generation eligibility, direct
+- `Chat` scheduling / `Assistant.can_start_reply`, `should_reply` and `reply_thread`: pre-generation eligibility, direct
   priority, stale-output rejection, final screening and delivery confirmation.
 - `Models` Responses adapter: one final message; both LLM adapters: safe errors.
   Existing raw audio-provider error-body logging is also removed without changing
@@ -94,7 +96,7 @@ plugin mute.
 
 ## Validation and limitations
 
-Local host suite: **716 passed**, seven existing/test-environment warnings
+Local host suite: **716 passed**, six existing/test-environment warnings
 (journal test thread termination and Pydantic serialization). Canonical plugin
 suite: **116 passed**. The host suite includes real plugin/helper/event-manager
 paths with controlled clocks, fake models and explicit fake TTS terminal results,
