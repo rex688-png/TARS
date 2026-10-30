@@ -56,7 +56,7 @@ def test_appended_event_enters_real_live_queue_after_saved_history(tmp_path, mon
         pass
     def end_tail(_seconds):
         raise EndOfTail
-    monkeypatch.setattr(journal_module, "sleep", end_tail)
+    monkeypatch.setattr(reader._stop_event, "wait", end_tail)
     with pytest.raises(EndOfTail):
         reader._reading_loop()
     live = reader.events.get_nowait()

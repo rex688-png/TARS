@@ -1,5 +1,4 @@
 import json
-from collections.abc import Generator
 from pathlib import Path
 import sys
 
@@ -11,16 +10,6 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.lib.ActionManager import ActionManager
-
-
-@pytest.fixture(autouse=True)
-def reset_actions() -> Generator[None, None, None]:
-    original_actions = ActionManager.actions
-    ActionManager.actions = {}
-    try:
-        yield
-    finally:
-        ActionManager.actions = original_actions
 
 
 def make_tool_call(name: str, arguments: dict | None = None) -> ChatCompletionMessageFunctionToolCall:

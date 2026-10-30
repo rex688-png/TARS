@@ -310,6 +310,8 @@ class EventManager:
 
     def process(self):
         with self._processing_lock:
+            if self.incoming.empty() and not self.pending:
+                return None
             projected_states: ProjectedStates | None = None
             while not self.incoming.empty():
                 event = self.incoming.get()
@@ -397,6 +399,11 @@ class EventManager:
         if not save_later:
             self.projection_store.set(projection_name, {"state": projection.state.model_dump(), "last_processed": projection.last_processed})
         return projected_events if projected_events else []
+
+    def stop(self):
+        self._timer_stop_event.set()
+        if threading.current_thread() is not self._timer_thread:
+            self._timer_thread.join(timeout=2)
 
     def _run_projection_timer(self):
         while not self._timer_stop_event.wait(self._timer_interval):

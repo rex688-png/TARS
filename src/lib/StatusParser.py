@@ -259,6 +259,7 @@ class StatusParser:
     STATUS_READ_RETRY_DELAYS = (0.05, 0.1)
 
     def __init__(self, journals_path: str):
+        self._stop_event = threading.Event()
         self.file_path = os.path.join(journals_path, "Status.json")
 
         current_status_raw = self._read_status_file()
@@ -267,22 +268,28 @@ class StatusParser:
         self.watch_thread = threading.Thread(target=self._watch_file_thread, daemon=True)
         self.watch_thread.start()
         
+    def stop(self):
+        self._stop_event.set()
+        if threading.current_thread() is not self.watch_thread:
+            self.watch_thread.join(timeout=2)
+
     def _watch_file_thread(self):
         backoff = 1
-        while True:
+        while not self._stop_event.is_set():
             try: 
                 self._watch_file()
             except Exception as e:
                 log('error', 'An error occurred when reading status file', e, traceback.format_exc())
-                sleep(backoff)
+                if self._stop_event.wait(backoff):
+                    break
                 log('info', 'Attempting to restart status file reader after failure')
-                backoff *= 2
+                backoff = min(backoff * 2, 30)
 
     def _watch_file(self):
         """Detects changes in the Status.json file."""
-        while True:
+        while not self._stop_event.is_set():
             self._process_status_update()
-            sleep(1)
+            self._stop_event.wait(1)
 
     def _process_status_update(self) -> bool:
         status_raw = self._read_status_file()

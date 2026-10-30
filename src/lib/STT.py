@@ -40,9 +40,13 @@ class STTResult:
 class STT:
     listening = False
     recording = False
-    resultQueue = queue.Queue()
 
     def __init__(self, stt_model: STTModel | None, input_device_name, required_word=None):
+        self._stop_event = threading.Event()
+        self._worker_thread = None
+        self.resultQueue = queue.Queue()
+        self.listening = False
+        self.recording = False
         self.stt_model = stt_model
         self.vad = SileroVoiceActivityDetector()
         self.input_device_name = input_device_name
@@ -60,10 +64,11 @@ class STT:
         log('debug', 'listen_once_start')
         if self.stt_model is None:
             return
-        if self.listening:
+        if self._stop_event.is_set() or (self._worker_thread and self._worker_thread.is_alive()):
             return
         self.listening = True
-        threading.Thread(target=self._listen_once_thread, daemon=True).start()
+        self._worker_thread = threading.Thread(target=self._listen_once_thread, daemon=True)
+        self._worker_thread.start()
 
     def listen_once_end(self):
         log('debug', 'listen_once_end')
@@ -75,18 +80,20 @@ class STT:
         """
         # print('Running STT in PTT mode')
         log('debug', 'listen_once_thread start')
-        source = self._get_microphone()
-        self.recording = True
+        source = None
         text = None
         try:
+            source = self._get_microphone()
+            self.recording = True
             timestamp = time()
             frames = []
             while self.listening:
                 buffer = self._read_stream_buffer(source)
                 if len(buffer) == 0: break  # reached end of the stream
                 frames.append(buffer)
-            source.close()
 
+            source.close()
+            source = None
             audio_raw = b''.join(frames)
             audio_data = sr.AudioData(audio_raw, self.rate, self.sample_width)
             capture_completed = monotonic()
@@ -94,17 +101,22 @@ class STT:
             stt_completed = monotonic()
         finally:
             self.recording = False
+            if source is not None:
+                source.close()
         
-        if text:
+        if text and not self._stop_event.is_set():
             self.resultQueue.put(STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed))
         
         log('debug', 'listen_once_thread end')
 
     def listen_continuous(self):
+        if self._stop_event.is_set() or (self._worker_thread and self._worker_thread.is_alive()):
+            return
         if self.stt_model is None:
             return
         self.listening = True
-        threading.Thread(target=self._listen_continuous_thread, daemon=True).start()
+        self._worker_thread = threading.Thread(target=self._listen_continuous_thread, daemon=True)
+        self._worker_thread.start()
                         
     def _listen_continuous_thread(self):
         backoff = 1
@@ -115,58 +127,64 @@ class STT:
                 self.recording = False
                 log('error', 'An error occurred during speech recognition', e, traceback.format_exc())
                 show_chat_message('error', 'Speech recognition error:', e)
-                sleep(backoff)
+                if self._stop_event.wait(backoff):
+                    break
                 log('info', 'Attempting to restart speech recognition after failure')
-                backoff *= 2
+                backoff = min(backoff * 2, 30)
 
     def _listen_continuous_loop(self):
         source: pyaudio.Stream = self._get_microphone()
-        timestamp = time()
-        frames = []
-        activity = []
-        while self.listening:
-            buffer = self._read_stream_buffer(source)
-            if self.continuous_listening_paused:
-                self.recording = False
-                continue
-            if len(buffer) == 0: break  # reached end of the stream
-            frames.append(buffer)
-            frames_duration = len(frames) * self.frames_per_buffer / self.rate
-            activity.append(self.vad(buffer))
-            if frames_duration > 0.5:
-                #log('debug','checking for voice activity in', frames_duration, 'seconds of audio')
-                audio_raw = b''.join(frames)
-                if all([v < self.vad_threshold for v in activity]):
-                    # no voice detected in the recording so far, so clear the buffer
-                    # and keep only last 0.1 seconds of audio for the next iteration
-                    #log('debug','no voice detected, clearing buffer')
-                    keep = int(0.1 * self.rate / self.frames_per_buffer)
-                    frames = frames[-keep:]
-                    activity = activity[-keep:]
+        try:
+            timestamp = time()
+            frames = []
+            activity = []
+            while self.listening:
+                buffer = self._read_stream_buffer(source)
+                if self.continuous_listening_paused:
+                    self.recording = False
+                    frames = []
+                    activity = []
                     timestamp = time()
                     continue
-                else:
-                    self.recording = True
-                    # we have voice activity in current recording
-                    # check if there is voice in the last phrase_end_pause seconds
-                    #log('debug','voice detected, checking for pause in the last phrase_end_pause seconds')
-                    end_slice = int(self.phrase_end_pause * self.rate / self.frames_per_buffer)
-                    activity_end_slice = activity[-end_slice:]
-                    if all([v < self.vad_threshold for v in activity_end_slice]):
-                        # no voice in the last 0.5 seconds, so we know the user has stopped speaking
-                        # so we can transcribe the audio
-                        #log('debug','no voice detected in the last 0.5 seconds, transcribing')
-                        audio_data = sr.AudioData(audio_raw, self.rate, self.sample_width)
-                        capture_completed = monotonic()
-                        text = self._transcribe(audio_data)
-                        stt_completed = monotonic()
-                        frames = []
-                        activity = []
-                        if text:
-                            self.resultQueue.put(STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed))
-                        self.recording = False
-        source.close()
-        self.recording = False
+                if len(buffer) == 0: break  # reached end of the stream
+                frames.append(buffer)
+                frames_duration = len(frames) * self.frames_per_buffer / self.rate
+                activity.append(self.vad(buffer))
+                if frames_duration > 0.5:
+                    #log('debug','checking for voice activity in', frames_duration, 'seconds of audio')
+                    audio_raw = b''.join(frames)
+                    if all([v < self.vad_threshold for v in activity]):
+                        # no voice detected in the recording so far, so clear the buffer
+                        # and keep only last 0.1 seconds of audio for the next iteration
+                        #log('debug','no voice detected, clearing buffer')
+                        keep = int(0.1 * self.rate / self.frames_per_buffer)
+                        frames = frames[-keep:]
+                        activity = activity[-keep:]
+                        timestamp = time()
+                        continue
+                    else:
+                        self.recording = True
+                        # we have voice activity in current recording
+                        # check if there is voice in the last phrase_end_pause seconds
+                        #log('debug','voice detected, checking for pause in the last phrase_end_pause seconds')
+                        end_slice = int(self.phrase_end_pause * self.rate / self.frames_per_buffer)
+                        activity_end_slice = activity[-end_slice:]
+                        if all([v < self.vad_threshold for v in activity_end_slice]):
+                            # no voice in the last 0.5 seconds, so we know the user has stopped speaking
+                            # so we can transcribe the audio
+                            #log('debug','no voice detected in the last 0.5 seconds, transcribing')
+                            audio_data = sr.AudioData(audio_raw, self.rate, self.sample_width)
+                            capture_completed = monotonic()
+                            text = self._transcribe(audio_data)
+                            stt_completed = monotonic()
+                            frames = []
+                            activity = []
+                            if text and not self._stop_event.is_set():
+                                self.resultQueue.put(STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed))
+                            self.recording = False
+        finally:
+            self.recording = False
+            source.close()
 
     def _read_stream_buffer(self, source: pyaudio.Stream) -> bytes:
         try:
@@ -262,6 +280,13 @@ class STT:
 
         # print("transcription received", text)
         return text
+
+    def stop(self):
+        self._stop_event.set()
+        self.listening = False
+        worker = self._worker_thread
+        if worker is not None and worker is not threading.current_thread():
+            worker.join(timeout=2)
 
     def pause_continuous_listening(self, pause: bool):
         self.continuous_listening_paused = pause
