@@ -638,6 +638,13 @@ class TARSChatter(PluginBase):
 
     # ---------- COVAS output director ----------
 
+    @staticmethod
+    def _is_intentional_abstention(text):
+        """A whole output marker; ordinary dialogue about silence is untouched."""
+        return isinstance(text, str) and bool(re.fullmatch(
+            r"(?:skip|silence|no (?:response|reply|output)(?: (?:is )?(?:needed|required|necessary))?|remain silent|stay silent|do not (?:respond|reply|speak))[.!]?",
+            text.strip(" \t\r\n\"'`“”‘’[]()").casefold()))
+
     def _install_output_director(self):
         """
         Current COVAS keeps the active LLM on helper._llm_model / assistant.llmModel.
@@ -699,6 +706,9 @@ class TARSChatter(PluginBase):
                 except Exception:
                     return result
 
+                if self._is_intentional_abstention(response_text) and not response_actions:
+                    return result
+
                 if not bool(self.settings.get("output_guard", True)) or response_actions:
                     return result
 
@@ -747,7 +757,7 @@ class TARSChatter(PluginBase):
                 except Exception:
                     return retry
 
-                if retry_actions:
+                if retry_actions or self._is_intentional_abstention(retry_text):
                     return retry
 
                 retry_reason = (
@@ -2249,6 +2259,10 @@ Rules for THIS response:
                     self._diagnose("quality_rejected")
                     rejection = "No usable text returned"
                     continue
+                if self._is_intentional_abstention(candidate):
+                    self._diagnose("model_skip")
+                    log("info", "TARS Chatter accepted model-selected silence.")
+                    return None
                 screen = getattr(self._helper, 'unsolicited_output_rejection', None)
                 screened = screen(candidate) if callable(screen) else None
                 if screened and screened != 'silence_sentinel':
@@ -2256,10 +2270,6 @@ Rules for THIS response:
                     log('info', 'TARS Chatter discarded internal or alternative output.')
                     return None
                 candidate = " ".join(candidate.strip().strip('"').split())
-                if candidate.upper().startswith("SKIP"):
-                    self._diagnose("model_skip")
-                    log("info", "TARS Chatter accepted model-selected silence.")
-                    return None
                 if len(candidate) < 14 or len(candidate) > 220:
                     self._diagnose("quality_rejected")
                     rejection = "Line too short or too long"

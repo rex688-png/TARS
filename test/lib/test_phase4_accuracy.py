@@ -110,6 +110,8 @@ def test_delayed_dss_keeps_full_source_identity_after_moving_body(rig):
     assert event.plugin_event_content['body_id']==2 and event.plugin_event_content['system_address']==11
     prompt=x._prompt_noteworthy_target(event)
     assert 'Synthetic A 2' in prompt and 'never the commander current body' in prompt
+    # The queue precedes EventStore processing; emulate its unresponded row.
+    event.responded_at = None
     host=rig.host;host.event_manager.get_short_term_memory.return_value=[event]
     host.reply_thread({'Location':{'StarSystem':'Synthetic','Body':'Synthetic B 4 a'}})
     assert host.tts.say.call_count==1

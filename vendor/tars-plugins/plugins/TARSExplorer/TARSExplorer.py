@@ -930,6 +930,7 @@ class TARSExplorer(PluginBase):
         data.update(self._speech_body_facts(body))
         data["callout_kind"] = callout_kind
         data.setdefault("system", self._system_name or None)
+        data.setdefault("system_address", self._system_address)
         self._announced_callouts.add(key)
         try:
             self._helper.dispatch_event(PluginEvent(
@@ -956,6 +957,7 @@ class TARSExplorer(PluginBase):
         data = dict(payload)
         data["callout_kind"] = callout_kind
         data.setdefault("system", self._system_name or None)
+        data.setdefault("system_address", self._system_address)
         try:
             self._helper.dispatch_event(PluginEvent(
                 plugin_event_name="TARSExplorerTarget",

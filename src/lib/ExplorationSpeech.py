@@ -30,6 +30,24 @@ def evidence(data):
     facts = set()
     kind = data.get('finding_type', data.get('callout_kind'))
     kind = kind if isinstance(kind, str) else None
+    if kind == 'system_complete':
+        # Completion belongs to the system, not a fictitious body. Counts carry
+        # their actual values so a revised census is new evidence.
+        facts.add(('fss_complete', True))
+        count = data.get('body_count')
+        if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+            facts.add(('body_count', count))
+        for field in ('earth_like_worlds', 'water_worlds', 'ammonia_worlds',
+                      'terraformable_bodies', 'bodies_with_biology', 'total_biological_signals'):
+            value = data.get(field)
+            if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                facts.add((field, value))
+        composition = data.get('system_composition')
+        if isinstance(composition, dict) and composition.get('composition_confirmed') is True:
+            for field in ('stars', 'planets', 'moons', 'belt_clusters'):
+                value = composition.get(field)
+                if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                    facts.add(('composition_' + field, value))
     planet_class = data.get('planet_class')
     world = WORLD.get(planet_class) if isinstance(planet_class, str) else None
     if world:
@@ -69,6 +87,18 @@ def evidence(data):
              'confirmed_genuses','organic_completions','species','genus','variant','stage','sample',
              'reasons','exceptional_properties','distance_from_arrival_ls','title','message','text',
              'description','summary','notification','probes_used','efficiency_target','efficiency_bonus_met'}
+    if kind == 'system_complete':
+        known |= {'fss_complete', 'body_count', 'body_count_source', 'discovery_body_count',
+                  'count_changed_since_discovery', 'system_composition', 'dss_mapped_bodies',
+                  'all_planetary_bodies_dss_mapped', 'earth_like_worlds', 'water_worlds',
+                  'ammonia_worlds', 'terraformable_bodies', 'bodies_with_biology',
+                  'total_biological_signals'}
+        # Empty recommendations carry no new discovery. Nonempty/unrecognized
+        # details stay fail-open; completion alone cannot acknowledge them.
+        known |= {k for k in ('remaining_noteworthy_targets', 'mapping_recommendation') if not data.get(k)}
+        recommendation = data.get('mapping_recommendation')
+        if isinstance(recommendation, dict) and recommendation.get('body') is None and not recommendation.get('reasons'):
+            known.add('mapping_recommendation')
     if facts:
         for key, value in data.items():
             if key not in known:
@@ -151,6 +181,8 @@ class DeliveryLedger:
                 return None
         else:
             return None
+        if data.get('finding_type', data.get('callout_kind')) == 'system_complete':
+            return (scope, ('system', 'fss_complete'))
         body_id = data.get('BodyID', data.get('body_id'))
         names = [data.get(k) for k in ('body', 'BodyName', 'body_name')]
         names = [n.strip().casefold() for n in names if isinstance(n, str) and n.strip().casefold() not in ('', 'unknown', 'none', 'unknown body')]
@@ -218,7 +250,8 @@ class DeliveryLedger:
                 for event in events:
                     if self.entity(event) == key:
                         data = event.plugin_event_content
-                        labels.extend(data.get(k) for k in ('body', 'body_name', 'BodyName') if isinstance(data.get(k), str))
+                        fields = ('system', 'StarSystem') if key[1] == ('system', 'fss_complete') else ('body', 'body_name', 'BodyName')
+                        labels.extend(data.get(k) for k in fields if isinstance(data.get(k), str))
                 passages = [p for p in paragraphs if any(re.search(r'(?<!\w)' + re.escape(label.casefold()).replace(r'\ ', r'\s*') + r'(?!\w)', p) for label in labels)]
                 passage = ' '.join(passages)
             if not passage or re.search(r"\b(?:not|isn't|unconfirmed|possibly|maybe|might)\b", passage):
@@ -226,7 +259,24 @@ class DeliveryLedger:
             heard = set()
             for kind, value in facts:
                 matched = False
-                if kind == 'world':
+                if kind == 'fss_complete':
+                    matched = bool(re.search(r'\b(?:fss|system|survey|scan)\b.{0,45}\b(?:complete|completed|finished)\b|\ball bodies (?:found|discovered|scanned)\b', passage))
+                elif kind.startswith('composition_'):
+                    label = {'composition_stars': r'stars?', 'composition_planets': r'planets?',
+                             'composition_moons': r'moons?', 'composition_belt_clusters': r'belt clusters?'}[kind]
+                    quantity = r'(?:0|zero|no)' if value == 0 else str(value)
+                    matched = bool(re.search(r'\b' + quantity + r' ' + label + r'\b', passage))
+                elif kind == 'body_count':
+                    matched = bool(re.search(r'\b' + str(value) + r' bodies\b', passage))
+                elif kind in ('earth_like_worlds', 'water_worlds', 'ammonia_worlds',
+                              'terraformable_bodies', 'bodies_with_biology', 'total_biological_signals'):
+                    label = {'earth_like_worlds': r'earth[- ]?like (?:worlds?|bodies)',
+                             'water_worlds': r'water worlds?', 'ammonia_worlds': r'ammonia worlds?',
+                             'terraformable_bodies': r'terraformable (?:bodies|worlds?)',
+                             'bodies_with_biology': r'bodies with biolog(?:y|ical signals)',
+                             'total_biological_signals': r'biological signals?'}[kind]
+                    matched = bool(re.search(r'\b' + str(value) + r' ' + label + r'\b', passage))
+                elif kind == 'world':
                     patterns = {'water_world':r'\bwater[- ]world\b', 'earth_like_world':r'\bearth[- ]?like\b', 'ammonia_world':r'\bammonia[- ]world\b'}
                     matched = bool(re.search(patterns[value], passage))
                 elif kind == 'terraformable':

@@ -920,8 +920,6 @@ class Assistant:
                 self.reply_pending = True
                 return
             execution = None  # direct generation owns its separate priority lock
-        retrying = bool(getattr(self, '_speech_deferred', {}) or
-                        getattr(self, '_speech_retry_requested', False))
         self._speech_retry_requested = False
         self.__dict__.setdefault('_speech_deferred', {})
         self.reply_pending = False
@@ -973,7 +971,8 @@ class Assistant:
             self.pending = []
             if removed_sale_only:
                 return
-            if retrying and not new_events:
+            if not new_events:
+                speech_trace.emit('generation_bypassed', reason='no_new_events')
                 return
             mode = arbiter.configure(self.config.get('speech_director_mode', 'observe'))
             if mode != 'off':
@@ -1100,6 +1099,7 @@ class Assistant:
                 start_time = time()
                     
                 try:
+                    speech_trace.current_generation.set(speech_trace.new_id())
                     speech_trace.emit("reply_generation_requested")
                     response_text, response_actions, model_usage = self.llmModel.generate(
                         messages=prompt,
@@ -1108,10 +1108,6 @@ class Assistant:
 
                     log_llm_usage("assistant", model_usage=model_usage, prompt_usage=prompt_usage, llm_model=self.llmModel)
 
-                    rejection = unsolicited_output_rejection(response_text) if not direct_turn and not response_actions else None
-                    if rejection:
-                        speech_trace.emit('response_discarded', reason=rejection)
-                        response_text = None
                     if is_silence_sentinel(response_text):
                         response_text = None
                         speech_trace.emit("response_discarded", reason="silence_sentinel")
@@ -1119,6 +1115,11 @@ class Assistant:
                             self.event_manager.short_term_memory.replied_before(max_conversation_processed)
                             self.event_manager.add_assistant_complete_event()
                             return
+
+                    rejection = unsolicited_output_rejection(response_text) if not direct_turn and not response_actions else None
+                    if rejection:
+                        speech_trace.emit('response_discarded', reason=rejection)
+                        response_text = None
 
                     if not response_text and not response_actions:
                         if direct_turn:
@@ -1158,7 +1159,8 @@ class Assistant:
                 terminal = getattr(line, "result", None)
                 if not direct_turn:
                     arbiter.confirm_exploration(exploration_claims, exploration_epoch, terminal, new_events, response_text)
-                speech_trace.emit('response_delivery', outcome=getattr(terminal, 'outcome', 'unknown'))
+                speech_trace.emit('response_delivery', delivery_id=getattr(line, 'line_id', None),
+                                  outcome=getattr(terminal, 'outcome', 'unknown'))
                 sale_history = self.__dict__.setdefault('_sale_reaction_keys', {})
                 for event in new_events:
                     key = sale_key(event)

@@ -10,6 +10,7 @@ from uuid import uuid4
 enabled = os.getenv('TARS_SPEECH_TRACE', '') == '1'
 current = ContextVar('speech_trace', default=None)
 current_line = ContextVar('speech_line', default=None)
+current_generation = ContextVar('speech_generation', default=None)
 _salt = uuid4().bytes
 _logger = logging.getLogger('tars.speech')
 
@@ -25,7 +26,8 @@ def emit(stage, *, trace_id=None, **fields):
         # Call sites supply only fixed labels, opaque IDs, booleans and counts.
         _logger.info('speech_trace', extra={'speech_trace': {
             'schema_version': 1, 'stage': stage,
-            'trace_id': trace_id or current.get(), 'line_id': current_line.get(), **fields,
+            'trace_id': trace_id or current.get(), 'line_id': current_line.get(),
+            'generation_id': current_generation.get(), 'delivery_id': current_line.get(), **fields,
         }})
     except Exception:
         # Observability must not change generation, callbacks or playback.
@@ -91,11 +93,13 @@ def reply_scope(method):
         if not enabled:
             return method(*args, **kwargs)
         token = current.set(new_id())
+        generation_token = current_generation.set(None)
         emit('reply_started')
         try:
             return method(*args, **kwargs)
         finally:
             emit('reply_finished')
+            current_generation.reset(generation_token)
             current.reset(token)
     return wrapped
 
