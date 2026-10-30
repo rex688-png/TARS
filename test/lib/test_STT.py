@@ -111,7 +111,11 @@ def test_get_microphone_device_selection(mock_pyaudio, stt):
         input=True,
         frames_per_buffer=512
     )
-    assert stream == mock_pyaudio['stream']
+    mock_pyaudio['stream'].read.side_effect = None
+    mock_pyaudio['stream'].read.return_value = b'synthetic audio'
+    assert stream.read(512) == b'synthetic audio'
+    stream.close()
+    mock_pyaudio['audio'].terminate.assert_called_once()
 
 def test_get_microphone_fallback(mock_pyaudio, stt):
     """Test fallback to default device"""
@@ -120,7 +124,11 @@ def test_get_microphone_fallback(mock_pyaudio, stt):
     stream = stt._get_microphone()
     
     assert mock_pyaudio['audio'].open.call_count == 2
-    assert stream == mock_pyaudio['stream']
+    mock_pyaudio['stream'].read.side_effect = None
+    mock_pyaudio['stream'].read.return_value = b'synthetic audio'
+    assert stream.read(512) == b'synthetic audio'
+    stream.close()
+    mock_pyaudio['audio'].terminate.assert_called_once()
     # Verify second call uses default device
     mock_pyaudio['audio'].open.assert_called_with(
         format=pyaudio.paInt16,
