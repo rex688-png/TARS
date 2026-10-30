@@ -252,7 +252,7 @@ requires separate explicit approval; this Draft does not authorize either.
 
 ## Automated results and limits
 
-Local validation: **901 host tests passed**, including **10 new experiment tests**; **142 canonical plugin tests**, **34 frontend tests** and **16 Electron tests** passed. Six existing dependency/fixture serialization warnings remain. Exact 32-file bundle verification, dependency consistency, strict docs and diff checks passed. Two independent preparations produced byte-identical request bundles and comparison manifests. Final CI links are in the Draft PR description. New tests verify
+Local validation: **903 host tests passed**, including **12 experiment tests**; **142 canonical plugin tests**, **34 frontend tests** and **16 Electron tests** passed. Six existing dependency/fixture serialization warnings remain. Exact 32-file bundle verification, dependency consistency, strict docs and diff checks passed. Two independent preparations produced byte-identical request bundles and comparison manifests. Final CI links are in the Draft PR description. New tests verify
 verbatim contract retention, factory-only paired inputs, identical prepared-Chatter
 inputs, no model requests for runtime-only cases, real current tool schemas,
 unsolicited tool exclusion, provenance-checked review, and error/action-versus-
@@ -262,3 +262,13 @@ Automated input equivalence and unchanged production code do **not** prove a mod
 will obey the candidate. No physical Windows, real microphone, TTS listening,
 installed Observatory or Elite gameplay test was conducted for this experiment.
 No merge, rebase of existing PRs, force-push, tag, release or visibility change.
+
+### Windows UTF-8 correction
+
+Windows run 41080590779 confirmed that implicit text decoding used cp1252 and
+failed on the UTF-8 factory prompt. Experiment prompt, manifest, plugin-source,
+scenario, journal-fixture and review input/output paths now specify UTF-8, as do
+the experiment tests. The test subprocess explicitly uses UTF-8 for its pipes;
+this does not change the child's default file encoding. A cp1252-default Unicode
+review round-trip and a text-I/O audit regression cover the fix. Prepared comparison
+evidence remains unchanged. No production runtime or prompt default was modified.

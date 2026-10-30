@@ -50,7 +50,7 @@ def load_plugins():
     loaded = {}
     for name in ('TARSExplorer', 'TARSNavigator', 'TARSExpedition', 'TARSGalaxy', 'TARSObservatoryBridge', 'TARSChatter', 'TARSCombat'):
         folder = BUNDLE / 'plugins' / name
-        manifest = PluginManifest((folder / 'manifest.json').read_text())
+        manifest = PluginManifest((folder / 'manifest.json').read_text(encoding='utf-8'))
         plugin = manager.load_plugin_module(manifest, str(folder / manifest.entrypoint))
         loaded[name] = plugin
     # No on_chat_start hooks: no journal imports, workers, network, profile writes or key input.
@@ -69,7 +69,7 @@ def plugin_tools(plugins):
             if Path(module.__file__).is_relative_to(BUNDLE) and module not in modules:
                 modules.append(module)
         for module in modules:
-            source = Path(module.__file__).read_text()
+            source = Path(module.__file__).read_text(encoding='utf-8')
             for node in ast.walk(ast.parse(source)):
                 if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute) or node.func.attr != 'register_action':
                     continue
@@ -149,7 +149,7 @@ def assemble(personality, scenario, plugins):
     with patch('lib.PromptGenerator.datetime', FrozenDatetime):
         messages, _ = generator.generate_prompt(events, states(), [events[-1]], memories)
     # Preserve the exact integrated Assistant append without creating a second policy.
-    combat_literals = [node.value for node in ast.walk(ast.parse((ROOT / 'src/lib/Assistant.py').read_text()))
+    combat_literals = [node.value for node in ast.walk(ast.parse((ROOT / 'src/lib/Assistant.py').read_text(encoding='utf-8')))
         if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.startswith('\n\nTARS Combat:')]
     if len(combat_literals) != 1:
         raise RuntimeError('Integrated Combat policy append changed; review the experiment adapter')
@@ -177,8 +177,8 @@ def prepare(output, encoding=None):
     sqlite_vec.load(conn)
     conn.enable_load_extension(False)
     set_connection_for_testing(conn)
-    prompts = {'baseline': (BUNDLE / 'prompt/prompt.txt').read_text(), 'candidate': (HERE / 'candidate.txt').read_text()}
-    scenarios = json.loads((HERE / 'scenarios.json').read_text())
+    prompts = {'baseline': (BUNDLE / 'prompt/prompt.txt').read_text(encoding='utf-8'), 'candidate': (HERE / 'candidate.txt').read_text(encoding='utf-8')}
+    scenarios = json.loads((HERE / 'scenarios.json').read_text(encoding='utf-8'))
     requests, rows = [], []
     output.mkdir(parents=True, exist_ok=True)
     try:
@@ -190,7 +190,7 @@ def prepare(output, encoding=None):
                 row = {'id':scenario['id'], 'path':scenario['path'], 'checks':scenario['checks'], 'quality_result':None}
                 if scenario.get('journal_fixture'):
                     fixture = ROOT / scenario['journal_fixture']
-                    records = [json.loads(line) for line in fixture.read_text().splitlines() if line.strip()]
+                    records = [json.loads(line) for line in fixture.read_text(encoding='utf-8').splitlines() if line.strip()]
                     selected = [r for r in records if r.get('event') in scenario['select_events']]
                     row.update(fixture_sha256=digest(fixture.read_bytes()), selected_record_count=len(selected))
                     # These are runtime-only fixtures. No prompt bypasses admission.
@@ -228,20 +228,20 @@ def prepare(output, encoding=None):
             'Tool set is current literal plugin schemas only, not the complete native host action catalogue.',
             'Prepared Chatter anchor/topic and memory retrieval are controlled synthetic inputs; actual preparer/Director code is unchanged.',
             'Runtime-only scenarios create no model requests and rely on existing integration tests, not a simulated model silence score.']}
-    (output / 'requests.json').write_text(json.dumps(requests, ensure_ascii=False, indent=2)+'\n')
-    (output / 'comparison.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n')
+    (output / 'requests.json').write_text(json.dumps(requests, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+    (output / 'comparison.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
     return manifest
 
 
 def review(manifest_path, requests_path, responses_path, output):
     """Import externally collected outputs with exact provenance; produce unscored blind pairs."""
     from lib.ResponsePresentation import is_silence_sentinel
-    manifest = json.loads(manifest_path.read_text())
-    requests = json.loads(requests_path.read_text())
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    requests = json.loads(requests_path.read_text(encoding='utf-8'))
     if digest(requests) != manifest['requests_sha256']:
         raise ValueError('Request bundle does not match manifest')
     expected = {r['request_sha256']:r for r in requests}
-    responses = json.loads(responses_path.read_text())
+    responses = json.loads(responses_path.read_text(encoding='utf-8'))
     grouped, seen = {}, set()
     for response in responses:
         key = response['request_sha256']
@@ -267,8 +267,8 @@ def review(manifest_path, requests_path, responses_path, output):
             key_rows.append({'scenario':scenario['id'],'label':label,'arm':arm,'intentional_abstention':response['status']=='completed' and not response.get('tool_calls') and is_silence_sentinel(response.get('text','')),
                 'output_chars':len(response.get('text','')), 'provider_usage':response.get('usage'), 'quality_scores':None})
     output.mkdir(parents=True, exist_ok=True)
-    (output/'blind-review.md').write_text('\n'.join(lines))
-    (output/'review-key.json').write_text(json.dumps(key_rows,indent=2)+'\n')
+    (output/'blind-review.md').write_text('\n'.join(lines), encoding='utf-8')
+    (output/'review-key.json').write_text(json.dumps(key_rows,indent=2)+'\n', encoding='utf-8')
     return key_rows
 
 

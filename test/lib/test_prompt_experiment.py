@@ -23,8 +23,8 @@ def load_evaluator():
 
 
 def test_candidate_retains_every_declared_technical_contract_verbatim():
-    baseline, candidate = BASELINE.read_text(), (HERE/'candidate.txt').read_text()
-    contract = json.loads((HERE/'retained-contracts.json').read_text())
+    baseline, candidate = BASELINE.read_text(encoding='utf-8'), (HERE/'candidate.txt').read_text(encoding='utf-8')
+    contract = json.loads((HERE/'retained-contracts.json').read_text(encoding='utf-8'))
     assert hashlib.sha256(baseline.encode()).hexdigest() == contract['baseline_sha256']
     # Section boundaries are the factory's all-caps headings, not hand-copied rule snippets.
     import re
@@ -41,14 +41,14 @@ def test_candidate_retains_every_declared_technical_contract_verbatim():
 def prepared(tmp_path_factory):
     target = tmp_path_factory.mktemp('prompt-experiment')
     command = [sys.executable, str(HERE/'evaluate.py'), 'prepare', '--output-dir', str(target)]
-    result = subprocess.run(command, cwd=ROOT, env=os.environ.copy(), capture_output=True, text=True, timeout=60)
+    result = subprocess.run(command, cwd=ROOT, env={**os.environ, 'PYTHONIOENCODING':'utf-8'}, capture_output=True, text=True, encoding='utf-8', timeout=60)
     assert result.returncode == 0, result.stderr[-3000:] + result.stdout[-3000:]
-    return target, json.loads((target/'comparison.json').read_text()), json.loads((target/'requests.json').read_text())
+    return target, json.loads((target/'comparison.json').read_text(encoding='utf-8')), json.loads((target/'requests.json').read_text(encoding='utf-8'))
 
 
 def test_pair_changes_only_the_factory_text_in_main_generation(prepared):
     _, manifest, requests = prepared
-    baseline, candidate = BASELINE.read_text().format(commander_name='TEST_CMDR'), (HERE/'candidate.txt').read_text().format(commander_name='TEST_CMDR')
+    baseline, candidate = BASELINE.read_text(encoding='utf-8').format(commander_name='TEST_CMDR'), (HERE/'candidate.txt').read_text(encoding='utf-8').format(commander_name='TEST_CMDR')
     pairs = {}
     for request in requests:
         pairs.setdefault(request['scenario'], {})[request['arm']] = request
@@ -96,11 +96,11 @@ def test_blind_review_keeps_quality_and_usage_unscored(prepared, tmp_path):
     folder, manifest, requests = prepared
     evaluator = load_evaluator()
     responses = tmp_path/'responses.json'
-    responses.write_text(json.dumps(fake_responses(requests, manifest['settings'])))
+    responses.write_text(json.dumps(fake_responses(requests, manifest['settings'])), encoding='utf-8')
     rows = evaluator.review(folder/'comparison.json',folder/'requests.json',responses,tmp_path/'review')
     assert len(rows)==len(requests)
     assert all(r['quality_scores'] is None and r['provider_usage'] is None for r in rows)
-    assert 'baseline' not in (tmp_path/'review/blind-review.md').read_text()
+    assert 'baseline' not in (tmp_path/'review/blind-review.md').read_text(encoding='utf-8')
 
 
 @pytest.mark.parametrize('problem', ['missing','duplicate','settings','hash','status'])
@@ -112,7 +112,7 @@ def test_review_rejects_unpaired_or_untraceable_outputs(prepared, tmp_path, prob
     if problem=='settings': responses[0]['settings']={'model':'different'}
     if problem=='hash': responses[0]['request_sha256']='unknown'
     if problem=='status': responses[0].pop('status')
-    path=tmp_path/'responses.json'; path.write_text(json.dumps(responses))
+    path=tmp_path/'responses.json'; path.write_text(json.dumps(responses), encoding='utf-8')
     with pytest.raises(ValueError):
         load_evaluator().review(folder/'comparison.json',folder/'requests.json',path,tmp_path/'review')
 
@@ -123,6 +123,45 @@ def test_review_distinguishes_error_and_action_from_abstention(prepared, tmp_pat
     for response in responses[:3]: response['text']='SKIP'
     responses[0]['status']='error'
     responses[1]['tool_calls']=[{'name':'synthetic'}]
-    path=tmp_path/'responses.json'; path.write_text(json.dumps(responses))
+    path=tmp_path/'responses.json'; path.write_text(json.dumps(responses), encoding='utf-8')
     rows=load_evaluator().review(folder/'comparison.json',folder/'requests.json',path,tmp_path/'review')
     assert sum(r['intentional_abstention'] for r in rows)==1
+
+
+def test_review_preserves_unicode_with_cp1252_locale_default(prepared, tmp_path, monkeypatch):
+    folder, manifest, requests = prepared
+    responses = fake_responses(requests, manifest['settings'])
+    text = 'Żółć — 航行 🚀'
+    responses[0]['text'] = text
+    path = tmp_path/'unicode-responses.json'
+    path.write_text(json.dumps(responses, ensure_ascii=False), encoding='utf-8')
+
+    original_open = Path.open
+    def windows_default_open(self, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
+        if 'b' not in mode and encoding in (None, 'locale'):
+            encoding = 'cp1252'
+        return original_open(self, mode, buffering, encoding, errors, newline)
+    monkeypatch.setattr(Path, 'open', windows_default_open)
+    with path.open() as stream:
+        assert text not in stream.read()  # The simulated default really is not UTF-8.
+
+    rows = load_evaluator().review(folder/'comparison.json', folder/'requests.json', path, tmp_path/'review')
+    assert text in (tmp_path/'review/blind-review.md').read_text(encoding='utf-8')
+    assert any(row['output_chars'] == len(text) for row in rows)
+    assert json.loads((tmp_path/'review/review-key.json').read_text(encoding='utf-8')) == rows
+
+
+def test_experiment_text_io_declares_utf8():
+    # Cover preparation, plugin source/fixture reads and test subprocess capture,
+    # including paths that are not reached by the review round-trip above.
+    import ast
+    for path in (HERE/'evaluate.py', Path(__file__)):
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr in ('read_text', 'write_text') or (
+                node.func.attr == 'run' and any(kw.arg == 'text' for kw in node.keywords)
+            ):
+                encoding = next((kw.value for kw in node.keywords if kw.arg == 'encoding'), None)
+                assert isinstance(encoding, ast.Constant) and encoding.value == 'utf-8', (path.name, node.lineno)
