@@ -51,6 +51,7 @@ nav:
   - Troubleshooting:
       - Diagnostics and common problems: troubleshooting.md
       - Black Box session evidence: black-box-v1.md
+      - Runtime reliability follow-up: runtime-reliability-followup.md
       - FAQ: 10_faq.md
       - Support: 60_support.md
   - Development and Releases:
@@ -80,6 +81,7 @@ exclude_docs: |
   !/elite-observatory-bridge.md
   !/troubleshooting.md
   !/black-box-v1.md
+  !/runtime-reliability-followup.md
   !/10_faq.md
   !/60_support.md
   !/55_contributing.md

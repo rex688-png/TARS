@@ -21,6 +21,26 @@ from .Logger import (
 from .Models import STTModel, LLMError
 
 
+class _OwnedMicrophone:
+    """Keep the PortAudio instance alive and release it with its capture stream."""
+    def __init__(self, stream, owner):
+        self._stream = stream
+        self._owner = owner
+        self._closed = False
+
+    def read(self, *args, **kwargs):
+        return self._stream.read(*args, **kwargs)
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            self._stream.close()
+        finally:
+            self._owner.terminate()
+
+
 @final
 class STTResult:
     def __init__(self, text: str, audio: sr.AudioData, timestamp: float, *, capture_completed: float | None = None, stt_completed: float | None = None, confidence: float | None = None):
@@ -138,7 +158,7 @@ class STT:
                 backoff = min(backoff * 2, 30)
 
     def _listen_continuous_loop(self):
-        source: pyaudio.Stream = self._get_microphone()
+        source = self._get_microphone()
         try:
             timestamp = time()
             frames = []
@@ -193,7 +213,7 @@ class STT:
             self.recording = False
             source.close()
 
-    def _read_stream_buffer(self, source: pyaudio.Stream) -> bytes:
+    def _read_stream_buffer(self, source: _OwnedMicrophone) -> bytes:
         try:
             return source.read(self.frames_per_buffer, exception_on_overflow=False)
         except TypeError:
@@ -204,40 +224,44 @@ class STT:
                 return b'\x00' * self.frames_per_buffer * self.sample_width
             raise
 
-    def _get_microphone(self) -> pyaudio.Stream:
+    def _get_microphone(self) -> _OwnedMicrophone:
         audio = pyaudio.PyAudio()
 
-        host_api = audio.get_default_host_api_info()
-
         try:
-            device_index = 0
-            for i in range(host_api.get('deviceCount')):
-                device = audio.get_device_info_by_host_api_device_index(host_api.get('index'), i)
-                if device['name'] == self.input_device_name:
-                    device_index = device.get('index')
-                    break
+            host_api = audio.get_default_host_api_info()
 
-            source = audio.open(
-                input_device_index=device_index,
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=self.rate,
-                input=True,
-                frames_per_buffer=self.frames_per_buffer
-            )
-        except Exception as e:
-            log('error', 'Failed to open microphone', e, traceback.format_exc())
-            speech_trace.emit('stt_device_fallback',component='stt',reason='device_unavailable',severity='warning')
-            log('error', 'Fallback to default microphone')
-            source = audio.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=self.rate,
-                input=True,
-                frames_per_buffer=self.frames_per_buffer
-            )
+            try:
+                device_index = 0
+                for i in range(host_api.get('deviceCount')):
+                    device = audio.get_device_info_by_host_api_device_index(host_api.get('index'), i)
+                    if device['name'] == self.input_device_name:
+                        device_index = device.get('index')
+                        break
+
+                source = audio.open(
+                    input_device_index=device_index,
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=self.rate,
+                    input=True,
+                    frames_per_buffer=self.frames_per_buffer
+                )
+            except Exception as e:
+                log('error', 'Failed to open microphone', e, traceback.format_exc())
+                speech_trace.emit('stt_device_fallback',component='stt',reason='device_unavailable',severity='warning')
+                log('error', 'Fallback to default microphone')
+                source = audio.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=self.rate,
+                    input=True,
+                    frames_per_buffer=self.frames_per_buffer
+                )
+        except BaseException:
+            audio.terminate()
+            raise
         speech_trace.emit('stt_capture_started',component='stt')
-        return source
+        return _OwnedMicrophone(source, audio)
 
     @speech_trace.operation('stt','transcription')
     @observe()

@@ -551,6 +551,9 @@ class BackendService {
   #stopRequestedPid = null;
   #beforeQuitRegistered = false;
   #appQuitting = false;
+  #startPromise = null;
+  #windowCloseHandlers = new WeakMap();
+  #cancelStart = false;
   #notifyWindows(channel, payload) {
     for (const window of this.#windows) {
       window.webContents.send(channel, { payload });
@@ -601,15 +604,14 @@ class BackendService {
       }
     } catch (error) {
       logger.warn('Failed to write to backend stdin:', error);
-      if (this.#currentProcess === childProcess) {
-        this.#currentProcess = null;
-      }
+      // A broken pipe does not prove the process has exited. Keep ownership
+      // until its lifecycle callback so a retry cannot overlap shared resources.
       throw new Error('Backend process is no longer accepting input');
     }
     return true;
   }
   attachWindow(subWindow) {
-    this.#windows.push(subWindow);
+    if (!this.#windows.includes(subWindow)) this.#windows.push(subWindow);
   }
   detachWindow(subWindow) {
     this.#windows = this.#windows.filter((w) => w !== subWindow);
@@ -624,12 +626,43 @@ class BackendService {
     this.#remoteClients.delete(client);
   }
   startProcess(mainWindow) {
+    this.#cancelStart = false;
+    if (this.#startPromise) return this.#startPromise;
+    this.#startPromise = this.#startProcess(mainWindow).finally(() => {
+      this.#startPromise = null;
+    });
+    return this.#startPromise;
+  }
+  async #startProcess(mainWindow) {
     this.attachWindow(mainWindow);
-    if (this.#hasActiveProcess()) {
-      logger.warn('Process is already running, stopping it first');
-      this.#stopRequestedPid = this.#currentProcess.pid ?? null;
-      this.#currentProcess.kill('SIGINT');
+    if (!this.#windowCloseHandlers.has(mainWindow)) {
+      const onClose = () => this.stopProcess(mainWindow);
+      this.#windowCloseHandlers.set(mainWindow, onClose);
+      mainWindow.once('close', onClose);
     }
+    // A process can have an exit code while its stdio is still open. Wait for
+    // close (and our normal lifecycle handler) before handing off shared files.
+    if (this.#currentProcess) {
+      const previous = this.#currentProcess;
+      await new Promise((resolve, reject) => {
+        const closed = () => { clearTimeout(timer); resolve(); };
+        const timer = setTimeout(() => {
+          previous.removeListener('close', closed);
+          reject(new Error('Backend has not closed; restart cancelled. Wait for shutdown and retry.'));
+        }, 10000);
+        previous.once('close', closed);
+        if (this.#hasActiveProcess()) {
+          this.#stopRequestedPid = previous.pid ?? null;
+          try { previous.kill('SIGINT'); }
+          catch (error) {
+            clearTimeout(timer);
+            previous.removeListener('close', closed);
+            reject(error);
+          }
+        }
+      });
+    }
+    if (this.#cancelStart || this.#appQuitting || mainWindow.isDestroyed?.()) return;
     logger.info('Starting process:', config.backend);
 
     const childProcess = spawn(config.backend, config.backend_args, {
@@ -671,7 +704,7 @@ class BackendService {
       if (expected && this.#stopRequestedPid === childProcess.pid) {
         this.#stopRequestedPid = null;
       }
-      if (this.#currentProcess === childProcess) {
+      if (!childProcess.pid && this.#currentProcess === childProcess) {
         this.#currentProcess = null;
       }
 
@@ -692,6 +725,9 @@ class BackendService {
     });
 
     childProcess.once('close', (code, signal) => {
+      if (this.#currentProcess === childProcess) this.#currentProcess = null;
+      childProcess.stdout.removeAllListeners('data');
+      childProcess.stderr.removeAllListeners('data');
       logger.info('Backend process closed:', { pid: childProcess.pid, code, signal });
       notifyTermination({
         status: 'exited',
@@ -752,14 +788,9 @@ class BackendService {
       }
     });
 
-    mainWindow.on('close', () => {
-      this.stopProcess(mainWindow);
-      // remove all stdin and stdout listeners
-      childProcess.stdout.removeAllListeners('data');
-      childProcess.stderr.removeAllListeners('data');
-    });
   }
   stopProcess(mainWindow) {
+    this.#cancelStart = true;
     this.detachWindow(mainWindow);
     if (this.#hasActiveProcess()) {
       logger.info('Stopping process:', this.#currentProcess.pid);
