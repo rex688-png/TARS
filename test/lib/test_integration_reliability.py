@@ -216,7 +216,7 @@ def test_chat_cleanup_survives_startup_and_cleanup_failure(monkeypatch, startup_
     tree = ast.parse((Path(__file__).resolve().parents[2] / 'src' / 'Chat.py').read_text())
     cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'Chat')
     method = next(node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == 'run')
-    namespace = {'log': Mock()}
+    namespace = {'log': Mock(), 'speech_trace': Mock()}
     exec(compile(ast.Module(body=[method], type_ignores=[]), 'Chat.run', 'exec'), namespace)
     chat = SimpleNamespace()
     chat.run = MethodType(namespace['run'], chat)

@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 import json
 import os
 import queue
@@ -279,6 +280,7 @@ class StatusParser:
             try: 
                 self._watch_file()
             except Exception as e:
+                speech_trace.emit('status_recovery',component='journal',reason='read_failure',severity='warning')
                 log('error', 'An error occurred when reading status file', e, traceback.format_exc())
                 if self._stop_event.wait(backoff):
                     break
@@ -325,6 +327,7 @@ class StatusParser:
                 if attempt < len(self.STATUS_READ_RETRY_DELAYS):
                     sleep(self.STATUS_READ_RETRY_DELAYS[attempt])
 
+        speech_trace.emit('status_unreadable',component='journal',reason='read_failure',severity='warning')
         log(
             'warning',
             f"Status.json remained unreadable after {attempts} attempts; keeping previous status",

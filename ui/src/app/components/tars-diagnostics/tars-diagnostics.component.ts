@@ -1,3 +1,4 @@
+import { TarsBlackBoxComponent } from './tars-blackbox.component';
 import { LoggingService } from '../../services/logging.service';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -10,8 +11,8 @@ import provenance from '../../../../../vendor/tars-plugins/provenance.json';
 import metadata from '../../../../../package.json';
 
 @Component({
-    selector: 'app-tars-diagnostics', standalone: true, imports: [CommonModule],
-    template: `<section class="diagnostic-card"><header><h2>Runtime self-check</h2>
+    selector: 'app-tars-diagnostics', standalone: true, imports: [CommonModule, TarsBlackBoxComponent],
+    template: `<app-tars-blackbox></app-tars-blackbox><section class="diagnostic-card"><header><h2>Runtime self-check</h2>
         <button type="button" (click)="checked = true">Run self-check</button></header>
         <button type="button" [disabled]="exporting" (click)="exportDiagnostics()">Export diagnostics</button><p role="status">{{ exportStatus }}</p><p>Export includes health and log severity counts; private log text, prompt, memory, conversation and credentials are excluded.</p><p>Read-only snapshot of reported state. This does not test devices or send Elite actions.</p>
         @if (checked) {

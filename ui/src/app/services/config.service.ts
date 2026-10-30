@@ -418,10 +418,10 @@ export class ConfigService {
         return currentConfig?.plugin_settings?.[key] ?? null;
     }
 
-    async requestProductCommand(type: string, extra: Record<string, unknown> = {}): Promise<BaseMessage> {
+    async requestProductCommand(type: string, extra: Record<string, unknown> = {}, timeoutMs = 10000): Promise<BaseMessage> {
         const request_id = `product-${this.promptRequestId()}`;
         const response = firstValueFrom(this.tauriService.output$.pipe(
-            filter(value => value['request_id'] === request_id && value.type === type + '_result'), take(1), timeout(10000)));
+            filter(value => value['request_id'] === request_id && value.type === type + '_result'), take(1), timeout(Math.min(Math.max(timeoutMs,1000),120000))));
         const [, result] = await Promise.all([this.tauriService.send_command({type, timestamp:new Date().toISOString(), request_id, ...extra}), response]);
         if (result['success'] !== true) throw new Error('Operation failed; current configuration was retained.');
         return result;

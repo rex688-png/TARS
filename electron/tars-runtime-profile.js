@@ -40,3 +40,7 @@ export function buildBackendEnvironment(
       }
     : { ...baseEnvironment };
 }
+
+export function blackBoxDirectory(appDataPath) {
+  return path.join(resolveTarsApplicationPaths(appDataPath).logs, 'blackbox');
+}

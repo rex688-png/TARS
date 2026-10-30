@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 from hashlib import md5
 from collections.abc import Iterator
 import json
@@ -99,6 +100,7 @@ class ActionManager:
         return None
     
 
+    @speech_trace.operation('tool','tool_execution')
     def runAction(
         self,
         tool_call: ChatCompletionMessageFunctionToolCall,
@@ -108,9 +110,11 @@ class ActionManager:
     ):
         """get function response and fetch matching python function, then call function using arguments provided"""
         function_result = None
+        diagnostic_outcome = 'returned'
 
         function_name = tool_call.function.name
         function_descriptor = self.actions.get(function_name)
+        speech_trace.emit('tool_requested',component='tool',tool=function_name,tool_id=speech_trace.identity(function_name),_private={'tool_arguments':tool_call.function.arguments})
         if function_descriptor and self.approvals:
             key = function_descriptor.get("permission")
             if key:
@@ -121,12 +125,14 @@ class ActionManager:
                 elif mode == 'ask' and _approved_call is not tool_call:
                     result = self.approvals.request(tool_call, key)
                 if result:
+                    speech_trace.emit('tool_not_executed',component='tool',reason=mode,tool=function_name)
                     return {"tool_call_id": tool_call.id, "role": "tool", "name": function_name, "content": result}
         if function_descriptor:
             function_to_call = function_descriptor.get("method")
             try:
                 function_args = json.loads(tool_call.function.arguments if tool_call.function.arguments else "null")
             except (ValueError, TypeError):
+                speech_trace.emit('tool_not_executed',component='tool',reason='invalid_arguments')
                 return {"tool_call_id": tool_call.id, "role": "tool", "name": function_name,
                         "content": "Not executed: invalid action arguments."}
 
@@ -144,11 +150,15 @@ class ActionManager:
                             processing_callback(tool_call.id, function_name, processing_result)
                     function_result = final_result
             except Exception as e:
+                diagnostic_outcome = 'exception'
+                speech_trace.emit('tool_outcome',component='tool',outcome='exception',error_type=type(e).__name__,severity='error')
                 log("debug", "An error occurred during function:", e, traceback.format_exc())
                 function_result = "ERROR: " + repr(e)
         else:
             function_result = f"ERROR: Function {function_name} does not exist!"
 
+        speech_trace.observe_tool_result(function_name,function_result)
+        speech_trace.emit('tool_outcome',component='tool',tool=function_name,outcome=diagnostic_outcome if function_descriptor else 'unavailable',_private={'tool_result':function_result} if isinstance(function_result,str) else None)
         return {
             "tool_call_id": tool_call.id,
             "role": "tool",

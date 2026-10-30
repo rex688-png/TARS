@@ -45,6 +45,7 @@ class OptionalSpeechHandle:
         self.allowed = self.lease.allowed
         self.enforcing = self.lease.mode == 'enforce'
         self.closed = False
+        self._diagnostic_reservation_token = speech_trace.current_reservation.set(self.lease.token) if speech_trace.enabled else None
 
     def valid(self):
         mode = self.arbiter.configure(self.helper._config.get('speech_director_mode', 'observe'))
@@ -67,6 +68,10 @@ class OptionalSpeechHandle:
     def close(self):
         self.closed = True
         self.arbiter.release_optional(self.lease)
+        if self._diagnostic_reservation_token is not None:
+            try: speech_trace.current_reservation.reset(self._diagnostic_reservation_token)
+            except (ValueError,RuntimeError): pass
+            self._diagnostic_reservation_token = None
 
 
 class PluginHelper():
@@ -195,9 +200,14 @@ class PluginHelper():
         :param sideeffect: A callable that takes any incoming Event and the current projected states dict
         """
         def _sideeffect_wrapper(event: Event, context: dict[str, Any]):
+            owner=getattr(sideeffect,'__self__',None)
+            previous=speech_trace.plugin_marker(owner)
             try:
                 sideeffect(event, context)
+                speech_trace.plugin_decisions(owner,event,previous)
+                speech_trace.observe_event('plugin_handled',event,component='plugin',source=type(getattr(sideeffect,'__self__',None)).__name__)
             except Exception as e:
+                speech_trace.observe_event('plugin_handling_failed',event,component='plugin',severity='error',error_type=type(e).__name__)
                 log('error', f"Plugin sideeffect raised an exception: {e}")
         self._event_manager.register_sideeffect(_sideeffect_wrapper)
 

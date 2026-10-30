@@ -748,6 +748,11 @@ export class TauriService {
         });
     }
 
+    async openBlackBoxFolder(): Promise<void> {
+        if (!window.electronAPI) throw new Error('Local desktop required');
+        await window.electronAPI.invoke('open_blackbox_folder');
+    }
+
     async onWindowClose(event: Event): Promise<void> {
         console.log('Window close requested, running callbacks');
         if (this.activeProviderInstallations.size > 0) {

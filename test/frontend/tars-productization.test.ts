@@ -27,3 +27,16 @@ test('spoken activity uses readable state labels even when thinking is derived',
  assert.equal(tarsActivityStatus('running','speaking'),'SPEAKING');
  assert.equal(tarsActivityStatus('configuring','idle'),'OFFLINE');
 });
+
+import { filterBlackBox, blackBoxFilename } from '../../ui/src/app/components/tars-diagnostics/blackbox-presentation';
+test('Black Box recent view is bounded and filters only observed fields', () => {
+    const records=Array.from({length:500},(_,i)=>({seq:i,timestamp:'2000-01-01',component:i%2?'tts':'model',stage:'returned',severity:'info',reason:'new_facts'}));
+    assert.equal(filterBlackBox(records).length,200);
+    assert.ok(filterBlackBox(records,'tts','info','new_facts').every(r=>r.component==='tts'));
+    assert.equal(filterBlackBox(records,'tts','error').length,0);
+});
+test('Black Box filenames distinguish private exports and reject paths', () => {
+    assert.match(blackBoxFilename('a'.repeat(32),false,false),/sanitized\.jsonl$/);
+    assert.match(blackBoxFilename('a'.repeat(32),true,true),/PRIVATE\.txt$/);
+    assert.throws(()=>blackBoxFilename('../private',false,true));
+});

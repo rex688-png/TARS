@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 import traceback
 import importlib.util
 import json
@@ -134,6 +135,7 @@ class PluginManager:
             obj = getattr(module, attr)
             if isinstance(obj, type) and issubclass(obj, PluginBase) and obj is not PluginBase:
                 plugin = obj(manifest) # Instantiate and return
+                speech_trace.emit('plugin_loaded',component='plugin',source=type(plugin).__name__)
                 plugin.settings = self.config.get('plugin_settings', {}).get(manifest.guid, {})
                 if migrate_provider_settings(plugin):
                     self.config.setdefault('plugin_settings', {})[manifest.guid] = plugin.settings
@@ -430,7 +432,9 @@ class PluginManager:
         for module in self.plugin_list.values():
             log('debug', f"Executing on_chat_start hook for {module.plugin_manifest.name}")
             try:
+                speech_trace.emit('plugin_starting',component='plugin',source=type(module).__name__)
                 module.on_chat_start(helper)
+                speech_trace.emit('plugin_started',component='plugin',source=type(module).__name__)
             except Exception as e:
                 log('error', f"Failed to execute on_chat_start hook for {module.plugin_manifest.name}: {e}")
 
@@ -442,6 +446,7 @@ class PluginManager:
             log('debug', f"Executing on_chat_stop hook for {module.plugin_manifest.name}")
             try:
                 module.on_chat_stop(helper)
+                speech_trace.emit('plugin_stopped',component='plugin',source=type(module).__name__)
             except Exception as e:
                 log('error', f"Failed to execute on_chat_stop hook for {module.plugin_manifest.name}: {e}")
 

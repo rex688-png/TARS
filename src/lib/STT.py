@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 import queue
 import threading
 import traceback
@@ -29,6 +30,7 @@ class STTResult:
         self.capture_completed = capture_completed
         self.stt_completed = stt_completed
         self.confidence = confidence
+        self.trace_id = speech_trace.current.get()
 
     def __str__(self):
         return self.text
@@ -105,7 +107,9 @@ class STT:
                 source.close()
         
         if text and not self._stop_event.is_set():
-            self.resultQueue.put(STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed))
+            result=STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed)
+            result.trace_id=getattr(self,'_diagnostic_trace_id',None)
+            self.resultQueue.put(result)
         
         log('debug', 'listen_once_thread end')
 
@@ -125,6 +129,7 @@ class STT:
                 self._listen_continuous_loop()
             except Exception as e:
                 self.recording = False
+                speech_trace.emit('stt_worker_recovery',component='stt',reason='worker_failure',severity='warning')
                 log('error', 'An error occurred during speech recognition', e, traceback.format_exc())
                 show_chat_message('error', 'Speech recognition error:', e)
                 if self._stop_event.wait(backoff):
@@ -180,7 +185,9 @@ class STT:
                             frames = []
                             activity = []
                             if text and not self._stop_event.is_set():
-                                self.resultQueue.put(STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed))
+                                result=STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed)
+                                result.trace_id=getattr(self,'_diagnostic_trace_id',None)
+                                self.resultQueue.put(result)
                             self.recording = False
         finally:
             self.recording = False
@@ -220,6 +227,7 @@ class STT:
             )
         except Exception as e:
             log('error', 'Failed to open microphone', e, traceback.format_exc())
+            speech_trace.emit('stt_device_fallback',component='stt',reason='device_unavailable',severity='warning')
             log('error', 'Fallback to default microphone')
             source = audio.open(
                 format=pyaudio.paInt16,
@@ -228,10 +236,14 @@ class STT:
                 input=True,
                 frames_per_buffer=self.frames_per_buffer
             )
+        speech_trace.emit('stt_capture_started',component='stt')
         return source
 
+    @speech_trace.operation('stt','transcription')
     @observe()
     def _transcribe(self, audio: sr.AudioData) -> str:
+        self._diagnostic_trace_id=speech_trace.current.get()
+        speech_trace.emit('stt_capture_completed',component='stt')
         log('debug', 'Transcribing audio...')
         if self.stt_model is None:
             raise ValueError('Speech recognition is disabled')
@@ -239,9 +251,11 @@ class STT:
         audio_raw = audio.get_raw_data(convert_rate=16000, convert_width=2)
         audio_length = len(audio_raw) / 2 / 16000
         if audio_length < 0.2:
+            speech_trace.emit('stt_discarded',component='stt',reason='short_audio')
             log('debug', 'skipping short audio')
             return ''
         if all([a < self.vad_threshold for a in self.vad.process_chunks(audio_raw)]):
+            speech_trace.emit('stt_discarded',component='stt',reason='no_voice')
             log('debug', 'skipping audio without voice')
             return ''
 
@@ -252,10 +266,12 @@ class STT:
         try:
             text = self.stt_model.transcribe(audio)
         except LLMError as e:
+            speech_trace.emit('stt_failed',component='stt',reason='provider_error',severity='error')
             log('error', 'STT Error:', e)
             show_chat_message('error', 'STT Error:', str(e))
             return ''
         except Exception as e:
+            speech_trace.emit('stt_failed',component='stt',reason='provider_error',severity='error')
             log('error', 'STT Error:', e, traceback.format_exc())
             return ''
 

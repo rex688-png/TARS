@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 from .JournalFacts import SALE_EVENTS, sale_description
 from .ResponsePresentation import RESPONSE_POLICY, current_fact_envelope
 from .SpeechPolicy import LIVE_EXPLORATION_SPEECH_POLICY
@@ -3802,6 +3803,7 @@ class PromptGenerator:
                     break
         self.previous_prompt_json = prompt_json
 
+        speech_trace.emit('prompt_prepared',component='prompt',freshness=freshness,message_count=len(conversational_pieces),system_chars=usage_stats.system_chars,memory_chars=usage_stats.memory_chars,status_chars=usage_stats.status_chars,conversation_chars=usage_stats.conversation_chars,_private={'input_evidence':status_msg_content})
         return conversational_pieces, usage_stats
     
     def register_prompt_event_handler(self, prompt_event_handler: Callable[[Event], str|None]):

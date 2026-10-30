@@ -151,6 +151,7 @@ class SpeechArbiter:
             if phase != 'idle':
                 self._combat_cutoff = self.wall_clock()
             if phase != previous:
+                SpeechTrace.emit('combat_focus_changed',component='combat',outcome=phase)
                 self._combat_revision = getattr(self, '_combat_revision', 0)+1
                 self._epoch += 1
                 self.cancel_optional('combat_focus')
@@ -318,6 +319,9 @@ class SpeechArbiter:
                 else:
                     fresh.append(event)
             selected, claims = self._delivery_ledger.select(fresh)
+            for event in fresh:
+                if event not in selected:
+                    SpeechTrace.observe_event('speech_eligibility',event,disposition='record',reason='delivered_facts_covered')
             return selected, claims, self._epoch
 
     def confirm_exploration(self, claims, epoch, terminal, events, text):
