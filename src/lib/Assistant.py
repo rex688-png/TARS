@@ -825,6 +825,13 @@ class Assistant:
         action_results: list[Any] = []
         for action in actions:
             intent = latest_user_intent(list(self.event_manager.processed) + list(self.event_manager.pending))
+            router = getattr(self, '_combat_router', None)
+            if router is not None and not router.allows_model_action(action.function.name):
+                result = {'tool_call_id':action.id,'role':'tool','name':action.function.name,
+                          'content':'Not executed: use an exact, authorized fast tactical command.'}
+                self.event_manager.add_tool_call([action.model_dump()],[result],None)
+                action_results.append(result)
+                continue
             if not action_intent_allowed(action.function.name, intent):
                 result = {'tool_call_id': action.id, 'role': 'tool', 'name': action.function.name,
                           'content': 'Not executed: explicit commander intent is required.'}
@@ -960,6 +967,7 @@ class Assistant:
                               (e.kind in ('user', 'tool')) and not getattr(e, 'do_not_reply', False)
                               for e in new_events)
             if not direct_turn:
+                new_events = [e for e in new_events if arbiter.combat_allows(e)]
                 had_exploration = any(getattr(e, 'plugin_event_name', None) in EXPLORATION_SOURCES for e in new_events)
                 new_events, exploration_claims, exploration_epoch = arbiter.exploration_candidates(new_events, projected_states)
                 if had_exploration and not any(
@@ -996,6 +1004,25 @@ class Assistant:
             for event in new_events:
                 speech_trace.observe_event("reply_event", event)
             
+            combat_alerts = [e for e in new_events if getattr(e, 'plugin_event_name', None) == 'TARSCombatAlert']
+            if combat_alerts and not direct_turn:
+                provider = getattr(self, '_combat_provider', None)
+                event = combat_alerts[-1]
+                valid = lambda: provider.alert(event.plugin_event_content) if provider and not any(
+                    e.kind in ('user','user_speaking','tool') for e in self.pending) else None
+                text = valid()
+                maximum = max([e.processed_at for e in events] + [0.0])
+                if text:
+                    line = self.tts.say(text, context='assistant',
+                        postprocessing_layers=self._get_tts_postprocessing_layers(projected_states), drop_if=lambda: not valid())
+                    if line.wait_for_speaking():
+                        self.event_manager.add_assistant_speaking()
+                        self.event_manager.add_conversation_event('assistant', text, reasons=['combat_critical_alert'], processed_at=maximum)
+                    line.wait_for_completion()
+                self.event_manager.short_term_memory.replied_before(maximum)
+                self.event_manager.add_assistant_complete_event()
+                return
+
             warning = departure_warning(new_events, self.enabled_game_events)
             if warning is not None:
                 def warning_valid():
@@ -1033,12 +1060,29 @@ class Assistant:
                 self.event_manager.add_assistant_complete_event()
                 return
 
-            memories = self.event_manager.get_latest_memories(limit=5)
+            fast_result = None
+            router = getattr(self, '_combat_router', None)
+            users = [e for e in new_events if isinstance(e, ConversationEvent) and e.kind == 'user' and not getattr(e, 'do_not_reply', False)]
+            if router is not None and users and not any(e.kind == 'tool' for e in new_events):
+                fast_result = router.handle(users[-1], projected_states)
+            memories = self.event_manager.get_latest_memories(limit=5) if fast_result is None else []
 
 
             log('debug', 'Starting reply...')
             max_conversation_processed = max([event.processed_at for event in events]+[0.0])
-            prompt, prompt_usage = self.prompt_generator.generate_prompt(events=events, projected_states=projected_states, pending_events=new_events, memories=memories)
+            prompt, prompt_usage = (self.prompt_generator.generate_prompt(events=events, projected_states=projected_states, pending_events=new_events, memories=memories)
+                                    if fast_result is None else ([], PromptUsageStats()))
+
+            provider = getattr(self, '_combat_provider', None)
+            if fast_result is None and provider is not None and provider.settings.get('enabled', True):
+                for message in prompt:
+                    if message.get('role') == 'system' and isinstance(message.get('content'), str):
+                        message['content'] += ("\n\nTARS Combat: use tarsCombatQuery for combat questions before claiming current facts. "
+                            "Legacy InCombat is music-derived and Target snapshots do not prove freshness. "
+                            "If the query tool or current evidence is unavailable, say so. Missing or stale telemetry is unknown. "
+                            "Never infer own shield percentage, enemy position/velocity, DPS, accuracy or capacitor levels. "
+                            "Only an exact permission-gated tactical command can control combat; do not narrate the fight.")
+                        break
 
             user_input: list[str] = [event.content for event in new_events if isinstance(event, ConversationEvent) and event.kind == 'user']
             tool_uses: int = len([event for event in new_events if event.kind == 'tool'])
@@ -1050,7 +1094,7 @@ class Assistant:
                     else:
                         reasons.append(event.kind)
             
-            use_tools = self.config["tools_var"] and ('user' in reasons or 'tool' in reasons)
+            use_tools = fast_result is None and self.config["tools_var"] and ('user' in reasons or 'tool' in reasons)
 
             current_status = get_state_dict(projected_states, "CurrentStatus")
             ship_info = get_state_dict(projected_states, "ShipInfo")
@@ -1079,12 +1123,16 @@ class Assistant:
             tool_list = self.action_manager.getToolsList(active_mode, uses_actions, uses_web_actions, uses_ui_actions, allowed_actions, in_station) if use_tools else None
             intent = latest_user_intent(events)
             if tool_list:
-                tool_list = [tool for tool in tool_list if action_intent_allowed(tool['function']['name'], intent)]
+                tool_list = [tool for tool in tool_list if action_intent_allowed(tool['function']['name'], intent)
+                             and (router is None or router.allows_model_action(tool['function']['name']))]
             predicted_actions = None
             if tool_list and user_input and not tool_uses and self.config["use_action_cache_var"]:
                 predicted_actions = self.action_manager.predict_action(user_input[-1], tool_list)
                 
-            if predicted_actions:
+            if fast_result is not None:
+                response_text, response_actions = fast_result, None
+                speech_trace.emit('generation_bypassed', reason='combat_command')
+            elif predicted_actions:
                 #log('info', 'predicted_actions', predicted_actions)
                 speech_trace.emit("generation_bypassed", reason="action_cache")
                 response_text = None
@@ -1150,6 +1198,7 @@ class Assistant:
                 line = self.tts.say(
                     spoken_text,
                     context="assistant",
+                    drop_if=(lambda: not all(arbiter.combat_allows(e) for e in new_events)) if not direct_turn and getattr(self, '_combat_provider', None) is not None else None,
                     postprocessing_layers=self._get_tts_postprocessing_layers(projected_states),
                 )
                 if line.wait_for_speaking():
@@ -1217,6 +1266,8 @@ class Assistant:
             return False
 
         for event in self.pending:
+            if not self.speech_arbiter().combat_allows(event):
+                continue
             if isinstance(event, GameEvent) and event.content.get('event') in SALE_EVENTS:
                 if event.historic or sale_key(event) in getattr(self, '_sale_reaction_keys', {}):
                     continue

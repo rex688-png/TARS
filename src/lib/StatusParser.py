@@ -6,7 +6,7 @@ import time
 import traceback
 from time import sleep
 from typing import Any, Literal, Optional
-from typing import TypedDict
+from typing import TypedDict, NotRequired
 
 from .Logger import log
 
@@ -159,6 +159,7 @@ class Destination(TypedDict):
 
 
 class Status(TypedDict):
+    timestamp: NotRequired[str]
     event: Literal["Status"]
     flags: BaseFlags
     flags2: Optional[OdysseyFlags]
@@ -222,7 +223,7 @@ def parse_status_json(value: dict[str, Any]) -> Status:
             'SAA',
             'Codex',
     ]
-    return Status(
+    result = Status(
         event='Status',
         flags=parse_status_flags(value.get('Flags', 0)),
         flags2=parse_odyssey_flags(value.get('Flags2', 0)) if 'Flags2' in value else None,
@@ -247,6 +248,11 @@ def parse_status_json(value: dict[str, Any]) -> Status:
         SelectedWeapon=value.get('SelectedWeapon', None),
         Gravity=value.get('Gravity', None),
     )
+
+    # Preserve source time for stale telemetry checks; never replace it with arrival time.
+    if isinstance(value.get('timestamp'), str):
+        result['timestamp'] = value['timestamp']
+    return result
 
 
 class StatusParser:

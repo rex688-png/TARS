@@ -97,6 +97,10 @@ class PluginEvent(Event[Literal['plugin']]):
 @dataclass(kw_only=True)
 class ConversationEvent(Event[ConversationEventKind]):
     content: str
+    input_source: str = 'unknown'
+    input_session: str | None = None
+    input_confidence: float | None = None
+    input_timing: dict[str, float] | None = None
     reasons: list[str] | None = None
     kind: ConversationEventKind
 

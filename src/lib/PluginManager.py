@@ -38,6 +38,7 @@ class PluginManager:
         "TARSChatter",
         "TARSExpedition",
         "TARSObservatoryBridge",
+        "TARSCombat",
     )
     TARS_PROVIDER_PLUGINS = ("mistral",)
 

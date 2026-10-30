@@ -537,7 +537,8 @@ class Chat:
             )
 
     def submit_input(self, input: str):
-        self.event_manager.add_conversation_event("user", input)
+        self.event_manager.add_conversation_event("user", input, input_source="text",
+            input_session=getattr(getattr(self.assistant,"_combat_router",None),"session",None))
 
     def query_memories(self, query: str, top_k: int = 5):
         """Query long-term memories without triggering LLM interaction"""
@@ -885,9 +886,14 @@ class Chat:
 
                 # check STT result queue
                 if not self.stt.resultQueue.empty():
-                    text = self.stt.resultQueue.get().text
+                    recognition = self.stt.resultQueue.get()
+                    text = recognition.text
                     self.tts.abort()
-                    self.event_manager.add_conversation_event("user", text)
+                    self.event_manager.add_conversation_event("user", text, input_source="voice",
+                        input_confidence=getattr(recognition,"confidence",None),
+                        input_session=getattr(getattr(self.assistant,"_combat_router",None),"session",None),
+                        input_timing={k:v for k,v in {"capture_completed":getattr(recognition,"capture_completed",None),
+                            "stt_completed":getattr(recognition,"stt_completed",None)}.items() if v is not None})
 
                 # check EDJournal files for updates
                 while not self.jn.events.empty():

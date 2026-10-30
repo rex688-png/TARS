@@ -1,8 +1,8 @@
-# The six official TARS plugins
+# The seven official TARS plugins
 
 These behavior plugins are bundled with TARS and contribute to **one companion**.
-You do not install six separate assistants. The verified payload is pinned to
-`TARS-Plugins@54c9161412e9478a9ffe8de2d0b505fbf37f89db`; its 27 file hashes are
+You do not install seven separate assistants. The verified payload is pinned to
+`TARS-Plugins@83caceaca39712d1c84e4337a09b020b087125ae`; its 32 file hashes are
 recorded in the bundled provenance manifest. Update them through a reviewed TARS
 package, not by copying arbitrary folders into the profile.
 
@@ -68,3 +68,7 @@ Parakeet STT, Pocket-TTS, Supertonic TTS and Gemma Embedding are optional
 plugins. The TARS product does not scan arbitrary plugin folders or enable
 EDCoPilot. Upstream plugin-development instructions remain repository references,
 not supported TARS installation instructions.
+
+## Combat
+
+Combat supplies quiet combat awareness, critical alerts and requested tactical analysis. Fast controls and experimental fighter launch UI default off. Configure it under Settings → Plugins → TARS Combat. This prototype still requires live Windows/gameplay acceptance.

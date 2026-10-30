@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess
 
 
-PINNED_SHA = "54c9161412e9478a9ffe8de2d0b505fbf37f89db"
+PINNED_SHA = "83caceaca39712d1c84e4337a09b020b087125ae"
 PLUGIN_NAMES = (
     "TARSExplorer",
     "TARSNavigator",
@@ -18,6 +18,7 @@ PLUGIN_NAMES = (
     "TARSChatter",
     "TARSExpedition",
     "TARSObservatoryBridge",
+    "TARSCombat",
 )
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_ROOT = REPO_ROOT / "vendor" / "tars-plugins"

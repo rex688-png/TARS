@@ -1,5 +1,5 @@
 {
-  "source_revision": "54c9161412e9478a9ffe8de2d0b505fbf37f89db",
+  "source_revision": "83caceaca39712d1c84e4337a09b020b087125ae",
   "files": {
     "plugins/TARSExplorer/REACTS_QUICK_GUIDE.txt": "901b8e796223b0e8552680217e148950b6b73bc6629449b674986c59babaa2fd",
     "plugins/TARSExplorer/README.txt": "2de3d1bd108453870d3239ae04de73e53d4c0de2e751ce09d3c59684a0982c89",
@@ -27,6 +27,11 @@
     "plugins/TARSObservatoryBridge/README.txt": "9fd7d2b33d041c499f4283853a58133d2a38bc4e12ddaa425ee907ac95042779",
     "plugins/TARSObservatoryBridge/TARSObservatoryBridge.py": "47d72981276189fbb07ad29d9c6b1fecb20b015c4c950ab566a4d35e7f296bf9",
     "plugins/TARSObservatoryBridge/manifest.json": "33ee96d5f2cc9cf91ca77a843270b524fa7dd9b7551927761f5dcc2800886185",
+    "plugins/TARSCombat/CombatState.py": "084dc27767e45fa8fa9a75c8201856ed37545f06378958c58610e4533ad22945",
+    "plugins/TARSCombat/Commands.py": "3ef7b4159517be26a1e757e8ec35a751f09d9ba8dfd5ffc70c17db7c069a1b89",
+    "plugins/TARSCombat/README.md": "de5348f2d9d5e6102c644fd4fbe2af84faead78768cd525b51bdcd0f580d40cd",
+    "plugins/TARSCombat/TARSCombat.py": "d2eab5ab6f56bef02980aa44ee6087cbc44fc67c67da758570ddda8d7f2f3eac",
+    "plugins/TARSCombat/manifest.json": "9e17d57980b2cf262b68a0bbc85c876fdbe81e1f31989740f77512d5aa7a3b49",
     "prompt/prompt.txt": "802f042ac643da3583f0e0595caefb6d5a072746a8c0c0d17f64ec9dc29af4d7"
   }
 }

@@ -49,7 +49,7 @@ def test_tars_profile_loads_only_required_plugins_in_fixed_order(monkeypatch, tm
     manager.load_plugins()
 
     assert loaded == list(PluginManager.TARS_PLUGIN_ORDER)
-    assert len(manager.plugin_list) == 8
+    assert len(manager.plugin_list) == len(PluginManager.TARS_PLUGIN_ORDER) + len(manager.builtin_plugin_guids)
     assert len(manager.builtin_plugin_guids) == 2
 
     manager.register_settings()
@@ -70,7 +70,7 @@ def test_tars_profile_fails_clearly_when_required_plugin_is_missing(monkeypatch,
         _write_plugin(tmp_path, name, position)
 
     manager = PluginManager({}, tars_profile=True, plugin_folder=str(tmp_path))
-    with pytest.raises(RuntimeError, match="TARSObservatoryBridge/manifest.json"):
+    with pytest.raises(RuntimeError, match="TARSCombat/manifest.json"):
         manager.load_plugins()
 
 
