@@ -1148,7 +1148,7 @@ class Assistant:
                     
                 try:
                     speech_trace.current_generation.set(speech_trace.new_id())
-                    speech_trace.emit("reply_generation_requested")
+                    speech_trace.emit("reply_generation_requested",direct=direct_turn)
                     response_text, response_actions, model_usage = self.llmModel.generate(
                         messages=prompt,
                         tools=tool_list,  # pyright: ignore[reportArgumentType]
@@ -1267,6 +1267,7 @@ class Assistant:
 
         for event in self.pending:
             if not self.speech_arbiter().combat_allows(event):
+                speech_trace.observe_event('reply_not_selected',event,reason='combat_focus',component='combat')
                 continue
             if isinstance(event, GameEvent) and event.content.get('event') in SALE_EVENTS:
                 if event.historic or sale_key(event) in getattr(self, '_sale_reaction_keys', {}):
@@ -1361,10 +1362,14 @@ class Assistant:
                     speech_trace.observe_event("reply_selected", event, reason="plugin_handler")
                     return True
                 elif should_reply_according_to_plugins is False:
+                    speech_trace.observe_event('reply_not_selected',event,reason='plugin_declined')
                     pass
                 else:
                     continue
 
+        for event in self.pending:
+            if isinstance(event, GameEvent) and event.content.get('event') not in self.enabled_game_events:
+                speech_trace.observe_event('reply_not_selected',event,reason='reaction_disabled')
         speech_trace.emit("reply_not_selected", reason="no_eligible_pending_event")
         return False
     

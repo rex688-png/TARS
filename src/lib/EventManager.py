@@ -156,6 +156,7 @@ class EventManager:
         min_history_id, max_history_id = self.load_history()
         self.min_history_id = min_history_id
         self.max_history_id = max_history_id
+        speech_trace.emit('history_loaded',component='event',count=len(self.processed))
 
         if self.processed:
             show_chat_message('info', 'Continuing conversation with', len(self.processed), 'events.')
@@ -196,9 +197,10 @@ class EventManager:
         event = StatusEvent(status=status)
         self.incoming.put(event)
 
-    def add_conversation_event(self, role: Literal['user', 'assistant'], content: str, processed_at: float = 0.0, reasons: list[str] | None = None, *, input_source: str = 'text', input_session: str | None = None, input_confidence: float | None = None, input_timing: dict[str, float] | None = None):
+    def add_conversation_event(self, role: Literal['user', 'assistant'], content: str, processed_at: float = 0.0, reasons: list[str] | None = None, *, input_source: str = 'text', input_session: str | None = None, input_confidence: float | None = None, input_timing: dict[str, float] | None = None, diagnostic_trace_id: str | None = None):
         event = ConversationEvent(kind=role, content=content, reasons=reasons,
             input_source=input_source, input_session=input_session, input_confidence=input_confidence, input_timing=input_timing)
+        speech_trace.observe_event('conversation_submitted',event,trace_id=diagnostic_trace_id)
         if role == 'assistant':
             self.short_term_memory.replied_before(processed_at)
         self.incoming.put(event)
@@ -282,6 +284,7 @@ class EventManager:
         self.add_quest_event(payload)
 
     def add_projected_event(self, event: ProjectedEvent, source: Event):
+        speech_trace.observe_event('projected_event_created',event,parent_event_id=speech_trace.safe_event_id(source))
         event.processed_at = source.processed_at
         if not isinstance(source, GameEvent) or not source.historic:
             self.pending.append(event)
@@ -323,9 +326,11 @@ class EventManager:
                 self.short_term_memory.insert_event(event, event.processed_at, commit=False)
                 projected_events = self.update_projections(event, save_later=True)
 
+                speech_trace.observe_event('event_processed',event,component='event',count=len(self.projections))
                 self.pending.append(event)
 
                 if isinstance(event, GameEvent) and event.historic:
+                    speech_trace.observe_event('historical_record_only',event,reason='historic')
                     #self.processed.append(event)
                     continue
 
@@ -346,12 +351,13 @@ class EventManager:
     
 
     def trigger_sideeffects(self, event: Event, projected_states: ProjectedStates):
-        for sideeffect in self.sideeffects:
-            try:
-                sideeffect(event, projected_states)
-            except Exception as e:
-                log('error', 'Error triggering sideeffect', sideeffect, e, traceback.format_exc())
-    
+        with speech_trace.event_scope(event):
+            for sideeffect in self.sideeffects:
+                try:
+                    sideeffect(event, projected_states)
+                except Exception as e:
+                    log('error', 'Error triggering sideeffect', sideeffect, e, traceback.format_exc())
+
     def register_sideeffect(self, sideeffect: Callable[[Event, ProjectedStates], None]):
         self.sideeffects.append(sideeffect)
         
@@ -390,6 +396,7 @@ class EventManager:
                     self.add_projected_event(e, event)
                     self.short_term_memory.insert_event(e, event.processed_at)
         except Exception as e:
+            speech_trace.observe_event('projection_failed',event,component='projection',source=projection_name,severity='error',error_type=type(e).__name__)
             log('error', 'Error processing event', event, 'with projection', projection, e, traceback.format_exc())
             return []
         if event.processed_at and projection.last_processed and event.processed_at < projection.last_processed:

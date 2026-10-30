@@ -1,3 +1,4 @@
+import { isBlackBoxLine } from './blackbox-privacy.js';
 import { app, BrowserWindow, dialog, ipcMain, protocol, net, screen, shell, systemPreferences } from 'electron';
 import { spawn } from 'child_process';
 import http from 'node:http';
@@ -22,7 +23,7 @@ import {
   normalizeDesktopOverlayScreen,
   selectOverlayDisplay,
 } from './desktop-overlay-lifecycle.js';
-import { buildBackendEnvironment, configureTarsApplication } from './tars-runtime-profile.js';
+import { blackBoxDirectory, buildBackendEnvironment, configureTarsApplication } from './tars-runtime-profile.js';
 import { resolveAppUiAssetPath } from './app-ui-assets.js';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -62,7 +63,7 @@ function disableLoggerForShutdown() {
 }
 
 function shouldRedactConfigLine(line) {
-  return redactedConfigLineMarkers.some((marker) => line.includes(marker));
+  return isBlackBoxLine(line) || redactedConfigLineMarkers.some((marker) => line.includes(marker));
 }
 
 const transport = {
@@ -564,6 +565,10 @@ class BackendService {
     }
   }
   #notifyListeners(channel, payload) {
+    if (isBlackBoxLine(payload)) {
+      this.#notifyWindows(channel, payload);
+      return; // No private-capable response in remote broadcasts or recent-message cache.
+    }
     this.#recentMessages.push({ channel, payload });
     if (this.#recentMessages.length > 200) {
       this.#recentMessages.shift();
@@ -575,6 +580,9 @@ class BackendService {
     return Boolean(this.#currentProcess && this.#currentProcess.exitCode === null && this.#currentProcess.signalCode === null);
   }
   sendJsonLine(event, {jsonLine}) {
+    if (!event && isBlackBoxLine(jsonLine)) {
+      throw new Error('Black Box diagnostics require the local desktop interface');
+    }
     const childProcess = this.#currentProcess;
     if (!this.#hasActiveProcess() || !childProcess?.stdin?.writable) {
       throw new Error('No active process to send JSON line to');
@@ -1347,6 +1355,12 @@ app.whenReady().then(async ()=>{
   const backend = new BackendService();
   const mainWindow = createMainWindow();
   let floatingOverlay = null;
+  ipcMain.handle('open_blackbox_folder', async () => {
+    const folder = blackBoxDirectory(app.getPath('appData'));
+    await fsPromises.mkdir(folder, {recursive:true});
+    const error = await shell.openPath(folder);
+    if (error) throw new Error('Black Box folder could not be opened');
+  });
   ipcMain.handle('send_json_line', (...args)=>backend.sendJsonLine(...args));
   ipcMain.handle('start_process', (...args)=>{
     // Close existing overlay on process start (handles reload scenarios)

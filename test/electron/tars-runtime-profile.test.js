@@ -90,3 +90,23 @@ test('packages the immutable TARS plugin resources', () => {
   assert.ok(resource.filter.includes('!**/__pycache__/**'));
   assert.ok(resource.filter.includes('!**/*.pyc'));
 });
+
+test('Black Box folder is fixed under the TARS user-writable logs directory', async () => {
+  const { blackBoxDirectory } = await import('../../electron/tars-runtime-profile.js');
+  assert.equal(blackBoxDirectory('USER_APPDATA'), path.join('USER_APPDATA','TARS','logs','blackbox'));
+  const source=fs.readFileSync(new URL('../../electron/index.js',import.meta.url),'utf8');
+  assert.match(source,/ipcMain\.handle\('open_blackbox_folder', async \(\) =>/);
+  assert.match(source,/blackBoxDirectory\(app\.getPath\('appData'\)\)/);
+});
+
+test('Black Box payloads are excluded from logs, remote broadcasts and replay caches', async () => {
+  const { isBlackBoxLine }=await import('../../electron/blackbox-privacy.js');
+  assert.equal(isBlackBoxLine(JSON.stringify({type:'blackbox_result',data:'PRIVATE_BASE64'})),true);
+  assert.equal(isBlackBoxLine(JSON.stringify({type:'blackbox',action:'mode'})),true);
+  assert.equal(isBlackBoxLine(JSON.stringify({type:'chat',message:'ordinary'})),false);
+  assert.equal(isBlackBoxLine('not JSON'),false);
+  const source=fs.readFileSync(new URL('../../electron/index.js',import.meta.url),'utf8');
+  assert.match(source,/return isBlackBoxLine\(line\) \|\| redactedConfigLineMarkers/);
+  assert.ok(source.indexOf('if (isBlackBoxLine(payload))')<source.indexOf('this.#recentMessages.push'));
+  assert.match(source,/if \(!event && isBlackBoxLine\(jsonLine\)\)/);
+});

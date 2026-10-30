@@ -1,3 +1,5 @@
+from lib import SpeechTrace as speech_trace
+from lib.BlackBoxCommands import handle_blackbox_command
 from lib.ConfigPersistence import create_manual_backup, restore_manual_backup
 from lib.SupportBundle import handle_support_command, provider_summary
 from lib.ResponsePresentation import private_text_summary
@@ -750,7 +752,8 @@ class Chat:
             ):
                 try:
                     cleanup()
-                except Exception:
+                except Exception as cleanup_error:
+                    speech_trace.emit('cleanup_failed',component='application',error_type=type(cleanup_error).__name__,severity='error')
                     log("error", "Failed to stop runtime component", name)
 
     def _run(self):
@@ -909,7 +912,7 @@ class Chat:
                     recognition = self.stt.resultQueue.get()
                     text = recognition.text
                     self.tts.abort()
-                    self.event_manager.add_conversation_event("user", text, input_source="voice",
+                    self.event_manager.add_conversation_event("user", text, input_source="voice", diagnostic_trace_id=getattr(recognition,"trace_id",None),
                         input_confidence=getattr(recognition,"confidence",None),
                         input_session=getattr(getattr(self.assistant,"_combat_router",None),"session",None),
                         input_timing={k:v for k,v in {"capture_completed":getattr(recognition,"capture_completed",None),
@@ -936,6 +939,7 @@ class Chat:
             except KeyboardInterrupt:
                 break
             except Exception as e:
+                speech_trace.emit('main_loop_failed',component='application',error_type=type(e).__name__,severity='error')
                 log("error", e, traceback.format_exc())
                 break
 
@@ -1073,6 +1077,8 @@ def read_stdin(chat: Chat):
                     emit_message("create_config_backup_result",request_id=data.get("request_id"),success=False)
             if data.get("type") == "restore_config_backup":
                 emit_message("restore_config_backup_result",request_id=data.get("request_id"),success=False)
+            if data.get("type") == "blackbox":
+                handle_blackbox_command(data, emit_message)
             if data.get("type") == "export_diagnostics":
                 handle_support_command(chat.config, data, emit_message)
             if data.get("type") == "interrupt_tts":
@@ -1191,6 +1197,16 @@ if __name__ == "__main__":
     startup_phase = "bootstrap"
     try:
         configure_stdio()
+        from pathlib import Path
+        blackbox_root = Path(os.environ.get('APPDATA') or Path.home()/'.local'/'share')/'TARS'/'logs'/'blackbox'
+        speech_trace.start_blackbox(blackbox_root)
+        speech_trace.emit('application_started',component='application')
+        try:
+            bundle=Path(os.environ.get('TARS_BUNDLED_RESOURCES') or Path(__file__).resolve().parents[1]/'vendor'/'tars-plugins')
+            revision=json.loads((bundle/'provenance.json').read_text(encoding='utf-8')).get('source_revision')
+            speech_trace.emit('bundle_metadata',component='application',plugin_revision=revision)
+        except Exception:
+            speech_trace.emit('bundle_metadata_unavailable',component='application')
         sys.stdin = io.TextIOWrapper(
             sys.stdin.buffer, encoding="utf-8", write_through=True
         )
@@ -1212,6 +1228,7 @@ if __name__ == "__main__":
         log("debug", "Loading plugins...")
         plugin_manager = PluginManager(config=config)
         plugin_manager.load_plugins()
+        speech_trace.attach_plugins(plugin_manager)
         log("debug", "Registering plugin settings for the UI...")
         plugin_manager.register_settings()
         quest_catalog_manager = QuestCatalogManager()
@@ -1240,6 +1257,8 @@ if __name__ == "__main__":
                         emit_message("restore_config_backup_result",request_id=data.get("request_id"),success=True)
                     except Exception:
                         emit_message("restore_config_backup_result",request_id=data.get("request_id"),success=False)
+                if data.get("type") == "blackbox":
+                    handle_blackbox_command(data, emit_message)
                 if data.get("type") == "export_diagnostics":
                     handle_support_command(config, data, emit_message)
                 if data.get("type") == "start":
@@ -1364,6 +1383,7 @@ if __name__ == "__main__":
         log("debug", "Running chat...")
         startup_phase = "running"
         chat.run()
+        speech_trace.emit('application_stopped',component='application')
     except Exception as e:
         details = traceback.format_exc()
         if startup_phase != "running":
@@ -1376,5 +1396,9 @@ if __name__ == "__main__":
                 )
             except Exception:
                 pass
+        speech_trace.emit('initialization_failed',component='application',reason=startup_phase,error_type=type(e).__name__,severity='error')
         log("error", e, details)
         sys.exit(1)
+
+    finally:
+        speech_trace.stop_blackbox()

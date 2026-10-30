@@ -72,7 +72,7 @@ class TTSLine:
         speech_trace.emit("tts_attempt_finished", trace_id=self.trace_id,
                           line_id=self.line_id, generation_id=self.generation_id, delivery_id=self.line_id, attempt_id=attempt.attempt_id,
                           outcome=attempt.outcome, written_bytes=attempt.written_bytes,
-                          output_drained=attempt.output_drained)
+                          output_drained=attempt.output_drained, duration_ms=max(0,attempt.ended_at-attempt.started_at)*1000)
 
     def settle(self, outcome: str, *, reason: str = "") -> bool:
         """Finalize exactly once, outside the lock invoke any legacy callback."""
@@ -318,6 +318,7 @@ class TTS:
             output=True,
             output_device_index=output_index,
         )
+        speech_trace.emit('audio_device_opened',component='tts')
         stop_event = getattr(self, '_stop_event', None)
         if stop_event is None:
             stop_event = self._stop_event = threading.Event()
@@ -710,6 +711,7 @@ class TTS:
         metrics: dict[str, float | None] | None = None,
     ):
         started_at = time()
+        speech_trace.emit('synthesis_started',component='tts',model=getattr(self.tts_model,'model_name',None),model_id=speech_trace.identity(getattr(self.tts_model,'model_name',None)))
         if self.tts_model is None:
             word_count = len(text.split())
             words_per_minute = 150 * float(self.speed)
@@ -719,6 +721,7 @@ class TTS:
                 if metrics is not None and metrics.get("time_to_first_byte_ms") is None:
                     metrics["time_to_first_byte_ms"] = (time() - started_at) * 1000
                 yield b"\x00" * 1024
+            speech_trace.emit('synthesis_returned',component='tts',reason='no_tts_provider',duration_ms=(time()-started_at)*1000)
             if metrics is not None:
                 metrics["response_ms"] = (time() - started_at) * 1000
         else:
@@ -728,6 +731,7 @@ class TTS:
                     if metrics is not None and metrics.get("time_to_first_byte_ms") is None:
                         metrics["time_to_first_byte_ms"] = (time() - started_at) * 1000
                     yield chunk
+                speech_trace.emit('synthesis_returned',component='tts',duration_ms=(time()-started_at)*1000)
                 if metrics is not None:
                     metrics["response_ms"] = (time() - started_at) * 1000
             except Exception as e:

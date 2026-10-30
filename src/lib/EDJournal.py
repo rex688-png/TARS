@@ -1,3 +1,4 @@
+from . import SpeechTrace as speech_trace
 import io
 import json
 from os import listdir
@@ -109,6 +110,7 @@ class EDJournal:
                 self._reading_loop()
             except Exception:
                 # Do not log journal records or paths with commander information.
+                speech_trace.emit('journal_recovery',component='journal',reason='read_failure',severity='warning')
                 log('error', 'Journal reader failed; retrying from last consumed line')
                 if self._stop_event.wait(1):
                     break
@@ -142,9 +144,11 @@ class EDJournal:
                         entry['id'] = self.get_event_id(latest_log, file_index)
                         entry = self.augment_event(entry)
                     except (json.JSONDecodeError, ValueError):
+                        speech_trace.emit('journal_rejected',component='journal',reason='malformed_record',severity='warning')
                         # A complete malformed record must not block later records.
                         self._line_checkpoints[latest_log] = file_index
                         continue
+                    speech_trace.emit('journal_dispatched',component='journal',event_type=entry.get('event'),journal_id=speech_trace.identity(entry.get('id')))
                     self.events.put(entry)
                     self._line_checkpoints[latest_log] = file_index
                     # Keep reconnect cursors bounded across long sessions/rotations.

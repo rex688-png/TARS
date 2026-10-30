@@ -176,7 +176,7 @@ def test_real_playback_outcomes_and_legacy_completion(records, monkeypatch, mode
         if mode == 'synthesis_failure':
             assert 'synthesis_failed' in stages
     assert all(r.get('playback_success') != 'success' for r in observations)
-    assert all(r['trace_id'] == 'test-turn' for r in observations if r['stage'] != 'playback_abort_requested')
+    assert all(r['trace_id'] == 'test-turn' for r in observations if r['stage'] not in ('playback_abort_requested','audio_device_opened'))
     assert 'PRIVATE' not in json.dumps(observations)
 
 
