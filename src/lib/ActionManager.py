@@ -24,9 +24,8 @@ class ActionManager:
         action_cache: KeyValueStore = KeyValueStore("action_cache")
         action_cache.delete_all()
     
-    actions = {}
-
     def __init__(self):
+        self.actions = {}
         self.approvals = None
         self.action_cache = KeyValueStore("action_cache")
         self.allowed_actions: dict[str, bool] = {}

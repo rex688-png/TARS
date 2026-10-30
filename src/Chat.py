@@ -734,6 +734,26 @@ class Chat:
             return {"error": str(e)}
 
     def run(self):
+        try:
+            self._run()
+        finally:
+            # Cleanup also runs after failed startup. One failed cleanup must not
+            # prevent other workers and plugin hooks from being stopped.
+            for name, cleanup in (
+                ("hotkeys", self.controller_manager._stop_listeners),
+                ("microphone", self.stt.stop),
+                ("plugins", lambda: self.plugin_manager.on_chat_stop(self.plugin_helper)),
+                ("journal", self.jn.stop),
+                ("status", self.status_parser.stop),
+                ("projection timer", self.event_manager.stop),
+                ("speech", self.tts.quit),
+            ):
+                try:
+                    cleanup()
+                except Exception:
+                    log("error", "Failed to stop runtime component", name)
+
+    def _run(self):
         show_chat_message(
             "info",
             "Initializing TARS...",
@@ -918,12 +938,6 @@ class Chat:
             except Exception as e:
                 log("error", e, traceback.format_exc())
                 break
-
-        # Teardown TTS
-        self.tts.quit()
-
-        # Execute plugin chat stop hooks
-        self.plugin_manager.on_chat_stop(self.plugin_helper)
 
     def web_search(self, query: str):
         """Perform a web search using the assistant's action manager"""

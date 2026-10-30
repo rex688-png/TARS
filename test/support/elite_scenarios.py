@@ -27,6 +27,9 @@ def read_history(directory: Path) -> EDJournal:
     reader.logs_path = str(directory)
     reader.events = Queue()
     reader.historic_events = []
+    import threading
+    reader._stop_event = threading.Event()
+    reader._line_checkpoints = {}
     reader.load_history()
     return reader
 
