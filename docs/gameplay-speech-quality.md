@@ -2,8 +2,8 @@
 
 Engineering record; not evidence of completed live-game acceptance. Host base:
 `b3b3eb70e052566942497be9eabc943037eab306`. Canonical plugin base:
-`794ca29cade61738e96f168f36052e76f26a2475`. New bundled source:
-`a302b33b742d787df27cc8089f3a716fac54e5cd` (six plugins, 27 payload files).
+`794ca29cade61738e96f168f36052e76f26a2475`. Current bundled source:
+`54c9161412e9478a9ffe8de2d0b505fbf37f89db` (six plugins, 27 payload files).
 
 ## Findings and corrections
 
@@ -130,3 +130,82 @@ playback, and real Elite Dangerous context. No physical Windows, audio or
 Merge canonical plugins first, preserving the pinned commit in history; merge
 the coordinated host PR only after its bundle provenance and Windows checks pass.
 Both PRs remain Draft; no release or merge is authorized by this sprint.
+
+## Resumed corrective sprint (2026-10-30)
+
+Verified GitHub draft #24 at host `3a2a6a2c523a8a7c4f8742572f24e9003012724e`
+and canonical draft #27 at `a302b33b742d787df27cc8089f3a716fac54e5cd`.
+Both matched clean local checkouts; `main` remained at the bases recorded above.
+No disconnected corrective edits were assumed. The original 27-file bundle was
+verified against its exact canonical pin before editing.
+
+The follow-up host branch is stacked on #24. Canonical follow-up draft
+[TARS-Plugins #28](https://github.com/rex688-png/TARS-Plugins/pull/28) is stacked on
+#27. The host now pins canonical commit
+`54c9161412e9478a9ffe8de2d0b505fbf37f89db`; all 27 payload hashes match its Git
+objects, including unchanged Navigator, Galaxy, Expedition and Observatory files.
+Earlier validation numbers above describe the earlier PR heads.
+
+Confirmed fixes:
+
+- `system_complete` has a system-scoped semantic identity in admission and the
+  delivery ledger, independent of body identity. Canonical milestones explicitly
+  carry the known system address. Completion, authoritative body count, confirmed
+  composition and significant summary counts are evidence with their actual
+  values. Equivalent Explorer/Observatory findings are updates after completed
+  output; revised counts or genuinely new facts remain announcements. No body ID
+  is synthesized from the current location.
+- An empty unresponded-event list returns before prompt construction or model
+  invocation on every reply-worker entry. Deferred events are restored before
+  this check; retries with retained events, direct questions and tool results
+  still run. One older DSS fixture took an event directly from the incoming queue
+  without emulating EventStore's unresponded row; it now does so explicitly.
+- Whole-output `Silence.`, `No response.`, `SKIP` and explicit equivalents are
+  intentional non-delivery before TTS, assistant-speaking/overlay notifications
+  or conversation persistence. Exact matching tolerates quotes, marker brackets,
+  case and terminal punctuation; longer sentences discussing silence survive.
+  Tool actions returned alongside a marker are still executed.
+- Chatter recognizes intentional abstention before candidate quality rejection,
+  Director regeneration and retry fallback. This also works on legacy hosts.
+  Candidate attempts and real Director integration are tested, including user
+  discussions of silence. Existing personality, novelty gates and natural
+  creative retries for actual weak dialogue remain in place.
+- Opt-in `TARS_SPEECH_TRACE=1` adds opaque `generation_id` and `delivery_id` fields.
+  `generation_id` groups a host model request and its concrete `attempt_id` values;
+  `delivery_id` is the existing TTS line identity. A new generation gets a new
+  generation ID; a new queued line gets a new delivery ID. Device retries keep
+  both IDs and get distinct playback attempt IDs. TTS lines capture the generation
+  context across worker threads. Existing salted event IDs tie reply events to
+  their trace; no journal payload, response text, body/system names, prompt or
+  credential is added to these diagnostic records. IDs do not prove audibility.
+
+Validation on the final code:
+
+- Full backend with tracing enabled: **814 passed**, six dependency/serialization
+  warnings, no skips or errors. The preceding default-tracing run passed all
+  **811** tests then present; three additional direct-Chatter discussion cases
+  also pass in the final traced run.
+- Canonical plugins: **119 unittest cases passed**.
+- Frontend: **34 passed** using `node test/frontend/run-tests.mjs`.
+- Electron: **16 passed** using Node's `--test-isolation=none` runner.
+- `pip check`, both `git diff --check` runs and exact canonical bundle
+  verification passed. Docs strict-build result is recorded with the PR.
+
+The new regression module is `test/lib/test_speech_corrective.py`. Its fake
+models/TTS reproduce cross-source completion repeats, changed censuses, new
+biology, failed-output retry, empty-history polling, retained deferred work,
+Director abstention, user discussion and playback-attempt identity. Existing
+exploration, warning, Chatter, settings and historical snapshot tests also pass.
+
+Remaining uncertainty: actual incident payloads and physical audio are still
+unavailable. Unknown producer schemas, unrecognized scientific details,
+nonempty target recommendations and incomplete lexical coverage deliberately
+fail open and can permit extra speech. Summary completion does not acknowledge
+an unspoken target discovery. The ledger remains bounded and session-local;
+restart replay is not permanently suppressed. Windows/live-game acceptance and
+subjective Chatter quality require real playback. Prior Windows results on #24
+are not results for this new head.
+
+All No reaction journal settings, stored user profiles, event ingestion and
+Combat development remain unchanged. Only draft PRs are created; no merge,
+tag or release is performed.

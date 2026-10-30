@@ -95,7 +95,7 @@ def is_silence_sentinel(text):
     """Only a complete model silence marker, never a substring or user request."""
     if not isinstance(text, str):
         return False
-    return bool(re.fullmatch(r"skip[.!]?", text.strip(" \t\r\n\"'`“”‘’").casefold()))
+    return bool(re.fullmatch(r"(?:skip|silence|no (?:response|reply|output)(?: (?:is )?(?:needed|required|necessary))?|remain silent|stay silent|do not (?:respond|reply|speak))[.!]?", text.strip(" \t\r\n\"'`“”‘’[]()").casefold()))
 
 
 def unsolicited_output_rejection(text):

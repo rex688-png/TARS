@@ -13,7 +13,7 @@ import json
 from .Event import ConversationEvent, GameEvent, PluginEvent, StatusEvent, ToolEvent
 from . import SpeechTrace
 from .SpeechPolicy import routine_first_discovery_tally
-from .ExplorationSpeech import DeliveryLedger, SOURCES as EXPLORATION_SOURCES
+from .ExplorationSpeech import DeliveryLedger, evidence, SOURCES as EXPLORATION_SOURCES
 
 SOURCES = {'TARSExplorerTarget': 'explorer', 'TARSObservatoryFact': 'observatory',
            'TARSNavigatorTarget': 'navigator', 'TARSChatter': 'chatter'}
@@ -78,6 +78,8 @@ def identity_and_facts(event):
     if not kind and source(event) == 'observatory':
         # notification:BioInsights identifies a provider, NOT a particular finding.
         kind = str(data.get('fact_type', '')).removeprefix('notification:')
+    if system and kind == 'system_complete':
+        return (system, 'system_complete'), evidence(data)
     if not system or body[1] in ('', 'unknown', 'unknown body', 'none') or not isinstance(kind, str) or kind not in KINDS:
         return None, frozenset()
     organism = tuple(_text(data.get(k)) for k in ('species', 'genus', 'variant'))

@@ -47,6 +47,7 @@ class TTSLine:
     def __init__(self, on_complete: Callable[[], None] | None = None) -> None:
         self._playback_evidence = "unknown"  # compatibility with existing callers
         self.trace_id = speech_trace.current.get()
+        self.generation_id = speech_trace.current_generation.get()
         self.line_id = speech_trace.new_id() or uuid4().hex
         self._speaking = threading.Event()
         self._completed = threading.Event()
@@ -69,7 +70,7 @@ class TTSLine:
             if self._result is None:
                 self._attempts.append(attempt)
         speech_trace.emit("tts_attempt_finished", trace_id=self.trace_id,
-                          line_id=self.line_id, attempt_id=attempt.attempt_id,
+                          line_id=self.line_id, generation_id=self.generation_id, delivery_id=self.line_id, attempt_id=attempt.attempt_id,
                           outcome=attempt.outcome, written_bytes=attempt.written_bytes,
                           output_drained=attempt.output_drained)
 
@@ -100,6 +101,7 @@ class TTSLine:
             callback = self._on_complete
             self._on_complete = None
         speech_trace.emit("line_completed", trace_id=self.trace_id, line_id=self.line_id,
+                          generation_id=self.generation_id, delivery_id=self.line_id,
                           outcome=outcome, playback_success="unknown",
                           written_bytes=result.written_bytes,
                           output_drained=result.output_drained)
@@ -328,6 +330,7 @@ class TTS:
                     queued_revision = item.get("_abort_revision")
                     on_complete = item.get("on_complete")
                     trace_token = speech_trace.current.set(getattr(line, "trace_id", None)) if speech_trace.enabled else None
+                    generation_token = speech_trace.current_generation.set(getattr(line, "generation_id", None)) if speech_trace.enabled else None
                     line_token = speech_trace.current_line.set(getattr(line, "line_id", None)) if speech_trace.enabled else None
                     attempt_id = uuid4().hex
                     started = monotonic()
@@ -426,6 +429,8 @@ class TTS:
                                 on_complete()
                             except Exception as callback_error:
                                 log('warn', 'TTS on_complete callback failed', callback_error)
+                        if generation_token is not None:
+                            speech_trace.current_generation.reset(generation_token)
                         if trace_token is not None:
                             speech_trace.current.reset(trace_token)
                         if line_token is not None:
@@ -1511,7 +1516,7 @@ class TTS:
         drop_if: Callable[[], bool] | None = None,
     ) -> TTSLine:
         line = TTSLine(on_complete=on_complete)
-        speech_trace.emit("tts_queued", line_id=line.line_id)
+        speech_trace.emit("tts_queued", line_id=line.line_id, delivery_id=line.line_id)
         self.read_queue.put(
             {
                 "text": text,
