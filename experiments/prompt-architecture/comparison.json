@@ -1,0 +1,537 @@
+{
+  "schema_version": 1,
+  "host_base": "98499ec4ab9ad59d42f05c47e586ac0a507bb884",
+  "canonical_pin": "83caceaca39712d1c84e4337a09b020b087125ae",
+  "settings": {
+    "model": "gpt-6-luna",
+    "temperature": 0.3,
+    "reasoning_effort": "none"
+  },
+  "runtime_source_sha256": {
+    "src/lib/PromptGenerator.py": "a50cd14a0d543d81704a09187c2769848cc2fd72c4d3422eca06aab9f8ffac49",
+    "src/lib/ResponsePresentation.py": "d3d158be9ba53c7f90e70edcab677bc1150a9caa5f5a136ead12e1f249e3fa1c",
+    "src/lib/SpeechPolicy.py": "501b0e53f10e89e88a9c7827f9df55481049c585850cad1a8c5f579f2c4add9b",
+    "src/lib/Assistant.py": "b4da93be2d11c3f2f3d8bf1bf346e567e70b4d3cf2dcaaa17192877faeabaf59",
+    "vendor/tars-plugins/plugins/TARSChatter/TARSChatter.py": "3960224673ffb3d147cb3ecdcdff749356e0a16c5a563951ed0518951ce6af58",
+    "vendor/tars-plugins/plugins/TARSChatter/TARSChatterSession.py": "4164004a55824860b18a142cf15b4e707d6aab9cb85bee1291cb1b0e6ccd78c1",
+    "vendor/tars-plugins/plugins/TARSExplorer/TARSExplorerSession.py": "3f95b18826382cc89500d9521c9c3e9319820767acc18204940288fb4e132b3c",
+    "vendor/tars-plugins/plugins/TARSNavigator/TARSNavigatorSession.py": "73b81a3ae538e6f2e0443407d0de1ae4c3e3cb9c98f37730f5193b5d66d78f08"
+  },
+  "encoding": null,
+  "token_note": "Serialized JSON token counts are a fixed-encoding proxy, not provider request/billed usage.",
+  "model_calls": 0,
+  "model_quality_comparison": "NOT EXECUTED",
+  "factory": {
+    "baseline": {
+      "sha256": "802f042ac643da3583f0e0595caefb6d5a072746a8c0c0d17f64ec9dc29af4d7",
+      "words": 2693,
+      "logical_lines": 597,
+      "characters": 18280,
+      "text_tokens": null
+    },
+    "candidate": {
+      "sha256": "69312295b0e52d8bbb89abb463bde67296a753617df8e0be60cbafd9ce5f7d01",
+      "words": 1971,
+      "logical_lines": 311,
+      "characters": 13424,
+      "text_tokens": null
+    }
+  },
+  "requests_sha256": "d7d570b314d449446e340d0f53bcd2cee9f1f6bd7ad4ed43d071edada5e004a9",
+  "scenarios": [
+    {
+      "id": "ordinary_question",
+      "path": "main",
+      "checks": [
+        "Use the current 24.7-tonne fuel value, not old memory",
+        "Straight answer without a forced joke"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "5499d1e5908ac823343b0e7dfbcc9c8d54e67c4c580fa788adc4c3c8adaea67c",
+          "model_input_sha256": "12d5c4fae13502a997d738f764dca5589f048da72a661d7421d0791fec96f8bb",
+          "input_chars": 42823,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "509454edb3fc7a3fa32bf09f6c2c75e3fd7d31063be366bc544bd130a42d1f9e",
+          "model_input_sha256": "901243cb57711b4eb74084619475c8ce161b7a8553fdb24583488f9d5714a8c9",
+          "input_chars": 37642,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "detailed_technical",
+      "path": "main",
+      "checks": [
+        "FSS identification is not DSS mapping",
+        "Signal count is not species count",
+        "Far-enough sampling is not a new organism",
+        "Detailed requested answer is not compressed into one sentence"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "f6b83a0da832fb942e9ad531f5350bd13403081dbd5167a256db8a648713bd44",
+          "model_input_sha256": "55b4589ce28a9bcd3f54b8097519c12344c9cd992e11da2e3c0fecc7577011fc",
+          "input_chars": 42907,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "a81161fa69fa3765b0ea4a728c05cfc936b86c9680a2b62e39fd436c0e58d149",
+          "model_input_sha256": "fd345e25abe5310a3890ff3e268401e77cf846bc6176286176ca3801fd59e142",
+          "input_chars": 37726,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "exploration_discovery",
+      "path": "main",
+      "checks": [
+        "State the supported discovery without invented biology/value/first-discovery status",
+        "Optional grounded wit, not a compulsory joke"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "358cb95bbb08c6a62c0b9350fac65fba62263c74f27bdb88dfb04345d8ecafa4",
+          "model_input_sha256": "3663e58fb1fa936a15e8661dbad67de9e50235256de0e6492d63543f9ff25ef7",
+          "input_chars": 30326,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "63b16a6c16cdbf64deb1968b6ab41a1bd0a93a2e0253d2330dbbc21d9ef05a04",
+          "model_input_sha256": "1e77a61de6b7e82bde42b4a56b24a482742d2abe49e95d24e8552c3e1e9a5190",
+          "input_chars": 25145,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "fss_not_mapped",
+      "path": "main",
+      "checks": [
+        "Identification complete, not fully mapped",
+        "Eight bodies are not eight planets"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "1c304140776b3f28c4b219eb7c8f7cfd72ac0bdb6d3eaeedd439be591ad734af",
+          "model_input_sha256": "fb27020dff1933c4ce64c73bd33762bce2d597a967fd32e3d02e24db86e40dc9",
+          "input_chars": 31256,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "f33c15e2661e09c9e0509c889747f1a4a7d30507e4228b7a4ddacdd5102b272f",
+          "model_input_sha256": "886267641578d7b0e4ab1913a6091cc902c856f796549f9e134b89de6f066048",
+          "input_chars": 26075,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "ordinary_system_silence",
+      "path": "main",
+      "checks": [
+        "An admitted ordinary wrap-up may be SKIP or one useful short fact",
+        "No invented rarity or cosmic significance"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "ca364505ab720abbd05d714cf809cca9349538e605afdea85a2681e42059ad19",
+          "model_input_sha256": "054fd99f3ace8159f162383a58008a50230651ae9e319434b9df9d7d25a9d265",
+          "input_chars": 31258,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "b8da6d085bcac91527b2f095237013d86789475ef6eb034a15d3ee5c6b05c341",
+          "model_input_sha256": "2feea112077a492a3a1bbb8e21cf6ed262156bf8aec6de6747f078d485025d2b",
+          "input_chars": 26077,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "routine_scan_gate",
+      "path": "runtime_only",
+      "checks": [
+        "No reaction remains a runtime decision; no model request is created by this experiment",
+        "Source data stays available"
+      ],
+      "quality_result": null,
+      "fixture_sha256": "89a05581d9a916e195f5d96d006101adba23396b854b6a87ab70d3ecc3571b69",
+      "selected_record_count": 1,
+      "arms": {}
+    },
+    {
+      "id": "navigator_milestone",
+      "path": "main",
+      "checks": [
+        "One meaningful milestone, not a countdown series",
+        "Arrival does not imply docking"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "9df6f6faa701c1dde02ce8f4bce95f10e2eba411a3fd1202d76f6a833f753eb4",
+          "model_input_sha256": "902d79d9c6cde44191b2d2fc765cb580482ad5e6da02cef89809e26feb9c1571",
+          "input_chars": 29242,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "953eb4e1194e560b0765166e8dd881ed54ede664027c60f94c83a2908610e22c",
+          "model_input_sha256": "88925e562663636a7481fb46225c0f5bdd058e9aec91d934ae40634860c65719",
+          "input_chars": 24061,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "route_unknown",
+      "path": "main",
+      "checks": [
+        "Ask Navigator if needed",
+        "Do not divide distance by jump range or invent remaining jumps"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "a13652de2c09d8c8d2349b9a7991b77400dd1b5b85cca6a51449ea9498f82625",
+          "model_input_sha256": "4a2e169fdbb56d8b31bfd41e1ea5a50ae50f3e945414fe4a8817e673f41137da",
+          "input_chars": 42904,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "900bf937916b35914d88c9b71cec232b993a0a3d50a39089b52395325a4e0aeb",
+          "model_input_sha256": "910b914f830dde9544118e3c62c6d493a636bf6d9b80938997f60fca33fdfe77",
+          "input_chars": 37723,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "expedition_full_tool",
+      "path": "main",
+      "checks": [
+        "Call tars_expedition_status with detail full",
+        "Avoid Explorer/Navigator fan-out"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "02f04fa04d9edef243b76559fba153c9297fae08964ee78571ce93d3682ab01e",
+          "model_input_sha256": "12d488358faf606cf3d4053cf4cf66f516caf1027c43b01564660eb0351c66a6",
+          "input_chars": 42902,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "57847346ca95b822247e02c8673c01784c1778ce749a949f923208d85edb4e1e",
+          "model_input_sha256": "d67a11f7bb872b24a48c1568989b6ef5197a34993bced6dea0c9f5ec68ed3e1a",
+          "input_chars": 37721,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "previous_expedition",
+      "path": "main",
+      "checks": [
+        "Use tars_expedition_history, not current-system state"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "08c871c7a491fad90c2f470ff3538be01d01f6473dd010f7a816577f2a7b6927",
+          "model_input_sha256": "6534726db9727118aebc5bddb5bcea3b468fd44cbc33663868856b62efa67b20",
+          "input_chars": 42852,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "83e27cd0fa43c0e818813b72191ecf8aa7693d97c7c0c7f18b09bf42184fd630",
+          "model_input_sha256": "a43a8cd76e46a702f36e9a81a8bda8bdaf92a180140533412a4c2dc1564fbaf9",
+          "input_chars": 37671,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "recorded_payout",
+      "path": "main",
+      "checks": [
+        "Report the 1,250,000 / 750,000 split and 2,000,000 total correctly",
+        "No unsold estimate becomes a sale"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "53af5c7345019a948105fcb13b8c49a02ca41771f74f24474e20bd2386eef77e",
+          "model_input_sha256": "22998db167fceb960dd6b69dbdc9796f3add9c2aa40de7c7b6bb13fc94e55568",
+          "input_chars": 43217,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "0ce4527f44c2121613e78377a2cbe9b25cf9236e0fc11f63d01ff0cf1e7be2eb",
+          "model_input_sha256": "08aeb99c6022af1b31a00e137605d51f2dd240513ebc07837a8ec14c61fd3171",
+          "input_chars": 38036,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "spontaneous_prepared",
+      "path": "prepared_chatter",
+      "checks": [
+        "Actual preparation uses its own system prompt, so factory-only A/B requests must match",
+        "One grounded line or intentional abstention",
+        "No invented malfunction or history"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "0325f5685587e08fc4704c5b0c7b208c6b30e6644939377c0a0ae24ca7b1d14a",
+          "model_input_sha256": "19697a0619caafa6c0cf04f4c4a1465a525a53164ba5654640e5e8ffe03b0ce0",
+          "input_chars": 3447,
+          "serialized_input_tokens": null,
+          "system_chars": 2198
+        },
+        "candidate": {
+          "request_sha256": "6310cec74c016fd6c6ee71986f399f29832c2175fd019ee256c592d0fd1b9cac",
+          "model_input_sha256": "19697a0619caafa6c0cf04f4c4a1465a525a53164ba5654640e5e8ffe03b0ce0",
+          "input_chars": 3447,
+          "serialized_input_tokens": null,
+          "system_chars": 2198
+        }
+      }
+    },
+    {
+      "id": "situational_teasing",
+      "path": "main",
+      "checks": [
+        "Accept requested gentle teasing",
+        "Do not reuse the ridge-inspection premise or invent damage"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "018d57bf66df02d4211ba853a8f0714b257413d789b160bef135fce18acd56d8",
+          "model_input_sha256": "a475f46766aa6ab92e52b1006b8c62008099766235b201111dbecbcac746703f",
+          "input_chars": 43082,
+          "serialized_input_tokens": null,
+          "system_chars": 25772
+        },
+        "candidate": {
+          "request_sha256": "49dd1f24b505e190e517ff0dee06bb6d61a553622aae3ac917350518284b0e5f",
+          "model_input_sha256": "6c1c5b71e0f0e66cd289d0175ae39a321a3aadc8775379f28bacd2fa2c5cd8a7",
+          "input_chars": 37901,
+          "serialized_input_tokens": null,
+          "system_chars": 20916
+        }
+      }
+    },
+    {
+      "id": "extended_conversation",
+      "path": "main",
+      "checks": [
+        "Sustain an invited interesting discussion beyond ship status",
+        "No fake shared memory or automatic philosophical aside",
+        "Appropriate depth despite Director one-sentence preference"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "18a6ae5b4696f3ac6bb833a1cf0066829da2aef77fcfc38b79e625628470485d",
+          "model_input_sha256": "e18236a6d569965738f12ba3a9acede2f37b029e5aa7ff5ed385cb7dbaa0b51c",
+          "input_chars": 43472,
+          "serialized_input_tokens": null,
+          "system_chars": 25904
+        },
+        "candidate": {
+          "request_sha256": "56e460dec9011955a764218cb33793b79cf0edb9b8ebc1500f4e14c17401c1bf",
+          "model_input_sha256": "0173f94d958d6437c74f51f3bcac0597efdc7b751b0a0272c531adef9045e7f2",
+          "input_chars": 38291,
+          "serialized_input_tokens": null,
+          "system_chars": 21048
+        }
+      }
+    },
+    {
+      "id": "requested_silence_discussion",
+      "path": "main",
+      "checks": [
+        "Answer normally; not an abstention marker",
+        "Do not apply unsolicited brevity to the requested discussion"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "7e5b4b30f8cc33fddb29d3d71e09e45b9092089e10526c034556a35d834088b6",
+          "model_input_sha256": "ceffe2c8a4ec7a3700723b4dac2ca552e1ccf256443b9ec1cadb25033a9b0e3e",
+          "input_chars": 42870,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "971f2982aeb15ff8f4b724a85a1d9d973b5ac4b5e7055d100457125306e3288f",
+          "model_input_sha256": "2b78a4f8d81daf0a50b8945b878fd051fa9351602e38e30a51be5a2854e42ec5",
+          "input_chars": 37689,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "stale_conflicting_memory",
+      "path": "main",
+      "checks": [
+        "Current snapshot TEST_SYSTEM and 24.7 tonnes outrank old memory",
+        "Qualify LAST KNOWN rather than asserting LIVE"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "132ad1df67c9fea7ad6304bcfdeb3d38f78486d514f1b1e0cddb9ffaf160a9c7",
+          "model_input_sha256": "5f9b71f138c4a17e0fe1abc8c6ce754ca812aec2c1eacdacd218685dba8b214f",
+          "input_chars": 43021,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "43529e82658459c3f507fa08d4458e4673b1ceb50c890ee62e00413b2b076bdd",
+          "model_input_sha256": "9a5336f20b4b83d49c3c90f3d9564c183a358f2841547ec484880ce0fbbeceba",
+          "input_chars": 37840,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "overlap_gate",
+      "path": "runtime_only",
+      "checks": [
+        "Existing semantic ledger/admission regressions determine duplicate delivery",
+        "No second model request is added to override a runtime rejection"
+      ],
+      "quality_result": null,
+      "arms": {}
+    },
+    {
+      "id": "historical_replay",
+      "path": "runtime_only",
+      "checks": [
+        "Historical events update context without becoming live speaking opportunities",
+        "Original sanitized fixtures remain unchanged"
+      ],
+      "quality_result": null,
+      "fixture_sha256": "89a05581d9a916e195f5d96d006101adba23396b854b6a87ab70d3ecc3571b69",
+      "selected_record_count": 4,
+      "arms": {}
+    },
+    {
+      "id": "tool_failure",
+      "path": "main",
+      "checks": [
+        "Report the specific failure and supplied synthetic path",
+        "Do not claim a successful rebuild or request credentials"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "32bc983063a04bd6c0256845a9a830e435f25b99da0457d53f6c3a93dd311e28",
+          "model_input_sha256": "ea677c1563bb4cbce1a916faabdcd8e972d25a3bee10d150d26cb4cdbffba332",
+          "input_chars": 43179,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "aa976798dbc9432982ec144294efb32e01e385a28d01d39c707436b0d9ccf173",
+          "model_input_sha256": "8d1156a3c41a21f4b4d3bb419ce9b59115877366b30b0701c50e6f1dc32e19ec",
+          "input_chars": 37998,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "missing_external_data",
+      "path": "main",
+      "checks": [
+        "No database record is not proof of first discovery",
+        "Do not claim to have queried a provider"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "3efc4be4a3c2d6dd4213193a571704b9313b4b07c8f0d9e2c8111eeac6bafc83",
+          "model_input_sha256": "ab7cc7ba298f0ca10421f4800422cd3c24917ed3a61c342278da5b9038620312",
+          "input_chars": 42856,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "d10e179001c96d0830166dca66b6fb0e10c3a2b09c982c7aabe7d00edd46cce1",
+          "model_input_sha256": "6d3232cb22c73d67637b2fb2181245509a8850aa9cc746bd874fe8e8cd7ff47a",
+          "input_chars": 37675,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    },
+    {
+      "id": "pronunciation",
+      "path": "main",
+      "checks": [
+        "Keep exact identifiers in reasoning/tools",
+        "Preserve individual letter-group pronunciation and silent separator rules",
+        "Light-years rather than letters L Y"
+      ],
+      "quality_result": null,
+      "arms": {
+        "baseline": {
+          "request_sha256": "a6e51a0b91602313ef8c33abeeb2c1bcb2f02aa3f6c2bbce0b55f9e6a60e0f3a",
+          "model_input_sha256": "8bb6c7f1b5c1a7803109f982d715c21b176ccd73fc538952e5ccfbadd83bde64",
+          "input_chars": 42887,
+          "serialized_input_tokens": null,
+          "system_chars": 25731
+        },
+        "candidate": {
+          "request_sha256": "d5baa3bcabb44546a74b69796a6cd73640e31a44c15e830447be5c9dd13e83ed",
+          "model_input_sha256": "9ce715647fd42bd4a87f0619942e7230258c6b4ebf1f7d313546182fe9b9d972",
+          "input_chars": 37706,
+          "serialized_input_tokens": null,
+          "system_chars": 20875
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Main scenarios are pre-admitted generation snapshots, not a replay of action execution/admission.",
+    "Tool set is current literal plugin schemas only, not the complete native host action catalogue.",
+    "Prepared Chatter anchor/topic and memory retrieval are controlled synthetic inputs; actual preparer/Director code is unchanged.",
+    "Runtime-only scenarios create no model requests and rely on existing integration tests, not a simulated model silence score."
+  ]
+}

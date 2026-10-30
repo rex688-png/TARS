@@ -1,0 +1,15 @@
+{
+  "baseline_sha256": "802f042ac643da3583f0e0595caefb6d5a072746a8c0c0d17f64ec9dc29af4d7",
+  "verbatim_sections": [
+    "SPEECH",
+    "COVAS NATIVE DATA",
+    "TARS EXPLORER",
+    "TARS NAVIGATOR",
+    "TARS EXPEDITION",
+    "TARS GALAXY",
+    "ENGINEERING MATERIALS",
+    "VISUALS",
+    "ACCURACY"
+  ],
+  "note": "Candidate-only text; no rules relocated into production runtime."
+}
