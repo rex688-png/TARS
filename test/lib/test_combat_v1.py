@@ -414,3 +414,32 @@ def test_disabling_combat_restores_ordinary_host_control_route(controls):
     c=controls;c.plugin.settings['enabled']=False
     assert c.host._combat_router.handle(c.command(),c.states) is None
     assert c.host._combat_router.allows_model_action('managePowerDistribution')
+
+
+def test_supplied_journal_replay_is_quiet_and_keeps_fighter_damage_separate(combat,clock):
+    c=combat
+    rows=[json.loads(line) for line in (Path(__file__).parents[1]/'fixtures/combat/journal_combat.jsonl').read_text().splitlines()]
+    alerts=[]
+    for row in rows:
+        clock.wall=datetime.fromisoformat(row['timestamp'].replace('Z','+00:00')).timestamp()
+        event=GameEvent(content=row,historic=False)
+        c.plugin.observe(event,{})
+        if row['event']=='HullDamage' and row.get('Fighter') is True:
+            assert c.plugin.tracker.mothership['hull']==1
+        while not c.host.event_manager.incoming.empty():
+            alert=c.host.event_manager.incoming.get_nowait();alert.responded_at=None
+            alerts.append(alert.plugin_event_content['code'])
+            c.run(alert)
+        if row['event']=='Bounty':
+            for name in ('TARSExplorerTarget','TARSObservatoryFact','TARSChatter'):
+                optional=finding();optional.plugin_event_name=name
+                optional.plugin_event_content['_guard']['triggered_at']=clock.wall
+                c.run(optional)
+    assert c.host.llmModel.calls==0
+    assert c.plugin.tracker.totals['bounty_awards']==36
+    assert c.plugin.tracker.totals['bounty_credits']==10086613
+    assert c.plugin.tracker.totals['shield_losses']==3
+    assert c.plugin.tracker.totals['fighter_losses']==1
+    assert c.plugin.tracker.totals['fighter_rebuilds']==1
+    assert alerts==['fighter_destroyed']
+    assert c.host.tts.say.call_count==1

@@ -33,6 +33,8 @@ class CombatTracker:
         self.phase = 'idle'
         self.music = False
         self.music_at = float('-inf')
+        self.last_live_at = float('-inf')
+        self.own_ship_key = None
         self.threat_at = float('-inf')
         self.danger = False
         self.status_at = float('-inf')
@@ -85,7 +87,7 @@ class CombatTracker:
         self.quiet_since = None
 
     def tick(self, now):
-        threat = (self.music and now - self.music_at <= 45 or
+        threat = (self.music or
                   now - self.threat_at <= self.THREAT_TTL or
                   self.danger and now - self.status_at <= 15)
         if self.phase == 'active' and not threat:
@@ -140,6 +142,7 @@ class CombatTracker:
         while len(self.seen) > 2048:
             self.seen.pop(next(iter(self.seen)))
         self.watermarks[channel] = at
+        self.last_live_at = max(self.last_live_at, at)
         self.tick(now)
         if name in ('LoadGame', 'Shutdown', 'Died', 'FSDJump', 'SupercruiseEntry', 'Docked'):
             self.scope_since = at
@@ -149,11 +152,13 @@ class CombatTracker:
             self.threat_at = float('-inf')
             self.target = None
             self.alerts.clear()
-            self.vehicle = 'unknown'
+            self.vehicle = 'mothership' if name in ('SupercruiseEntry','FSDJump','Docked') else 'unknown'
             if name in ('LoadGame', 'Died', 'FSDJump'):
                 self.mothership = {}
                 self.shield_journal = None
                 self.fighters.clear()
+                self.own_ship_key = None
+                self.ship_id = None
             return True
         if name == 'Music':
             self.music = str(data.get('MusicTrack', '')).casefold().startswith('combat')
@@ -236,7 +241,9 @@ class CombatTracker:
             self.mothership.update(hull=1.0,hull_at=at)
         if name == 'Loadout' and self.vehicle != 'fighter':
             identity = data.get('ShipID')
-            if identity is not None and self.ship_id is not None and identity != self.ship_id:
+            ship = data.get('Ship')
+            key = ('id',identity) if identity is not None else ('ship',ship,data.get('ShipIdent')) if ship else None
+            if key is not None and self.own_ship_key is not None and key != self.own_ship_key:
                 if self.phase == 'active':
                     self._end(at, 'ship_changed')
                 self.mothership.clear()
@@ -247,8 +254,12 @@ class CombatTracker:
                 self.scope_since = at
                 self.music = self.danger = False
                 self.threat_at = float('-inf')
+            if key is not None:
+                self.own_ship_key = key
             if identity is not None:
                 self.ship_id = identity
+            if self.vehicle == 'unknown' and isinstance(ship,str) and 'fighter' not in ship.casefold():
+                self.vehicle = 'mothership'
             if number(data.get('HullHealth'), 0, 1):
                 self.mothership.update(hull=data['HullHealth'], hull_at=at)
         if name in ('LaunchFighter', 'FighterDestroyed', 'FighterRebuilt', 'DockFighter'):
@@ -259,10 +270,14 @@ class CombatTracker:
                 while len(self.fighters)>100:
                     self.fighters.pop(next(iter(self.fighters)))
                 previous = fighter.get('status')
+                if name == 'DockFighter' and fighter.get('pilot') == 'commander':
+                    self.vehicle = 'mothership'
                 state = {'LaunchFighter':'launched', 'DockFighter':'docked',
                          'FighterDestroyed':'destroyed', 'FighterRebuilt':'ready'}[name]
                 fighter.update(status=state, at=at)
                 if name == 'LaunchFighter':
+                    if data.get('PlayerControlled') is True:
+                        self.vehicle = 'fighter'
                     fighter.update(pilot='commander' if data.get('PlayerControlled') is True else 'npc',
                                    loadout=data.get('Loadout'))
                     fighter.pop('hull', None)
@@ -316,6 +331,8 @@ class CombatTracker:
                 fighter['hull_stale'] = now-fighter['hull_at']>15
         return dict(phase=self.phase, vehicle=self.vehicle,
                     status_age_seconds=max(0,now-self.status_at) if math.isfinite(self.status_at) else None,
+                    evidence_stale=now-self.last_live_at>45,
+                    focus_rule='Music is a last-known state until an explicit transition/boundary; stale focus is conservative, not proof of a current fight.',
                     mothership=ship, fighters=fighters, target=target, session=deepcopy(self.totals),
                     encounter=deepcopy(self.encounter), recent_encounters=deepcopy(list(self.records)),
                     limitations=['No own shield percentage, positions, velocities, DPS, accuracy or capacitor telemetry.',

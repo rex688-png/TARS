@@ -47,3 +47,12 @@ unconfirmed where telemetry cannot prove the requested behavior.
 The original October 29–30 journal was unavailable. Canonical replay tests use
 documented synthetic equivalents; see `tests/fixtures/combat/README.md`. Real
 Windows 11/Elite gameplay, key binding and audio acceptance remain required.
+
+The supplied journal is now covered by a sanitized 1,094-record replay. Journal
+loadout/flight boundaries establish mothership context even when Status.json and
+ShipID are absent; explicit player-fighter transitions override that context.
+Music is treated as a last-known state until an explicit transition or flight
+boundary, rather than splitting a long fight every 45 seconds. If fresh journal
+evidence disappears, the snapshot marks evidence stale and focus stays
+conservatively quiet; it does not claim that a current fight is proven. An
+explicit combat-end transition restores normal speech through recovery.

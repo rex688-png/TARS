@@ -1,6 +1,6 @@
 # TARS Combat V1 implementation and acceptance
 
-This is a functional prototype with synthetic replay validation, not live combat
+This is a functional prototype with synthetic and sanitized journal replay validation, not live combat
 acceptance. Dedicated `feature/combat-v1` branches depend on unmerged speech
 corrective drafts [TARS #25](https://github.com/rex688-png/TARS/pull/25) and
 [TARS-Plugins #28](https://github.com/rex688-png/TARS-Plugins/pull/28).
@@ -13,7 +13,7 @@ Before editing, GitHub heads were verified against clean local checkouts:
 The host corrective build/test workflow and current-tree security workflow were
 confirmed successful on that exact host revision. Neither corrective branch/PR
 was changed. The Combat host pins canonical source
-`6eb5010b3096e969f06ba8c5e63fcc0cb0080f86`: seven behavior plugins, 32 verified
+`83caceaca39712d1c84e4337a09b020b087125ae`: seven behavior plugins, 32 verified
 payload files. The previous six plugin payloads and prompt are unchanged.
 
 ## Audit and reuse
@@ -112,10 +112,35 @@ contract blocks voice controls, so live voice-to-control latency is unavailable.
 
 ## Replay validation and remaining acceptance
 
-No original October 29–30 journal was present in the attached workspace. Tests use
-explicitly documented synthetic equivalents, including prolonged Python Mk II,
-rapid Anaconda award, NPC fighter loss/rebuild/relaunch, consecutive awards,
-scan/UnderAttack bursts, bounced music and optional exploration/Observatory events.
+The initial implementation used documented synthetic equivalents. After the
+workspace reconnected, the commander supplied the original October 29–30 journal.
+A field-allowlisted, aliased, date-shifted 1,094-record derivative now exercises
+its actual combat timeline. No original file, commander/location/chat content,
+ship names or account identifiers are committed. The canonical sanitizer and
+fixture provenance are in `tests/fixtures/combat` in TARS-Plugins; the host has
+an identical sanitized replay copy.
+
+The replay contains 904 target updates, 39 UnderAttack events, 36 bounty awards
+and six hull-damage records. The recorded awards total 10,086,613 credits; awards
+are not a count of proven solo kills. Python Mk II mothership hull changes to
+0.799951 and 0.597704 are kept separate from four NPC fighter damage samples.
+Three combat shield losses and one fighter loss/rebuild are recorded. A target's
+first complete scan precedes a matching-class award by two seconds while the
+commander flies an Anaconda; this is not a proven two-second complete fight or
+an Anaconda-target kill. Other 4–5 second gaps from the last complete-scan update
+do not establish the time from initial scan.
+
+The supplied file has no Status.json or voice/dispatch timing samples. The replay
+keeps that absence explicit rather than inventing danger/vehicle flags or latency.
+It first reproduced two failures: journal-only shield losses were ignored, and
+long music intervals split after a 45-second age limit despite ongoing evidence.
+Journal loadout/flight boundaries now establish last-known mothership context
+without ShipID/Status, explicit player-fighter transitions override that context,
+and music state waits for a genuine transition/boundary. Snapshots label stale
+evidence; missing combat-end evidence conservatively keeps optional speech quiet
+rather than claiming a fresh current fight. An explicit end restores normal
+speech through recovery. The real-journal host replay generates zero LLM replies
+and one deterministic fighter-loss alert while optional speech remains suppressed.
 
 Phase checks passed before integration:
 
@@ -128,8 +153,7 @@ Phase checks passed before integration:
 Required live Windows 11/Elite validation: actual key bindings and half-pip
 increments; NPC order/launch panel navigation; target cycling/cancellation during
 rapid kills; permission/UI behavior; actual STT/provider confidence support,
-latency, microphone/speaker timing and alert usefulness. Original sanitized
-journal captures are still needed for incident fidelity. No real combat, physical
+latency, microphone/speaker timing and alert usefulness. Additional Status.json and actual voice/action traces remain needed for full telemetry and latency acceptance. No real combat, physical
 audio, voice speed or installed-game acceptance is claimed.
 
 ## Dependency and rebase handoff
@@ -148,3 +172,19 @@ verify ancestry before moving the Combat-only commits:
 
 Do not silently rewrite a canonical SHA already pinned by a host. No merge,
 tag, release or MSI publishing was performed in this sprint.
+
+## Final supplied-journal validation
+
+Final local checks after the journal-driven corrections: **872 backend tests
+passed** with speech tracing enabled (six existing dependency/serialization
+warnings; no skips/errors), **142 canonical unittest cases passed**, **34 frontend
+and 16 Electron tests passed**. Strict docs, dependency consistency, diff checks
+and all 32 exact-source bundle hashes passed. These results include the supplied
+sanitized timeline; synthetic cases still cover absent Status/voice/permission
+and concurrency inputs. No key was sent to a real Windows game.
+
+The original journal was read locally, not committed. The pinned runtime bundle
+contains only canonical plugin code/docs and the existing prompt; sanitized
+replay data and its generator are test-only. Host and canonical fixture copies
+are byte-identical. The earlier corrective PR heads and all previous six plugin
+payloads remain unchanged. Both Combat PRs stay Draft and unmerged.
