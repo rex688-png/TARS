@@ -98,6 +98,28 @@ class PluginHelper():
         self._config = config
         self._assistant = assistant
 
+    def register_combat_provider(self, provider):
+        from .CombatCommands import CombatCommandRouter
+        self._assistant._combat_provider = provider
+        self._assistant._combat_router = CombatCommandRouter(provider, self)
+        # Update combat policy before Assistant/Chatter sideeffects select speech.
+        self._event_manager.sideeffects.insert(0, provider.observe)
+
+    def unregister_combat_provider(self, provider):
+        if getattr(self._assistant, '_combat_provider', None) is provider:
+            self._assistant._combat_provider = None
+            self._assistant._combat_router = None
+            if provider.observe in self._event_manager.sideeffects:
+                self._event_manager.sideeffects.remove(provider.observe)
+            self.update_combat_focus('idle', enabled=False)
+
+    def update_combat_focus(self, phase, enabled=True):
+        self._assistant.speech_arbiter().set_combat_focus(phase, enabled)
+
+    def combat_latency(self):
+        router = getattr(self._assistant, '_combat_router', None)
+        return router.metrics.summary() if router else {'samples':0, 'status':'No command measurements yet.'}
+
     def exploration_speech_eligible(self, event):
         """Facts still dispatch/store; this only selects standalone generation."""
         from .ExplorationSpeech import eligibility

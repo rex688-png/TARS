@@ -10,7 +10,7 @@ from time import monotonic, time
 from uuid import uuid4
 import json
 
-from .Event import ConversationEvent, GameEvent, PluginEvent, StatusEvent, ToolEvent
+from .Event import ConversationEvent, GameEvent, PluginEvent, StatusEvent, ToolEvent, ProjectedEvent
 from . import SpeechTrace
 from .SpeechPolicy import routine_first_discovery_tally
 from .ExplorationSpeech import DeliveryLedger, evidence, SOURCES as EXPLORATION_SOURCES
@@ -125,6 +125,7 @@ class OptionalAdmission:
     triggered_at: float
     allowed: bool
     state: str = 'preparing'
+    combat_epoch: int = 0
 
 
 class SpeechArbiter:
@@ -141,6 +142,51 @@ class SpeechArbiter:
         self._scope_since = None
         self._abort_revision = None
         self._optional = {}
+
+    def set_combat_focus(self, phase, enabled=True):
+        with self._lock:
+            self._combat_enabled = enabled
+            previous = getattr(self, '_combat_phase', 'idle')
+            self._combat_phase = phase
+            if phase != 'idle':
+                self._combat_cutoff = self.wall_clock()
+            if phase != previous:
+                self._combat_revision = getattr(self, '_combat_revision', 0)+1
+                self._epoch += 1
+                self.cancel_optional('combat_focus')
+
+    def combat_allows(self, event):
+        """Focus controls speech only; source facts remain in history/projections."""
+        origin = source(event)
+        data = (event.content if isinstance(event, (GameEvent,ProjectedEvent)) else event.status
+                if isinstance(event, StatusEvent) else getattr(event, 'plugin_event_content', {}))
+        data = data if isinstance(data, dict) else {}
+        if not getattr(self, '_combat_enabled', False):
+            return True
+        if data.get('event') in ('CombatEntered','CombatExited'):
+            return False  # Music intervals are not commentary opportunities.
+        if origin in ('user', 'tool') or data.get('warning_trigger') or data.get('callout_kind') == 'early_departure_warning':
+            return True
+        routine = origin in ('explorer', 'observatory', 'chatter', 'navigator') or data.get('event') in {
+            'Scan', 'FSSDiscoveryScan', 'FSSAllBodiesFound', 'FSSBodySignals', 'SAASignalsFound',
+            'SAAScanComplete', 'ScanOrganic', 'BountyScanned', 'ShipTargeted', 'Bounty',
+            'UnderAttack', 'ShieldState', 'HullDamage', 'LaunchFighter', 'DockFighter',
+            'FighterDestroyed', 'FighterRebuilt'}
+        if not routine:
+            return True
+        if getattr(self, '_combat_phase', 'idle') != 'idle':
+            return False
+        cutoff = getattr(self, '_combat_cutoff', None)
+        if cutoff is None:
+            return True
+        guard = data.get('_guard') or {}
+        at = guard.get('triggered_at') if isinstance(guard, dict) else None
+        if not isinstance(at, (int, float)):
+            try:
+                at = datetime.fromisoformat(data.get('timestamp', event.timestamp).replace('Z','+00:00')).timestamp()
+            except (ValueError, TypeError, AttributeError):
+                return False
+        return at > cutoff
 
     def note_cancellation(self, revision):
         if not isinstance(revision, int) or isinstance(revision, bool):
@@ -313,10 +359,10 @@ class SpeechArbiter:
     def preview_optional(self, states, mode='observe'):
         """Legacy advisory preview, retained for older plugin callers."""
         with self._lock:
-            accepted = self._active is None
+            accepted = self._active is None and getattr(self, '_combat_phase', 'idle') == 'idle'
         SpeechTrace.emit('speech_admission_preview', source='chatter', mode=mode,
                          proposed=accepted, reason='available' if accepted else 'busy')
-        return mode != 'enforce' or accepted
+        return getattr(self, '_combat_phase', 'idle') == 'idle' and (mode != 'enforce' or accepted)
 
     def cancel_optional(self, reason='cancelled'):
         with self._lock:
@@ -325,6 +371,8 @@ class SpeechArbiter:
             self._optional.clear()
 
     def _optional_reason(self, lease, busy=False):
+        if getattr(self, '_combat_phase', 'idle') != 'idle':
+            return 'combat_focus'
         if self._optional.get(lease.token) is not lease or lease.epoch != self._epoch:
             return 'cancelled'
         if self.clock() >= lease.deadline or not -5 <= self.wall_clock() - lease.triggered_at <= 60:
@@ -341,7 +389,8 @@ class SpeechArbiter:
             reason = ('stale' if not -5 <= self.wall_clock() - triggered_at <= 60 else
                       'busy' if busy or self._active is not None or self._optional else None)
             lease = OptionalAdmission(uuid4().hex, mode, self._epoch, self.clock() + 60,
-                                      triggered_at, mode != 'enforce' or reason is None)
+                                      triggered_at, getattr(self, '_combat_phase', 'idle') == 'idle' and (mode != 'enforce' or reason is None))
+            lease.combat_epoch = getattr(self, '_combat_revision', 0)
             if lease.allowed and mode != 'off':
                 self._optional[lease.token] = lease
             SpeechTrace.emit('optional_reserved', reservation_id=lease.token, mode=mode,
@@ -353,7 +402,9 @@ class SpeechArbiter:
             reason = self._optional_reason(lease, busy)
             SpeechTrace.emit('optional_revalidated', reservation_id=lease.token, mode=lease.mode,
                              proposed=reason is None, reason=reason or 'available')
-            return lease.mode != 'enforce' or reason is None
+            return (getattr(self, '_combat_phase', 'idle') == 'idle'
+                    and lease.combat_epoch == getattr(self, '_combat_revision', 0)
+                    and (lease.mode != 'enforce' or reason is None))
 
     def optional_event_valid(self, token):
         with self._lock:

@@ -1,7 +1,7 @@
 import queue
 import threading
 import traceback
-from time import sleep, time
+from time import sleep, time, monotonic
 from typing import Literal, final
 
 import pyaudio
@@ -22,10 +22,13 @@ from .Models import STTModel, LLMError
 
 @final
 class STTResult:
-    def __init__(self, text: str, audio: sr.AudioData, timestamp: float):
+    def __init__(self, text: str, audio: sr.AudioData, timestamp: float, *, capture_completed: float | None = None, stt_completed: float | None = None, confidence: float | None = None):
         self.text = text
         self.audio = audio
         self.timestamp = timestamp
+        self.capture_completed = capture_completed
+        self.stt_completed = stt_completed
+        self.confidence = confidence
 
     def __str__(self):
         return self.text
@@ -86,12 +89,14 @@ class STT:
 
             audio_raw = b''.join(frames)
             audio_data = sr.AudioData(audio_raw, self.rate, self.sample_width)
+            capture_completed = monotonic()
             text = self._transcribe(audio_data)
+            stt_completed = monotonic()
         finally:
             self.recording = False
         
         if text:
-            self.resultQueue.put(STTResult(text, audio_data, timestamp))
+            self.resultQueue.put(STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed))
         
         log('debug', 'listen_once_thread end')
 
@@ -152,11 +157,13 @@ class STT:
                         # so we can transcribe the audio
                         #log('debug','no voice detected in the last 0.5 seconds, transcribing')
                         audio_data = sr.AudioData(audio_raw, self.rate, self.sample_width)
+                        capture_completed = monotonic()
                         text = self._transcribe(audio_data)
+                        stt_completed = monotonic()
                         frames = []
                         activity = []
                         if text:
-                            self.resultQueue.put(STTResult(text, audio_data, timestamp))
+                            self.resultQueue.put(STTResult(text, audio_data, timestamp, capture_completed=capture_completed, stt_completed=stt_completed))
                         self.recording = False
         source.close()
         self.recording = False

@@ -3,9 +3,9 @@
 Windows is the only supported platform. The Windows MSI and portable package are
 self-contained. They install the
 PyInstaller backend under `resources/Chat` and the verified behavior payload
-under `resources/tars-plugins`. The latter contains the six official TARS plugins,
+under `resources/tars-plugins`. The latter contains the seven official TARS plugins,
 their manifests and helper modules, and the canonical TARS prompt copied from
-`TARS-Plugins@54c9161412e9478a9ffe8de2d0b505fbf37f89db`.
+`TARS-Plugins@6eb5010b3096e969f06ba8c5e63fcc0cb0080f86`.
 
 `vendor/tars-plugins/provenance.json` records a SHA-256 digest for every payload
 file. `python tools/verify_tars_bundle.py` verifies the vendored copy without an
@@ -16,7 +16,7 @@ Packaged files can be checked with
 
 At runtime Electron passes the installed resource location to the backend.
 Plugin code is imported in place and is never copied into user storage. TARS
-loads the six official plugins in its fixed order and separately enables the
+loads the seven official plugins in its fixed order and separately enables the
 explicit Mistral model-provider integration and Task 4 provider registry.
 EDCoPilot and arbitrary plugin folders are not loaded in the TARS profile.
 
@@ -30,7 +30,7 @@ settings share the `plugin_settings` map in `config.json`, keyed by plugin GUID;
 they remain saved when another provider is selected. No COVAS profile is
 imported, moved, deleted, or reused.
 
-The installer includes application code, the six TARS plugins, the Mistral
+The installer includes application code, the seven TARS plugins, the Mistral
 provider integration already frozen into the backend, the prompt, and existing
 runtime libraries handled by PyInstaller. Optional local providers and model
 weights are not bundled; the Provider Setup page installs pinned official

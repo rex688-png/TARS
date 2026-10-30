@@ -196,8 +196,9 @@ class EventManager:
         event = StatusEvent(status=status)
         self.incoming.put(event)
 
-    def add_conversation_event(self, role: Literal['user', 'assistant'], content: str, processed_at: float = 0.0, reasons: list[str] | None = None):
-        event = ConversationEvent(kind=role, content=content, reasons=reasons)
+    def add_conversation_event(self, role: Literal['user', 'assistant'], content: str, processed_at: float = 0.0, reasons: list[str] | None = None, *, input_source: str = 'text', input_session: str | None = None, input_confidence: float | None = None, input_timing: dict[str, float] | None = None):
+        event = ConversationEvent(kind=role, content=content, reasons=reasons,
+            input_source=input_source, input_session=input_session, input_confidence=input_confidence, input_timing=input_timing)
         if role == 'assistant':
             self.short_term_memory.replied_before(processed_at)
         self.incoming.put(event)

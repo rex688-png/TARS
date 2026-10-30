@@ -1,7 +1,7 @@
 import json
 import platform
 import threading
-from time import sleep
+from time import sleep, monotonic
 from typing import Any, Literal, cast
 from pyautogui import typewrite
 
@@ -193,7 +193,7 @@ def deploy_heat_sink(args, projected_states):
     checkStatus(projected_states, {'Docked': True, 'Landed': True})
     setGameWindowActive()
     keys.send('DeployHeatSink')
-    return f"Heat sink deployed"
+    return "Heat sink deployment requested; remaining ammunition and deployment are unconfirmed."
 
 
 def deploy_hardpoint_toggle(args, projected_states):
@@ -205,39 +205,23 @@ def deploy_hardpoint_toggle(args, projected_states):
 
 
 def manage_power_distribution(args, projected_states):
-    power_categories = args.get("power_category", [])
-    balance_power = args.get("balance_power", False)
-    pips = args.get("pips", [])
-    message = ""
-
-    if not balance_power and len(power_categories) != len(pips):
-        return "ERROR: Number of pips does not match number of power categories."
-
+    """Bounded, reproducible absolute max/balance requests; telemetry confirms later."""
+    categories = args.get('power_category', [])
+    pips = args.get('pips', [])
+    balance = args.get('balance_power', False)
+    valid = {'Systems':'IncreaseSystemsPower', 'Engines':'IncreaseEnginesPower', 'Weapons':'IncreaseWeaponsPower'}
+    if balance and categories not in ([], ['Systems','Engines','Weapons']):
+        return 'ERROR: Partial balancing has no verified absolute semantics.'
+    if not balance and (len(categories) != 1 or categories[0] not in valid or pips != [4]):
+        return 'ERROR: Absolute control supports four pips to one system or full balance only.'
+    checkStatus(projected_states, {'Docked':True, 'Landed':True, 'Supercruise':True})
     setGameWindowActive()
-
-    if balance_power:
-        # Balance power across all systems
-        if power_categories == [] or len(power_categories) == 3:
-            keys.send("ResetPowerDistribution")
-            message = "Power balanced."
-        else:
-            message = f"Balancing power equally across {', '.join(power_categories)}."
-            keys.send("ResetPowerDistribution")
-            for _ in range(2):
-                for pwr_system in power_categories:
-                    keys.send(f"Increase{pwr_system.capitalize()}Power")
-
-    else:
-        # Apply specific pips per system
-        assignments = []
-        for pwr_system, pip_count in zip(power_categories, pips):
-            assignments.append(f"{pip_count} pips to {pwr_system}")
-            for _ in range(pip_count):
-                keys.send(f"Increase{pwr_system.capitalize()}Power")
-
-        message = f"Applied: {', '.join(assignments)}."
-
-    return message
+    keys.send('ResetPowerDistribution')
+    if not balance:
+        # Reset establishes 2/2/2. Each increase binding adds half a pip.
+        for _ in range(4):
+            keys.send(valid[categories[0]])
+    return 'Power distribution requested; resulting pips are unconfirmed until status telemetry.'
 
 
 def target_ship(args, projected_states):
@@ -1415,33 +1399,29 @@ def get_visuals(obj, projected_states):
     return response_text or ""
 
 
-def target_subsystem_thread(current_subsystem: str, current_event_id: str, desired_subsystem: str):
-    if not current_subsystem:
-        keys.send('CyclePreviousSubsystem')
-        log('debug', 'CyclePreviousSubsystem key sent first time')
-        new_state = event_manager.wait_for_condition('Target', lambda s: s.Subsystem)
-        if not new_state:
-            show_chat_message('info', 'No subsystems found on target')
+def target_subsystem_thread(current_subsystem: str, current_event_id: str, desired_subsystem: str, identity=None):
+    """Bounded existing subsystem cycling; stop on lost/changed target or timeout."""
+    deadline = monotonic()+2
+    for _ in range(32):
+        _, states = event_manager.get_current_state()
+        target = get_state_dict(states, 'Target')
+        if not target.get('Ship') or target.get('ScanStage', 0) < 3:
             return
-        current_subsystem = new_state.Subsystem
-        current_event_id = new_state.EventID
-    subsystem_loop = False
-    while current_subsystem != desired_subsystem:
-        keys.send('CyclePreviousSubsystem')
-        log('debug', 'CyclePreviousSubsystem key sent')
-        new_state = event_manager.wait_for_condition('Target', lambda s: s.EventID != current_event_id)
-        if not new_state.Subsystem:
-            show_chat_message('info', 'Target lost, abort cycle')
+        if identity and (target.get('Ship'),target.get('PilotName')) != identity:
             return
-        if new_state.Subsystem == 'Power Plant':
-            if subsystem_loop:
-                break
-            subsystem_loop = True
-
-        log('debug', 'new subsystem targeted', new_state.Subsystem)
-        current_subsystem = new_state.Subsystem
-        current_event_id = new_state.EventID
-    log('debug', 'desired subsystem targeted', current_subsystem)
+        if target.get('Subsystem') == desired_subsystem:
+            return
+        remaining = deadline-monotonic()
+        if remaining <= 0:
+            return
+        # Capture current revision before sending. No extra keys after a target change.
+        current_event_id = target.get('EventID')
+        keys.send('CyclePreviousSubsystem')
+        try:
+            event_manager.wait_for_condition('Target', lambda s: s.EventID != current_event_id,
+                                             timeout=min(.25,remaining))
+        except TimeoutError:
+            return
 
 
 def target_subsystem(args, projected_states):
@@ -1456,7 +1436,7 @@ def target_subsystem(args, projected_states):
         raise Exception('Something went wrong!')
 
     setGameWindowActive()
-    threading.Thread(target=target_subsystem_thread, args=(current_target.get('Subsystem'), current_target.get('EventID'), args['subsystem'],), daemon=True).start()
+    threading.Thread(target=target_subsystem_thread, args=(current_target.get('Subsystem'), current_target.get('EventID'), args['subsystem'], (current_target.get('Ship'),current_target.get('PilotName'))), daemon=True).start()
 
     return f"The submodule {args['subsystem']} is being targeted."
 

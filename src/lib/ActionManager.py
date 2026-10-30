@@ -56,6 +56,8 @@ class ActionManager:
                 continue
             if permission_key and self.approvals and permission_mode(self.approvals.config(), permission_key) == 'block':
                 continue
+            if action.get('type') == 'read':
+                valid_actions.append(action.get('tool'))
             if uses_actions:
                 # enable correct actions for game mode
                 action_type = action.get("type")

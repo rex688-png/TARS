@@ -46,7 +46,7 @@ nav:
       - Game awareness and vision: game-awareness.md
       - Actions and approvals: 20_actions.md
   - Official TARS Plugins:
-      - The six plugins: plugins/index.md
+      - The seven plugins: plugins/index.md
       - Observatory feed: elite-observatory-bridge.md
   - Troubleshooting:
       - Diagnostics and common problems: troubleshooting.md
