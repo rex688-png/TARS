@@ -12,7 +12,7 @@ for p in files:
   if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and (isinstance(n,ast.ClassDef) or p.name=='Actions.py'):labels.add(n.name)
   if isinstance(n,ast.Constant) and isinstance(n.value,str):
    value=n.value
-   targeted=p.name in {'SpeechTrace.py','SpeechArbiter.py','SpeechPolicy.py','ExplorationSpeech.py','ResponsePresentation.py','BlackBox.py','BlackBoxCommands.py','ActionManager.py','STT.py','TTS.py','EventManager.py','PluginHelper.py','Assistant.py','EDJournal.py','Chat.py','TARSChatter.py','TARSChatterSession.py','TARSCombat.py','CombatState.py'}
+   targeted=p.name in {'SpeechTrace.py','SpeechArbiter.py','SpeechPolicy.py','ExplorationSpeech.py','ResponsePresentation.py','BlackBox.py','BlackBoxCommands.py','ActionManager.py','STT.py','TTS.py','EventManager.py','PluginHelper.py','Assistant.py','EDJournal.py','Chat.py','TARSChatter.py','TARSChatterSession.py','TARSCombat.py','CombatState.py','TacticalObservations.py'}
    if re.fullmatch(r'[A-Za-z][A-Za-z0-9_.:-]{0,63}',value) and (targeted or value.startswith(('tars_','TARS','gpt-')) or (p.name=='EventModels.py' and value[:1].isupper())):labels.add(value)
    if p.name=='SpeechTrace.py' and value.endswith('_started'):labels.update([value[:-8]+'_returned',value[:-8]+'_failed'])
 labels.update({'LIVE','CURRENT SNAPSHOT','LAST KNOWN','openai','openrouter','edge-tts','mistral','custom','plugin','parakeet','pocket-tts','local-ai-server','ollama','invalid_prompt','invalid_api_key','rate_limit_exceeded','insufficient_quota','context_length_exceeded','model_not_found','provider_error','PermissionError','FileNotFoundError','TypeError','IndexError','MemoryError','UnicodeDecodeError','UnicodeEncodeError','ConnectionResetError'})

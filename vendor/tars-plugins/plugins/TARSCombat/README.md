@@ -1,4 +1,25 @@
-# TARS Combat V1
+# TARS Combat
+
+## Optional contextual assistance prototype (default OFF)
+
+The separate `commentary` toggle enables two history-based observations: at least
+two observed shield recoveries on a complete, consistently identified target over
+45 seconds, or repeated explicit mothership hull damage after 30 seconds of fresh
+shields-down status samples. It never announces ordinary targets, kills or bounty
+awards. These are observations, not invented manoeuvre or weapon recommendations.
+
+At most one opportunity per Combat Focus interval, a 120-second global cooldown,
+four-second delivery freshness and per-frame revalidation keep it selective. Busy
+or stale opportunities are discarded with no retries/backlog. Direct requests,
+existing speech work and critical alerts win; critical/direct events and invalid
+context can interrupt the optional phrase. Existing speech leases/TTS are reused
+with no LLM calls. The core V1 behavior is retained when this toggle is absent/off.
+
+Run `python tools/replay_tactical_observations.py` for timestamped synthetic
+examples; `--journal tests/fixtures/combat/journal_combat.jsonl` compares the supplied
+sanitized replay. Opportunities are not proof of delivery or live usefulness.
+Sparse scans or missing live Status data correctly remain silent. Real gameplay
+acceptance is required before considering a default change.
 
 ## Optional decision diagnostics
 

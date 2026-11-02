@@ -36,12 +36,13 @@ if TYPE_CHECKING:
 
 class OptionalSpeechHandle:
     """Preparation capability; dispatch atomically transfers ownership to the host."""
-    def __init__(self, helper, triggered_at):
+    def __init__(self, helper, triggered_at, *, combat=False):
         self.helper = helper
         self.arbiter = helper._assistant.speech_arbiter()
+        self.combat = combat
         self.arbiter.note_cancellation(getattr(helper._assistant.tts, '_abort_revision', None))
         self.lease = self.arbiter.begin_optional(triggered_at, helper._config.get('speech_director_mode', 'observe'),
-                                                  busy=helper._optional_priority_pending())
+                                                  busy=helper._optional_priority_pending(combat=combat),combat=combat)
         self.allowed = self.lease.allowed
         self.enforcing = self.lease.mode == 'enforce'
         self.closed = False
@@ -52,9 +53,9 @@ class OptionalSpeechHandle:
         if mode != self.lease.mode and 'enforce' in (mode, self.lease.mode):
             return False
         self.arbiter.note_cancellation(getattr(self.helper._assistant.tts, '_abort_revision', None))
-        if self.closed and self.lease.mode == 'enforce':
+        if self.closed and (self.lease.mode == 'enforce' or self.combat):
             return False
-        return self.arbiter.optional_valid(self.lease, self.helper._optional_priority_pending())
+        return self.arbiter.optional_valid(self.lease, self.helper._optional_priority_pending(combat=self.combat))
 
     def dispatch(self, event):
         if not self.valid():
@@ -63,7 +64,7 @@ class OptionalSpeechHandle:
             if token is not None:
                 event.plugin_event_content = {**event.plugin_event_content, '_speech_admission': token}
             self.helper.dispatch_event(event)
-        return self.arbiter.dispatch_optional(self.lease, self.helper._optional_priority_pending, dispatch)
+        return self.arbiter.dispatch_optional(self.lease, lambda:self.helper._optional_priority_pending(combat=self.combat), dispatch)
 
     def close(self):
         self.closed = True
@@ -124,7 +125,7 @@ class PluginHelper():
     def record_combat_diagnostic(self, stage, **fields):
         """Optional canonical observer. No payloads, actions or tracker queries."""
         try:
-            if not stage.startswith(('combat_alert_','combat_telemetry_')): return
+            if not stage.startswith(('combat_alert_','combat_telemetry_','combat_observation_')): return
             fields['combat_enabled']=fields.pop('enabled',None)
             created=fields.pop('created',None)
             alert_id=speech_trace.alert_identity({'code':fields.get('code'),'created':created})
@@ -254,7 +255,7 @@ class PluginHelper():
         return self._assistant.speech_arbiter().preview_optional(
             states, self._config.get("speech_director_mode", "observe"))
 
-    def _optional_priority_pending(self):
+    def _optional_priority_pending(self, *, combat=False):
         from .Event import ConversationEvent, ToolEvent, GameEvent, StatusEvent
         from .SpeechArbiter import source
         assistant = self._assistant
@@ -266,6 +267,7 @@ class PluginHelper():
             with incoming.mutex:
                 events += list(incoming.queue)
         for event in events:
+            if combat and getattr(event,'plugin_event_name',None)=='TARSCombatAlert':return True
             if getattr(event, 'do_not_reply', False):
                 continue
             if isinstance(event, ToolEvent) or (isinstance(event, ConversationEvent) and event.kind in ('user', 'user_speaking')):
@@ -279,6 +281,12 @@ class PluginHelper():
 
     def reserve_optional_speech(self, triggered_at):
         return OptionalSpeechHandle(self, triggered_at)
+
+    def reserve_combat_observation(self, triggered_at):
+        return OptionalSpeechHandle(self,triggered_at,combat=True)
+
+    def combat_observation_event_valid(self,event):
+        return self._assistant.speech_arbiter().optional_event_valid(event.plugin_event_content.get('_speech_admission'))
 
     def optional_speech_event_valid(self, event):
         data = getattr(event, 'plugin_event_content', {})
