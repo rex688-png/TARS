@@ -1,7 +1,7 @@
 """Bounded local storage/export sink for SpeechTrace. No speech or action decisions."""
 from __future__ import annotations
 import base64
-from collections import deque
+from collections import deque, OrderedDict
 from datetime import datetime, timezone
 import hashlib
 import heapq
@@ -18,6 +18,8 @@ from uuid import uuid4
 
 from .BlackBoxCodes import LABELS
 
+LABELS = LABELS | {'reply_rejections_coalesced'}
+
 MAX_RECORD = 16384
 MAX_DISK = 256 * 1024 * 1024
 MAX_EXPORT = 2 * MAX_DISK
@@ -25,7 +27,7 @@ ID = re.compile(r'^[a-f0-9]{32}$')
 PART = re.compile(r'^\d{8}\.(?:standard|private)\.jsonl$')
 IDENTIFIERS = {'trace_id','event_id','parent_event_id','line_id','delivery_id','generation_id','attempt_id','reservation_id','operation_id','model_id','provider_id','tool_id','journal_id','parent_session_id','plugin_revision','build_id'}
 LABEL_FIELDS = {'stage','reason','source','trigger','component','category','outcome','error_type','mode','path','evidence','playback_success','disposition','code','model','provider','tool','event_type','planet_class','severity','recording_mode','freshness','input_source'}
-NUMBER_FIELDS = {'priority','count','message_count','input_chars','output_chars','system_chars','status_chars','memory_chars','conversation_chars','input_tokens','output_tokens','total_tokens','cached_tokens','retry_attempts','duration_ms','response_ms','written_bytes','audio_bytes','queue_depth','dropped','probe_count','body_count','signal_count','scan_stage','sequence','monotonic_ms','hull_health','total_reward','alert_count','status','input_confidence','capture_completed_ms','stt_completed_ms'}
+NUMBER_FIELDS = {'priority','count','message_count','input_chars','output_chars','system_chars','status_chars','memory_chars','conversation_chars','input_tokens','output_tokens','total_tokens','cached_tokens','retry_attempts','duration_ms','response_ms','written_bytes','audio_bytes','queue_depth','dropped','probe_count','body_count','signal_count','scan_stage','sequence','monotonic_ms','hull_health','total_reward','alert_count','status','input_confidence','capture_completed_ms','stt_completed_ms','repeat_first_ms','repeat_last_ms'}
 BOOL_FIELDS = {'selected','proposed','optional','enforced','accepted','historic','requeued','output_drained','direct','terraformable','body_identity_known','fighter','player_pilot','shields_up','in_danger','in_fighter','in_main_ship','alerts_enabled','focus_enabled','controls_enabled','expected_callout','reported_ok','mapping_recommendation_present','usage_available','context_truncated'}
 PRIVATE_KEYS = {'user_input','final_output','tool_arguments','tool_result','input_evidence'}
 SECRET = re.compile(r'(?i)(?:\b(?:sk|pk|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_-]{6,}|\bBearer\s+\S+|\b(?:authorization|api[-_ ]?key|password|secret|token|credential)\b\s*["\x27]?\s*[:=]\s*["\x27]?[^\s,;"\x27}]+|https?://[^\s]+|\b[A-Z]:[\\/][^\s"\x27]*|(?<!\w)/(?:home|Users|tmp|workspace|mnt|var)/[^\s"\x27]*|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,})')
@@ -63,6 +65,52 @@ def metadata(fields):
     return safe
 
 
+class RejectionWindow:
+    """Bound repeated negative observations only, never eligibility decisions.
+
+    Caller owns synchronization. Changed reasons/components have separate keys.
+    Summaries describe observation counts, not duplicate processing or deliveries.
+    """
+    def __init__(self, seconds=30, capacity=1024):
+        self.seconds = seconds
+        self.capacity = capacity
+        self.entries = OrderedDict()
+
+    @staticmethod
+    def summary(entry):
+        if not entry['count']: return []
+        fields = {k:v for k,v in entry['sample'].items()
+                  if k in {'component','reason','event_id','journal_id','event_type','trigger','source','historic'}}
+        return [{**fields, 'stage':'reply_rejections_coalesced', 'count':entry['count'],
+                 'repeat_first_ms':entry['first']*1000, 'repeat_last_ms':entry['last']*1000}]
+
+    def observe(self, fields, now):
+        if fields.get('stage') != 'reply_not_selected': return [fields]
+        key = tuple(fields.get(k) for k in ('event_id','reason','component','recording_mode'))
+        entry = self.entries.get(key)
+        output = []
+        if entry is not None and now-entry['started'] >= self.seconds:
+            output.extend(self.summary(self.entries.pop(key)))
+            entry = None
+        if entry is None:
+            if len(self.entries) >= self.capacity:
+                output.extend(self.summary(self.entries.popitem(last=False)[1]))
+            self.entries[key] = dict(sample=dict(fields), started=now, count=0)
+            output.append(fields)
+        else:
+            if not entry['count']: entry['first'] = now
+            entry['count'] += 1
+            entry['last'] = now
+        return output
+
+    def flush(self, now, force=False):
+        output = []
+        for key, entry in list(self.entries.items()):
+            if force or now-entry['started'] >= self.seconds:
+                output.extend(self.summary(self.entries.pop(key)))
+        return output
+
+
 class Recorder:
     def __init__(self, root, *, part_bytes=8*1024*1024, parts=16, sessions=8, queue_size=2048):
         self.root = Path(root)
@@ -87,6 +135,7 @@ class Recorder:
         self.salt = os.urandom(16)
         self.sampler = None
         self.open_files = set()
+        self.rejections = RejectionWindow()
         self.worker = threading.Thread(target=self._run, name='TARSBlackBox',daemon=True)
         self.worker.start()
         self.record({'stage':'session_started','component':'application'})
@@ -105,29 +154,41 @@ class Recorder:
                 return
             try:
                 if self.closed: return
-                self.sequence += 1
-                row = {'schema_version':1,'session_id':self.session_id,'seq':self.sequence,
-                    'timestamp':utc(),'monotonic_ms':round(monotonic()*1000,3),
-                    'component':safe.get('component','speech'),'severity':safe.get('severity','info'),'recording_mode':self.mode, **safe}
-                context={}
-                truncated=False
-                if self.mode=='verbose':
-                    budget=8192
-                    for key,value in (private or {}).items():
-                        if key not in PRIVATE_KEYS: continue
-                        encoded=redact(value).encode('utf-8')
-                        truncated |= isinstance(value,str) and len(value)>4096 or len(encoded)>budget
-                        context[key]=encoded[:budget].decode('utf-8',errors='ignore')
-                        budget=max(0,budget-len(encoded))
-                if context: row['context_truncated']=truncated
-                self.queue.put_nowait((row,context))
-                self.recent.append(row)
-            except queue.Full:
-                if fields.get('stage')!='records_dropped': self._drop()
+                safe['recording_mode'] = self.mode
+                for observation in self.rejections.observe(safe, monotonic()):
+                    self._enqueue_locked(observation, private if observation is safe else None)
             finally:
                 self.lock.release()
         except Exception:
             self._drop()
+
+    def _enqueue_locked(self, safe, private=None):
+        self.sequence += 1
+        row = {'schema_version':1,'session_id':self.session_id,'seq':self.sequence,
+            'timestamp':utc(),'monotonic_ms':round(monotonic()*1000,3),
+            'component':safe.get('component','speech'),'severity':safe.get('severity','info'),'recording_mode':self.mode, **safe}
+        context={}
+        truncated=False
+        if self.mode=='verbose':
+            budget=8192
+            for key,value in (private or {}).items():
+                if key not in PRIVATE_KEYS: continue
+                encoded=redact(value).encode('utf-8')
+                truncated |= isinstance(value,str) and len(value)>4096 or len(encoded)>budget
+                context[key]=encoded[:budget].decode('utf-8',errors='ignore')
+                budget=max(0,budget-len(encoded))
+        if context: row['context_truncated']=truncated
+        try:
+            self.queue.put_nowait((row,context))
+            self.recent.append(row)
+        except queue.Full:
+            if safe.get('stage')!='records_dropped': self._drop()
+
+    def _flush_rejections(self):
+        # Maintenance must not hold up producers; contention remains a counted drop.
+        with self.lock:
+            if not self.closed:
+                for row in self.rejections.flush(monotonic()): self._enqueue_locked(row)
 
     def set_mode(self, mode, confirmed=False):
         if mode not in ('standard','verbose') or (mode=='verbose' and confirmed is not True):
@@ -156,9 +217,11 @@ class Recorder:
                 'pruned_parts':self.pruned_parts, 'parts_limit':self.parts,'disk_limit_mib':MAX_DISK//(1024*1024),'recent':list(self.recent)}
 
     def close(self):
-        if self.closed: return
-        self.record({'stage':'session_stopped','component':'application'})
-        with self.lock: self.closed=True
+        with self.lock:
+            if self.closed: return
+            for row in self.rejections.flush(monotonic(),force=True): self._enqueue_locked(row)
+            self._enqueue_locked({'stage':'session_stopped','component':'application'})
+            self.closed=True
         self.stop_event.set()
         if threading.current_thread() is not self.worker: self.worker.join(timeout=2)
 
@@ -250,6 +313,7 @@ class Recorder:
                 try: row,context=self.queue.get(timeout=.2)
                 except queue.Empty:
                     if monotonic()-last_maintenance>10:
+                        self._flush_rejections()
                         self._state(); self._prune(); last_maintenance=monotonic()
                         if callable(self.sampler):
                             try: self.sampler()
@@ -283,6 +347,7 @@ class Recorder:
                     self.written+=1
                     self.last_seq=row['seq']
                     if monotonic()-last_maintenance>10:
+                        self._flush_rejections()
                         self._state(); self._prune(); last_maintenance=monotonic()
                         if callable(self.sampler):
                             try: self.sampler()

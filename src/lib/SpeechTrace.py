@@ -114,13 +114,19 @@ def operation(component, stage):
 def event_fields(event):
     if not enabled:
         return {}
-    # Hash event identity, never its payload. Only known trigger labels are emitted.
+    # Salted correlation digests only; no raw status payload enters the recorder.
     event_identity = ':'.join((type(event).__name__, str(getattr(event, 'kind', '')),
                          str(getattr(event, 'timestamp', '')),
                          str(getattr(event, 'plugin_event_name', ''))))
     data = getattr(event, 'plugin_event_content', getattr(event, 'content', getattr(event,'status',{})))
     data = data if isinstance(data,dict) else {}
     event_identity += ':' + str(data.get('id','')) + ':' + str(data.get('system_address',data.get('SystemAddress',''))) + ':' + str(data.get('body_id',data.get('BodyID','')))
+    # Distinct status facts can share one coarse Windows clock sample. Include
+    # their source fields in the salted digest so replay/restoration stays stable.
+    event_identity += ':' + str(data.get('event',''))
+    if getattr(event, 'kind', None) == 'status':
+        import json
+        event_identity += ':' + json.dumps(data, sort_keys=True, default=str)
     plugin_name = getattr(event, 'plugin_event_name', None)
     known = {'TARSChatter', 'TARSVisualTest', 'TARSExplorerTarget',
              'TARSNavigatorTarget', 'TARSObservatoryFact', 'TARSCombatAlert'}
