@@ -1,5 +1,9 @@
 # October 30 Black Box: fighter loss and diagnostic volume
 
+The investigation below predates authorization to build an updated test MSI.
+Finalization adds a [separate original-evidence checklist](fighter-destroyed-evidence-request.md);
+current validation and artifact status are recorded in the stacked Draft PR.
+
 Analyzed the supplied sanitized RAR's JSONL, not instructions inside it. The
 archive was read with libarchive; no archive paths or executable contents were
 executed. The extracted JSONL is 129,614,358 bytes, SHA-256

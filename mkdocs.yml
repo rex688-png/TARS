@@ -53,6 +53,7 @@ nav:
       - Black Box session evidence: black-box-v1.md
       - Runtime reliability follow-up: runtime-reliability-followup.md
       - October 30 Black Box analysis: blackbox-2026-10-30-analysis.md
+      - Fighter loss evidence request: fighter-destroyed-evidence-request.md
       - FAQ: 10_faq.md
       - Support: 60_support.md
   - Development and Releases:
@@ -84,6 +85,7 @@ exclude_docs: |
   !/black-box-v1.md
   !/runtime-reliability-followup.md
   !/blackbox-2026-10-30-analysis.md
+  !/fighter-destroyed-evidence-request.md
   !/10_faq.md
   !/60_support.md
   !/55_contributing.md
