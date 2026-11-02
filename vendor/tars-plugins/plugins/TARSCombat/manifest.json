@@ -1,7 +1,7 @@
 {
   "guid": "203c9a85-7adc-4c15-8f70-1a7f5ab14d21",
   "name": "TARS Combat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "TARS",
   "description": "Quiet evidence-driven combat awareness, critical alerts and explicitly authorized tactical assistance.",
   "entrypoint": "TARSCombat.py"

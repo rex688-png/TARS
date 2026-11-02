@@ -163,7 +163,7 @@ def event_fields(event):
         event_identity += ':' + json.dumps(data, sort_keys=True, default=str)
     plugin_name = getattr(event, 'plugin_event_name', None)
     known = {'TARSChatter', 'TARSVisualTest', 'TARSExplorerTarget',
-             'TARSNavigatorTarget', 'TARSObservatoryFact', 'TARSCombatAlert'}
+             'TARSNavigatorTarget', 'TARSObservatoryFact', 'TARSCombatAlert','TARSCombatObservation'}
     origin = plugin_name if plugin_name in known else getattr(event, 'kind', 'unknown')
     return {'trigger': origin if origin in known | {'user', 'tool', 'game', 'status', 'projected', 'plugin', 'quest'} else 'other',
             'alert_id':alert_identity(data) if plugin_name=='TARSCombatAlert' else None,

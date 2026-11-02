@@ -78,8 +78,25 @@ class Assistant:
             self.__dict__.setdefault("_speech_arbiter", SpeechArbiter())
         return self._speech_arbiter
 
+    def _combat_observation_priority_event(self,event):
+        if not self.speech_arbiter().combat_allows(event):return False
+        if event.kind in ('user','user_speaking','tool'):return True
+        if isinstance(event,PluginEvent):return event.plugin_event_name!='TARSCombatObservation'
+        if isinstance(event,(GameEvent,ProjectedEvent)):return event.content.get('event') in self.enabled_game_events
+        if isinstance(event,StatusEvent):return event.status.get('event') in self.enabled_game_events
+        return isinstance(event,QuestEvent) and 'quest' in self.enabled_game_events
+
     def on_event(self, event: Event, projected_states: ProjectedStates):
         self.speech_arbiter().note_event(event)
+        if getattr(self,'_combat_observation_active',False) and self._combat_observation_priority_event(event):
+            self.tts.abort()
+        elif getattr(self,'_combat_observation_active',False):
+            active=getattr(self,'_combat_observation_event',None)
+            provider=getattr(self,'_combat_provider',None)
+            try:
+                valid=active is not None and provider is not None and provider.observation(active.plugin_event_content,started=True)
+            except Exception:valid=None
+            if not valid:self.tts.abort()
         if (isinstance(event,GameEvent) and event.content.get('event') in
             ('FighterDestroyed','FighterRebuilt','ShieldState','HullDamage') and
             getattr(self,'_combat_provider',None) is None):
@@ -970,6 +987,11 @@ class Assistant:
             direct_turn = any(isinstance(e, (ConversationEvent, ToolEvent)) and
                               (e.kind in ('user', 'tool')) and not getattr(e, 'do_not_reply', False)
                               for e in new_events)
+            if direct_turn:
+                for optional in new_events:
+                    if getattr(optional,'plugin_event_name',None)=='TARSCombatObservation':
+                        arbiter.discard_optional(optional.plugin_event_content.get('_speech_admission'))
+                new_events=[e for e in new_events if getattr(e,'plugin_event_name',None)!='TARSCombatObservation']
             if not direct_turn:
                 new_events = [e for e in new_events if arbiter.combat_allows(e)]
                 had_exploration = any(getattr(e, 'plugin_event_name', None) in EXPLORATION_SOURCES for e in new_events)
@@ -1055,6 +1077,41 @@ class Assistant:
                         written_bytes=getattr(terminal,'written_bytes',None),output_drained=getattr(terminal,'output_drained',None))
                 self.event_manager.short_term_memory.replied_before(maximum)
                 self.event_manager.add_assistant_complete_event()
+                return
+
+            observations=[e for e in new_events if getattr(e,'plugin_event_name',None)=='TARSCombatObservation']
+            if observations and any(self._combat_observation_priority_event(e) for e in new_events if e not in observations):
+                for optional in observations:arbiter.discard_optional(optional.plugin_event_content.get('_speech_admission'))
+                new_events=[e for e in new_events if e not in observations]
+                observations=[]
+            if observations and not direct_turn:
+                event=observations[-1];provider=getattr(self,'_combat_provider',None)
+                token=event.plugin_event_content.get('_speech_admission')
+                def observation_valid():
+                    if (not arbiter.optional_event_valid(token) or any(
+                        e.kind in ('user','user_speaking','tool') or getattr(e,'plugin_event_name',None)=='TARSCombatAlert'
+                        for e in self.pending)):return None
+                    return provider.observation(event.plugin_event_content) if provider else None
+                maximum=max([e.processed_at for e in events]+[0.0])
+                self._combat_observation_event=event
+                self._combat_observation_active=True
+                try:
+                    text=observation_valid()
+                    if text:
+                        line=self.tts.say(text,context='assistant',
+                            postprocessing_layers=self._get_tts_postprocessing_layers(projected_states),
+                            drop_if=lambda:not observation_valid())
+                        if line.wait_for_speaking():
+                            self.event_manager.add_assistant_speaking()
+                            self.event_manager.add_conversation_event('assistant',text,
+                                reasons=['combat_contextual_observation'],processed_at=maximum)
+                        line.wait_for_completion()
+                    self.event_manager.short_term_memory.replied_before(maximum)
+                    self.event_manager.add_assistant_complete_event()
+                finally:
+                    self._combat_observation_active=False
+                    self._combat_observation_event=None
+                    arbiter.discard_optional(token)
                 return
 
             warning = departure_warning(new_events, self.enabled_game_events)

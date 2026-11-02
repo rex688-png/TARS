@@ -7,6 +7,7 @@ from lib.PluginBase import PluginBase
 from lib.PluginHelper import PluginEvent
 from .CombatState import CombatTracker
 from .Commands import parse_order
+from .TacticalObservations import TacticalObservations
 
 
 class QueryArgs(BaseModel):
@@ -22,6 +23,7 @@ class TARSCombat(PluginBase):
                 ('enabled','Enable combat awareness',True),
                 ('focus','Quiet optional speech during combat',True),
                 ('alerts','Critical tactical alerts',True),
+                ('commentary','Optional contextual tactical observations (experimental)',False),
                 ('fast_commands','Enable explicit fast control commands',False),
                 ('experimental_launch','Allow experimental fighter launch UI (requires live validation)',False),
             ]]}]}
@@ -37,6 +39,7 @@ class TARSCombat(PluginBase):
         self.stop = threading.Event()
         self.worker = None
         self.diagnostic_seen = {}
+        self.observations = TacticalObservations()
 
     def _diagnostic(self, stage, **fields):
         try:
@@ -69,6 +72,7 @@ class TARSCombat(PluginBase):
         self.helper = helper
         self.tracker = CombatTracker(self._diagnostic)
         self.diagnostic_seen.clear()
+        self.observations = TacticalObservations()
         self.sent_alerts.clear()
         register = getattr(helper, 'register_combat_provider', None)
         if not callable(register):
@@ -80,6 +84,7 @@ class TARSCombat(PluginBase):
         self.worker.start()
         helper.register_event('TARSCombatAlert', self.should_alert,
                               lambda event: 'Deterministic combat alert; do not narrate combat.')
+        helper.register_event('TARSCombatObservation',self.should_observe,lambda event:'')
         helper.register_action('tarsCombatQuery',
             'Read combat facts: topic situation, target, condition, wanted, bounty, subsystem, fighter, readiness, progress, report or latency. Missing/stale telemetry must remain unknown.',
             QueryArgs, self.query, action_type='read')
@@ -114,10 +119,11 @@ class TARSCombat(PluginBase):
         with self.lock:
             self.states = {k:(v.model_dump() if hasattr(v,'model_dump') else v) for k,v in states.items()}
             now = time.time()
+            accepted=False
             if isinstance(data, dict):
                 if data.get('event') in ('InDanger','OutofDanger') and 'timestamp' not in data:
                     data = {**data, 'timestamp':event.timestamp}
-                self.tracker.consume(data, now, historic=getattr(event,'historic',False))
+                accepted=self.tracker.consume(data, now, historic=getattr(event,'historic',False))
             self.tracker.tick(now)
             phase = self.tracker.phase if self.settings.get('focus',True) else 'idle'
             self.helper.update_combat_focus(phase, enabled=self.settings.get('enabled',True) and self.settings.get('focus',True))
@@ -140,6 +146,29 @@ class TARSCombat(PluginBase):
             else:
                 for alert in self.tracker.alerts:
                     self._diagnostic_once('combat_alert_dispatch_rejected',code=alert['code'],created=alert['created'],reason='alerts_disabled')
+            if self.settings.get('commentary',False) and accepted:
+                candidate=self.observations.update(data,now,self.tracker)
+                if candidate:
+                    reserve=getattr(self.helper,'reserve_combat_observation',None)
+                    handle=reserve(now) if callable(reserve) else None
+                    try:
+                        if handle is not None and handle.allowed:
+                            dispatched=handle.dispatch(PluginEvent(plugin_event_name='TARSCombatObservation',
+                                plugin_event_content={'code':candidate['code'],'created':candidate['created']}))
+                        else:dispatched=False
+                        self._diagnostic('combat_observation_proposed',code=candidate['code'],accepted=dispatched)
+                        if not dispatched:self.observations.pending=None
+                    finally:
+                        if handle is not None:handle.close()
+
+    def observation(self,data,*,started=False):
+        with self.lock:
+            if not self.settings.get('enabled',True) or not self.settings.get('commentary',False):return None
+            return self.observations.text(data,time.time(),self.tracker,started=started)
+
+    def should_observe(self,event):
+        valid=getattr(self.helper,'combat_observation_event_valid',None)
+        return self.observation(event.plugin_event_content) is not None and callable(valid) and valid(event)
 
     parse_order = staticmethod(parse_order)
 

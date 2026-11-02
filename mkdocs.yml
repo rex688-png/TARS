@@ -55,6 +55,7 @@ nav:
       - October 30 Black Box analysis: blackbox-2026-10-30-analysis.md
       - Fighter loss evidence request: fighter-destroyed-evidence-request.md
       - Combat alert decision diagnostics: combat-alert-diagnostics.md
+      - Combat V2 contextual prototype: combat-v2-contextual.md
       - FAQ: 10_faq.md
       - Support: 60_support.md
   - Development and Releases:
@@ -88,6 +89,7 @@ exclude_docs: |
   !/blackbox-2026-10-30-analysis.md
   !/fighter-destroyed-evidence-request.md
   !/combat-alert-diagnostics.md
+  !/combat-v2-contextual.md
   !/10_faq.md
   !/60_support.md
   !/55_contributing.md

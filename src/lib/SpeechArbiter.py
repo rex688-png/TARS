@@ -126,6 +126,7 @@ class OptionalAdmission:
     allowed: bool
     state: str = 'preparing'
     combat_epoch: int = 0
+    combat: bool = False
 
 
 class SpeechArbiter:
@@ -162,6 +163,8 @@ class SpeechArbiter:
         data = (event.content if isinstance(event, (GameEvent,ProjectedEvent)) else event.status
                 if isinstance(event, StatusEvent) else getattr(event, 'plugin_event_content', {}))
         data = data if isinstance(data, dict) else {}
+        if getattr(event,'plugin_event_name',None)=='TARSCombatObservation':
+            return self.optional_event_valid(data.get('_speech_admission'))
         if not getattr(self, '_combat_enabled', False):
             return True
         if data.get('event') in ('CombatEntered','CombatExited'):
@@ -201,6 +204,9 @@ class SpeechArbiter:
 
     def note_event(self, event):
         with self._lock:
+            if getattr(event,'plugin_event_name',None)=='TARSCombatAlert':
+                for key,lease in list(self._optional.items()):
+                    if lease.combat:self._optional.pop(key,None)
             if source(event) in ('user', 'tool', 'explorer', 'observatory', 'navigator') or getattr(event, 'kind', '') == 'user_speaking':
                 self.cancel_optional('higher_priority')
             if isinstance(event, GameEvent) and event.content.get('event') in ('FSDJump', 'Location', 'CarrierJump'):
@@ -375,7 +381,8 @@ class SpeechArbiter:
             self._optional.clear()
 
     def _optional_reason(self, lease, busy=False):
-        if getattr(self, '_combat_phase', 'idle') != 'idle':
+        phase=getattr(self,'_combat_phase','idle')
+        if (phase=='recovering' if lease.combat else phase!='idle'):
             return 'combat_focus'
         if self._optional.get(lease.token) is not lease or lease.epoch != self._epoch:
             return 'cancelled'
@@ -385,17 +392,19 @@ class SpeechArbiter:
             return 'higher_priority'
         return None
 
-    def begin_optional(self, triggered_at, mode='observe', busy=False):
+    def begin_optional(self, triggered_at, mode='observe', busy=False, *, combat=False):
         with self._lock:
             mode = self.configure(mode)
             self._optional = {k: v for k, v in self._optional.items()
                               if v.deadline > self.clock() and v.epoch == self._epoch}
             reason = ('stale' if not -5 <= self.wall_clock() - triggered_at <= 60 else
                       'busy' if busy or self._active is not None or self._optional else None)
-            lease = OptionalAdmission(uuid4().hex, mode, self._epoch, self.clock() + 60,
-                                      triggered_at, getattr(self, '_combat_phase', 'idle') == 'idle' and (mode != 'enforce' or reason is None))
+            phase=getattr(self,'_combat_phase','idle')
+            allowed_phase=phase!='recovering' if combat else phase=='idle'
+            lease = OptionalAdmission(uuid4().hex, mode, self._epoch, self.clock() + (4 if combat else 60),
+                                      triggered_at, allowed_phase and ((mode != 'enforce' and not combat) or reason is None),combat=combat)
             lease.combat_epoch = getattr(self, '_combat_revision', 0)
-            if lease.allowed and mode != 'off':
+            if lease.allowed and (mode != 'off' or combat):
                 self._optional[lease.token] = lease
             SpeechTrace.emit('optional_reserved', reservation_id=lease.token, mode=mode,
                              proposed=reason is None, reason=reason or 'available')
@@ -406,9 +415,10 @@ class SpeechArbiter:
             reason = self._optional_reason(lease, busy)
             SpeechTrace.emit('optional_revalidated', reservation_id=lease.token, mode=lease.mode,
                              proposed=reason is None, reason=reason or 'available')
-            return (getattr(self, '_combat_phase', 'idle') == 'idle'
+            phase=getattr(self,'_combat_phase','idle')
+            return ((phase!='recovering' if lease.combat else phase=='idle')
                     and lease.combat_epoch == getattr(self, '_combat_revision', 0)
-                    and (lease.mode != 'enforce' or reason is None))
+                    and ((lease.mode != 'enforce' and not lease.combat) or reason is None))
 
     def optional_event_valid(self, token):
         with self._lock:
@@ -426,7 +436,7 @@ class SpeechArbiter:
                 return False
             lease.state = 'dispatched'
             try:
-                dispatch(lease.token if lease.mode == 'enforce' else None)
+                dispatch(lease.token if lease.mode == 'enforce' or lease.combat else None)
             except Exception:
                 self._optional.pop(lease.token, None)
                 raise
@@ -435,6 +445,6 @@ class SpeechArbiter:
     def release_optional(self, lease):
         with self._lock:
             # A dispatched enforce ticket is owned by Assistant until completion.
-            if lease.mode != 'enforce' or lease.state == 'preparing':
+            if (lease.mode != 'enforce' and not lease.combat) or lease.state == 'preparing':
                 self._optional.pop(lease.token, None)
             SpeechTrace.emit('optional_released', reservation_id=lease.token, mode=lease.mode)
