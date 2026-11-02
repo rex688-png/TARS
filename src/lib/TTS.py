@@ -48,6 +48,8 @@ class TTSLine:
         self._playback_evidence = "unknown"  # compatibility with existing callers
         self.trace_id = speech_trace.current.get()
         self.generation_id = speech_trace.current_generation.get()
+        self.alert_id = speech_trace.current_alert.get()
+        self.event_id = speech_trace.current_event.get()
         self.line_id = speech_trace.new_id() or uuid4().hex
         self._speaking = threading.Event()
         self._completed = threading.Event()
@@ -70,6 +72,7 @@ class TTSLine:
             if self._result is None:
                 self._attempts.append(attempt)
         speech_trace.emit("tts_attempt_finished", trace_id=self.trace_id,
+                          alert_id=self.alert_id,event_id=self.event_id,
                           line_id=self.line_id, generation_id=self.generation_id, delivery_id=self.line_id, attempt_id=attempt.attempt_id,
                           outcome=attempt.outcome, written_bytes=attempt.written_bytes,
                           output_drained=attempt.output_drained, duration_ms=max(0,attempt.ended_at-attempt.started_at)*1000)
@@ -101,6 +104,7 @@ class TTSLine:
             callback = self._on_complete
             self._on_complete = None
         speech_trace.emit("line_completed", trace_id=self.trace_id, line_id=self.line_id,
+                          alert_id=self.alert_id,event_id=self.event_id,reason=reason,
                           generation_id=self.generation_id, delivery_id=self.line_id,
                           outcome=outcome, playback_success="unknown",
                           written_bytes=result.written_bytes,
@@ -343,6 +347,8 @@ class TTS:
                         trace_token = speech_trace.current.set(getattr(line, "trace_id", None)) if speech_trace.enabled else None
                         generation_token = speech_trace.current_generation.set(getattr(line, "generation_id", None)) if speech_trace.enabled else None
                         line_token = speech_trace.current_line.set(getattr(line, "line_id", None)) if speech_trace.enabled else None
+                        alert_token = speech_trace.current_alert.set(getattr(line, "alert_id", None)) if speech_trace.enabled else None
+                        event_token = speech_trace.current_event.set(getattr(line, "event_id", None)) if speech_trace.enabled else None
                         attempt_id = uuid4().hex
                         started = monotonic()
                         evidence = "no_audio"
@@ -446,6 +452,10 @@ class TTS:
                                 speech_trace.current.reset(trace_token)
                             if line_token is not None:
                                 speech_trace.current_line.reset(line_token)
+                            if alert_token is not None:
+                                speech_trace.current_alert.reset(alert_token)
+                            if event_token is not None:
+                                speech_trace.current_event.reset(event_token)
 
                     self._is_playing = False
                     sleep(0.1)

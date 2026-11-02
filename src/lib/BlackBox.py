@@ -25,10 +25,10 @@ MAX_DISK = 256 * 1024 * 1024
 MAX_EXPORT = 2 * MAX_DISK
 ID = re.compile(r'^[a-f0-9]{32}$')
 PART = re.compile(r'^\d{8}\.(?:standard|private)\.jsonl$')
-IDENTIFIERS = {'trace_id','event_id','parent_event_id','line_id','delivery_id','generation_id','attempt_id','reservation_id','operation_id','model_id','provider_id','tool_id','journal_id','parent_session_id','plugin_revision','build_id'}
+IDENTIFIERS = {'trace_id','event_id','parent_event_id','source_event_id','alert_id','line_id','delivery_id','generation_id','attempt_id','reservation_id','operation_id','model_id','provider_id','tool_id','journal_id','parent_session_id','plugin_revision','build_id'}
 LABEL_FIELDS = {'stage','reason','source','trigger','component','category','outcome','error_type','mode','path','evidence','playback_success','disposition','code','model','provider','tool','event_type','planet_class','severity','recording_mode','freshness','input_source'}
 NUMBER_FIELDS = {'priority','count','message_count','input_chars','output_chars','system_chars','status_chars','memory_chars','conversation_chars','input_tokens','output_tokens','total_tokens','cached_tokens','retry_attempts','duration_ms','response_ms','written_bytes','audio_bytes','queue_depth','dropped','probe_count','body_count','signal_count','scan_stage','sequence','monotonic_ms','hull_health','total_reward','alert_count','status','input_confidence','capture_completed_ms','stt_completed_ms','repeat_first_ms','repeat_last_ms'}
-BOOL_FIELDS = {'selected','proposed','optional','enforced','accepted','historic','requeued','output_drained','direct','terraformable','body_identity_known','fighter','player_pilot','shields_up','in_danger','in_fighter','in_main_ship','alerts_enabled','focus_enabled','controls_enabled','expected_callout','reported_ok','mapping_recommendation_present','usage_available','context_truncated'}
+BOOL_FIELDS = {'selected','proposed','optional','enforced','accepted','historic','requeued','output_drained','direct','terraformable','body_identity_known','fighter','player_pilot','shields_up','in_danger','in_fighter','in_main_ship','alerts_enabled','focus_enabled','controls_enabled','expected_callout','reported_ok','mapping_recommendation_present','usage_available','context_truncated','combat_enabled','dispatched','fighter_identity_known'}
 PRIVATE_KEYS = {'user_input','final_output','tool_arguments','tool_result','input_evidence'}
 SECRET = re.compile(r'(?i)(?:\b(?:sk|pk|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_-]{6,}|\bBearer\s+\S+|\b(?:authorization|api[-_ ]?key|password|secret|token|credential)\b\s*["\x27]?\s*[:=]\s*["\x27]?[^\s,;"\x27}]+|https?://[^\s]+|\b[A-Z]:[\\/][^\s"\x27]*|(?<!\w)/(?:home|Users|tmp|workspace|mnt|var)/[^\s"\x27]*|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,})')
 LONG_SECRET = re.compile(r'\b[A-Za-z0-9_+/=-]{32,}\b')
@@ -60,6 +60,8 @@ def metadata(fields):
             safe[key] = value if value in LABELS else 'not_reported'
         elif key in NUMBER_FIELDS and type(value) in (int,float) and math.isfinite(value):
             safe[key] = max(0,min(value,10**15))
+        elif key in ('source_age_ms','source_time') and type(value) in (int,float) and math.isfinite(value):
+            safe[key] = max(-10**15,min(value,10**15))
         elif key in BOOL_FIELDS and (type(value) is bool or value is None):
             safe[key] = value
     return safe

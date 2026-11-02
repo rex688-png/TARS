@@ -29,7 +29,9 @@ class CombatTracker:
     RECOVERY = 15.0
     TARGET_TTL = 15.0
 
-    def __init__(self):
+    def __init__(self, observer=None):
+        self.observer = observer
+        self._heat_diagnostic_reason = None
         self.phase = 'idle'
         self.music = False
         self.music_at = float('-inf')
@@ -56,6 +58,25 @@ class CombatTracker:
         self.watermarks = {}
         self.last_alert = {}
         self.alerts = []
+
+    def _diagnose(self, stage, **fields):
+        try:
+            if self.observer is not None:
+                self.observer(stage, **fields)
+        except Exception:
+            pass  # Diagnostics cannot participate in tracker decisions.
+
+    def _rejected(self, data, reason, at=None, now=None):
+        name = data.get('event') if isinstance(data, dict) else None
+        if (name in ('FighterDestroyed','FighterRebuilt','ShieldState','HullDamage') or
+            name=='Status' and isinstance(data.get('flags'),dict) and data['flags'].get('OverHeating')):
+            fields = dict(event_type=name, reason=reason, outcome='rejected')
+            if at is not None:
+                fields.update(source_time=at, source_age_ms=(now-at)*1000)
+            self._diagnose('combat_telemetry_rejected', **fields)
+
+    def _removed(self, alert, reason):
+        self._diagnose('combat_alert_removed', code=alert['code'], created=alert['created'], reason=reason)
 
     def _record(self, name, at, **fields):
         if self.encounter is not None:
@@ -99,13 +120,22 @@ class CombatTracker:
             self.quiet_since = None
         if self.phase == 'recovering' and now >= self.recovery_until:
             self.phase = 'idle'
-        self.alerts = [a for a in self.alerts if a['expires'] > now and self.alert_valid(a, now)]
+        retained = []
+        for alert in self.alerts:
+            if alert['expires'] > now and self.alert_valid(alert, now):
+                retained.append(alert)
+            else:
+                self._removed(alert, 'expired' if alert['expires'] <= now else
+                              'combat_context_lost' if self.phase != 'active' else 'condition_changed')
+        self.alerts = retained
 
     def _alert(self, code, text, at, **context):
         if at - self.last_alert.get(code, float('-inf')) < 30:
+            self._diagnose('combat_alert_not_created', code=code, source_time=at, reason='cooldown')
             return
         self.last_alert[code] = at
         self.alerts.append(dict(code=code, text=text, created=at, expires=at+5, **context))
+        self._diagnose('combat_alert_created', code=code, created=at, source_time=at)
 
     def alert_valid(self, alert, now):
         if now >= alert['expires'] or self.phase != 'active':
@@ -122,27 +152,36 @@ class CombatTracker:
 
     def consume(self, data, now, historic=False):
         if historic or not isinstance(data, dict):
+            self._rejected(data, 'historic' if historic else 'invalid_telemetry')
             return False
         at = stamp(data.get('timestamp'))
         # Missing/future/stale events cannot enter live combat or create alerts.
         if at is None or not -2 <= now - at <= 30:
+            self._rejected(data, 'invalid_timestamp' if at is None else
+                           'future_telemetry' if now-at < -2 else 'stale_telemetry', at, now)
             return False
         if at < self.scope_since:
+            self._rejected(data, 'before_scope', at, now)
             return False
         name = data.get('event')
         channel = ('target' if name == 'ShipTargeted' else 'fighter:' + str(data.get('ID'))
                    if name in ('LaunchFighter', 'DockFighter', 'FighterDestroyed', 'FighterRebuilt') else
                    'hull:' + str(data.get('Fighter')) if name == 'HullDamage' else str(name))
         if at < self.watermarks.get(channel, float('-inf')):
+            self._rejected(data, 'out_of_order', at, now)
             return False
         signature = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
         if signature in self.seen:
+            self._rejected(data, 'duplicate_telemetry', at, now)
             return False
         self.seen[signature] = True
         while len(self.seen) > 2048:
             self.seen.pop(next(iter(self.seen)))
         self.watermarks[channel] = at
         self.last_live_at = max(self.last_live_at, at)
+        if name in ('FighterDestroyed','FighterRebuilt','ShieldState','HullDamage'):
+            self._diagnose('combat_telemetry_accepted', event_type=name, source_time=at,
+                           source_age_ms=(now-at)*1000, fighter_identity_known=data.get('ID') is not None)
         self.tick(now)
         if name in ('LoadGame', 'Shutdown', 'Died', 'FSDJump', 'SupercruiseEntry', 'Docked'):
             self.scope_since = at
@@ -151,6 +190,7 @@ class CombatTracker:
             self.music = self.danger = False
             self.threat_at = float('-inf')
             self.target = None
+            for alert in self.alerts: self._removed(alert, 'scope_reset')
             self.alerts.clear()
             self.vehicle = 'mothership' if name in ('SupercruiseEntry','FSDJump','Docked') else 'unknown'
             if name in ('LoadGame', 'Died', 'FSDJump'):
@@ -178,6 +218,14 @@ class CombatTracker:
                                        overheating=flags.get('OverHeating') is True)
                 if self.danger and flags.get('OverHeating') and self.mothership.get('hull', 1) <= .5:
                     self._alert('heat_danger', 'Critical hull and overheating. Check heat management.', at)
+            if flags.get('OverHeating') and not (self.vehicle=='mothership' and self.danger and self.mothership.get('hull',1)<=.5):
+                reason = ('mothership_context_unconfirmed' if self.vehicle!='mothership' else
+                          'missing_combat_context' if not self.danger else 'critical_hull_unconfirmed')
+                if reason != self._heat_diagnostic_reason:
+                    self._diagnose('combat_alert_not_created',code='heat_danger',reason=reason)
+                self._heat_diagnostic_reason=reason
+            else:
+                self._heat_diagnostic_reason=None
         if name == 'VehicleSwitch':
             self.vehicle = {'Fighter': 'fighter', 'Mothership': 'mothership'}.get(data.get('To'), 'unknown')
             for fighter in self.fighters.values():
@@ -219,6 +267,12 @@ class CombatTracker:
                     self._record('mothership_shield_loss', at)
                     if self.danger and now-self.status_at <= 15 and self.mothership.get('hull', 1) <= .75 and now-self.mothership.get('hull_at',float('-inf')) <= 30:
                         self._alert('shield_loss', 'Shields down with recorded hull damage. Disengage if needed.', at)
+                    else:
+                        self._diagnose('combat_alert_not_created',code='shield_loss',reason='danger_or_damage_unconfirmed')
+                elif up is False:
+                    self._diagnose('combat_alert_not_created',code='shield_loss',reason='unchanged_shield_state' if previous is False else 'missing_combat_context')
+        elif name == 'ShieldState' and data.get('ShieldsUp') is False:
+            self._diagnose('combat_alert_not_created',code='shield_loss',reason='mothership_context_unconfirmed')
         if name == 'HullDamage' and number(data.get('Health'), 0, 1):
             value = data['Health']
             if data.get('Fighter') is True:
@@ -237,6 +291,14 @@ class CombatTracker:
                         self._record('mothership_hull', at, health=value)
                     if value <= .5 and previous > .5:
                         self._alert('hull_critical', 'Mothership hull critical. Consider disengaging.', at)
+                    elif value <= .5:
+                        self._diagnose('combat_alert_not_created',code='hull_critical',reason='threshold_already_crossed')
+                elif value <= .5:
+                    self._diagnose('combat_alert_not_created',code='hull_critical',reason='hull_not_decreasing')
+            elif value <= .5:
+                self._diagnose('combat_alert_not_created',code='hull_critical',reason='mothership_context_unconfirmed')
+        elif name == 'HullDamage':
+            self._diagnose('combat_alert_not_created',code='hull_critical',reason='invalid_hull_telemetry')
         if name == 'RepairAll':
             self.mothership.update(hull=1.0,hull_at=at)
         if name == 'Loadout' and self.vehicle != 'fighter':
@@ -250,6 +312,7 @@ class CombatTracker:
                 self.fighters.clear()
                 self.target = None
                 self.shield_journal = None
+                for alert in self.alerts: self._removed(alert, 'scope_reset')
                 self.alerts.clear()
                 self.scope_since = at
                 self.music = self.danger = False
@@ -264,6 +327,16 @@ class CombatTracker:
                 self.mothership.update(hull=data['HullHealth'], hull_at=at)
         if name in ('LaunchFighter', 'FighterDestroyed', 'FighterRebuilt', 'DockFighter'):
             identity = data.get('ID')
+            if name in ('FighterDestroyed','FighterRebuilt') and identity is None:
+                self._diagnose('combat_alert_not_created', event_type=name,
+                               reason='missing_fighter_identity', fighter_identity_known=False)
+            if identity is not None:
+                try:
+                    hash(identity)
+                except TypeError:
+                    self._diagnose('combat_alert_not_created', event_type=name,
+                                   reason='invalid_fighter_identity', fighter_identity_known=True)
+                    # Preserve the original dictionary-key failure below.
             # Rebuilt can use Loadout rather than ID; never guess between bays.
             if identity is not None:
                 fighter = self.fighters.setdefault(identity, {})
@@ -291,6 +364,12 @@ class CombatTracker:
                         self._alert('fighter_destroyed', 'Fighter destroyed.', at, fighter_id=identity)
                     if self.phase == 'active' and name == 'FighterRebuilt' and previous == 'destroyed':
                         self._alert('fighter_rebuilt', 'Replacement fighter ready.', at, fighter_id=identity)
+                    if name in ('FighterDestroyed','FighterRebuilt') and self.phase != 'active':
+                        self._diagnose('combat_alert_not_created', event_type=name, reason='missing_combat_context')
+                    elif name == 'FighterRebuilt' and previous != 'destroyed':
+                        self._diagnose('combat_alert_not_created', event_type=name, reason='prior_loss_unconfirmed')
+                elif name in ('FighterDestroyed','FighterRebuilt'):
+                    self._diagnose('combat_alert_not_created', event_type=name, reason='unchanged_fighter_state')
         if name == 'Bounty':
             self.threat_at = at
             self._start(at, 'bounty_award')

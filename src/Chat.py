@@ -927,9 +927,9 @@ class Chat:
 
                 if (
                     self.assistant.reply_pending
-                    and self.assistant.can_start_reply()
-                    and not self.stt.recording
-                    and not self.tts.get_is_playing()
+                    and speech_trace.reply_gate(self.assistant,self.assistant.can_start_reply(),'reply_gate_closed')
+                    and speech_trace.reply_gate(self.assistant,not self.stt.recording,'stt_capture_active')
+                    and speech_trace.reply_gate(self.assistant,not self.tts.get_is_playing(),'audio_busy')
                 ):
                     _events, projected_states = self.event_manager.get_current_state()
                     self.assistant.reply(projected_states)

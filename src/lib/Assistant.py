@@ -80,6 +80,10 @@ class Assistant:
 
     def on_event(self, event: Event, projected_states: ProjectedStates):
         self.speech_arbiter().note_event(event)
+        if (isinstance(event,GameEvent) and event.content.get('event') in
+            ('FighterDestroyed','FighterRebuilt','ShieldState','HullDamage') and
+            getattr(self,'_combat_provider',None) is None):
+            speech_trace.observe_event('combat_alert_evidence_unavailable',event,reason='provider_not_registered')
         # Skip disabled game events from entering the pending state
         if isinstance(event, GameEvent) or isinstance(event, StatusEvent):
             event_type = event.content.get('event') if isinstance(event, GameEvent) else event.status.get('event')
@@ -995,6 +999,9 @@ class Assistant:
                 if candidates:
                     admission = arbiter.reserve(candidates, projected_states, mode)
                     if not admission.allowed:
+                        for alert_event in new_events:
+                            if getattr(alert_event,'plugin_event_name',None)=='TARSCombatAlert':
+                                speech_trace.observe_event('combat_alert_speech_rejected',alert_event,reason='batch_admission_rejected',mode=mode)
                         # Keep every event in the store/context. Busy is deferred;
                         # stale/recent attempts wait for the next incoming event.
                         self._speech_deferred = {event_key(event): event for event, decision
@@ -1005,20 +1012,47 @@ class Assistant:
                 speech_trace.observe_event("reply_event", event)
             
             combat_alerts = [e for e in new_events if getattr(e, 'plugin_event_name', None) == 'TARSCombatAlert']
+            if combat_alerts and direct_turn:
+                for alert_event in combat_alerts:
+                    speech_trace.observe_event('combat_alert_speech_rejected',alert_event,reason='direct_turn_priority')
             if combat_alerts and not direct_turn:
                 provider = getattr(self, '_combat_provider', None)
                 event = combat_alerts[-1]
-                valid = lambda: provider.alert(event.plugin_event_content) if provider and not any(
-                    e.kind in ('user','user_speaking','tool') for e in self.pending) else None
+                for superseded in combat_alerts[:-1]:
+                    speech_trace.observe_event('combat_alert_speech_rejected',superseded,reason='last_pending_alert_selected')
+                speech_trace.observe_event('combat_alert_speech_selected',event)
+                last_check=[None]
+                def valid():
+                    if not provider:
+                        reason='provider_unavailable'; value=None
+                    elif any(e.kind in ('user','user_speaking','tool') for e in self.pending):
+                        reason='direct_user_pending'; value=None
+                    else:
+                        value=provider.alert(event.plugin_event_content)
+                        reason='valid' if value else 'provider_revalidation_failed'
+                    if reason != last_check[0]:
+                        last_check[0]=reason
+                        speech_trace.observe_event('combat_alert_speech_validation',event,reason=reason,accepted=bool(value))
+                    return value
                 text = valid()
                 maximum = max([e.processed_at for e in events] + [0.0])
                 if text:
-                    line = self.tts.say(text, context='assistant',
-                        postprocessing_layers=self._get_tts_postprocessing_layers(projected_states), drop_if=lambda: not valid())
+                    try:
+                        with speech_trace.combat_alert_scope(event):
+                            line = self.tts.say(text, context='assistant',
+                                postprocessing_layers=self._get_tts_postprocessing_layers(projected_states), drop_if=lambda: not valid())
+                    except Exception as error:
+                        speech_trace.observe_event('combat_alert_audio_rejected',event,reason='audio_submission_failed',error_type=type(error).__name__)
+                        raise
+                    speech_trace.observe_event('combat_alert_tts_submitted',event,delivery_id=getattr(line,'line_id',None))
                     if line.wait_for_speaking():
                         self.event_manager.add_assistant_speaking()
                         self.event_manager.add_conversation_event('assistant', text, reasons=['combat_critical_alert'], processed_at=maximum)
                     line.wait_for_completion()
+                    terminal=getattr(line,'result',None)
+                    speech_trace.observe_event('combat_alert_delivery_observed',event,delivery_id=getattr(line,'line_id',None),
+                        outcome=getattr(terminal,'outcome','unknown'),playback_success='unknown',
+                        written_bytes=getattr(terminal,'written_bytes',None),output_drained=getattr(terminal,'output_drained',None))
                 self.event_manager.short_term_memory.replied_before(maximum)
                 self.event_manager.add_assistant_complete_event()
                 return

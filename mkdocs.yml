@@ -54,6 +54,7 @@ nav:
       - Runtime reliability follow-up: runtime-reliability-followup.md
       - October 30 Black Box analysis: blackbox-2026-10-30-analysis.md
       - Fighter loss evidence request: fighter-destroyed-evidence-request.md
+      - Combat alert decision diagnostics: combat-alert-diagnostics.md
       - FAQ: 10_faq.md
       - Support: 60_support.md
   - Development and Releases:
@@ -86,6 +87,7 @@ exclude_docs: |
   !/runtime-reliability-followup.md
   !/blackbox-2026-10-30-analysis.md
   !/fighter-destroyed-evidence-request.md
+  !/combat-alert-diagnostics.md
   !/10_faq.md
   !/60_support.md
   !/55_contributing.md

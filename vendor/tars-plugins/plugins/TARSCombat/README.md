@@ -1,5 +1,30 @@
 # TARS Combat V1
 
+## Optional decision diagnostics
+
+The compatible host may provide `record_combat_diagnostic(stage, **fields)`.
+The tracker forwards fixed-code observations through this optional callback;
+missing or failed callbacks do not change decisions. No separate plugin logger,
+model request or gameplay action is introduced. Source time/age, safe flags,
+alert code and reason are exposed; raw journals, fighter IDs and pilot names are
+not sent. The host supplies salted alert/source-event correlation and Black Box
+storage. Full schema and limits are documented in the host's Combat alert
+diagnostics guide.
+
+Creation, queue dispatch, validity checks, expiry and audio outcomes are separate
+observations. Expiry/condition removal is logged once when removed; repeated
+validity checks report only changed results. A repeated cooldown condition is
+reported once per preceding alert. Duplicate journal input is observed once per
+incoming record, never per pending-event scan or clock tick. Cache limits are
+512 diagnostic states per plugin; ordinary tracing remains bounded/best effort.
+
+The existing ID/freshness/context/cooldown/expiry gates, alert wording and control
+permissions are unchanged. In particular, this instrumentation adds no new fighter
+ID validation policy: non-null hashable identities retain the existing semantics;
+unhashable values still produce the original error, now with a safe observation.
+
+## Combat behavior
+
 A quiet session-local combat copilot for the compatible Combat V1 host. It does
 not narrate targets, kills or combat-music transitions. Awareness, Combat Focus
 and critical alerts default on; fast controls and experimental fighter launch UI

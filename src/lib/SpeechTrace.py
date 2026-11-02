@@ -19,6 +19,7 @@ _console_enabled = enabled
 _recorder = None
 current_event = ContextVar('blackbox_event', default=None)
 current_reservation = ContextVar('blackbox_reservation', default=None)
+current_alert = ContextVar('blackbox_alert', default=None)
 
 
 def new_id():
@@ -32,6 +33,7 @@ def emit(stage, *, trace_id=None, **fields):
         private = fields.pop('_private', None)
         fields.setdefault('component', {'event':'event','historical':'event','conversation':'event','plugin':'plugin','journal':'journal','generation':'model','stt':'stt','transcription':'stt','tts':'tts','playback':'tts','line':'tts','combat':'combat','prompt':'prompt','tool':'tool','chatter':'chatter','reply':'assistant','response':'assistant'}.get(stage.split('_')[0],'speech'))
         row = {'schema_version':1, 'stage':stage, 'trace_id':trace_id or current.get(),
+            'alert_id':current_alert.get(),
             'event_id':current_event.get(), 'line_id':current_line.get(),
             'generation_id':current_generation.get(), 'delivery_id':current_line.get(), 'reservation_id':current_reservation.get(), **fields}
         if 'severity' not in row and (stage.endswith('_failed') or stage=='provider_rejected'): row['severity']='error'
@@ -78,6 +80,38 @@ def identity(value):
 def safe_event_id(event):
     try: return event_fields(event).get('event_id')
     except Exception: return None
+
+
+def alert_identity(data):
+    try:
+        if isinstance(data,dict) and isinstance(data.get('code'),str) and type(data.get('created')) in (int,float):
+            return identity('combat_alert:'+data['code']+':'+str(data['created']))
+    except Exception: pass
+    return None
+
+
+def reply_gate(assistant, allowed, reason):
+    """Return the already-evaluated gate unchanged; observe blocked alert transitions."""
+    try:
+        if not allowed and enabled:
+            previous=assistant.__dict__.setdefault('_combat_gate_diagnostics',{})
+            for event in assistant.pending:
+                if getattr(event,'plugin_event_name',None)!='TARSCombatAlert': continue
+                key=alert_identity(event.plugin_event_content)
+                if previous.get(key)!=reason:
+                    previous[key]=reason
+                    while len(previous)>256: previous.pop(next(iter(previous)))
+                    observe_event('combat_alert_scheduling_deferred',event,reason=reason)
+    except Exception: pass
+    return allowed
+
+
+@contextmanager
+def combat_alert_scope(event):
+    token=current_alert.set(alert_identity(getattr(event,'plugin_event_content',None)))
+    try:
+        with event_scope(event): yield
+    finally: current_alert.reset(token)
 
 
 @contextmanager
@@ -132,6 +166,7 @@ def event_fields(event):
              'TARSNavigatorTarget', 'TARSObservatoryFact', 'TARSCombatAlert'}
     origin = plugin_name if plugin_name in known else getattr(event, 'kind', 'unknown')
     return {'trigger': origin if origin in known | {'user', 'tool', 'game', 'status', 'projected', 'plugin', 'quest'} else 'other',
+            'alert_id':alert_identity(data) if plugin_name=='TARSCombatAlert' else None,
             'event_id': hashlib.blake2s(event_identity.encode('utf-8'), key=_salt, digest_size=12).hexdigest(),
             'journal_id':identity(data['id']) if isinstance(data.get('id'),str) else None,
             'input_source':getattr(event,'input_source',None),'input_confidence':getattr(event,'input_confidence',None),
