@@ -5,7 +5,7 @@ and its exact canonical pin `7450db03a7b3bed7920994f3632634dde111566d`.
 That baseline's full Windows/security workflow passed. New host/plugin work uses
 separate `feature/combat-v2-contextual` branches. The canonical companion is
 [plugin Draft #31](https://github.com/rex688-png/TARS-Plugins/pull/31), pinned at
-`d828c02336484f520b2cae8d7548e65904ea5757` (33 exact payload files).
+`7e51bcd7169c29a697a4fb46b1d6ee219ccef21a` (33 exact payload files).
 
 ## What the game evidence supports
 

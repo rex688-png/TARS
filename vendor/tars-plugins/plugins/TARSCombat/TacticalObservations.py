@@ -70,8 +70,9 @@ class TacticalObservations:
                 self.down_since=None;self.hits=0;self.last_hull=None
         if name=='HullDamage' and data.get('Fighter') is False and number(data.get('Health'),0,1):
             if self.down_since is not None and at>=self.down_since:
-                if self.last_hull is not None and data['Health']<self.last_hull:self.hits+=1
-                self.last_hull=data['Health'];self.hull_at=at
+                if self.last_hull is not None and data['Health']<self.last_hull:
+                    self.hits+=1;self.hull_at=at
+                self.last_hull=data['Health']
         if self.used or now-self.last_attempt<self.COOLDOWN or now<self.quiet_until:return None
         if tracker.alerts or any(now-at<15 for at in tracker.last_alert.values()):return None
         if self._damage_valid(now,tracker):

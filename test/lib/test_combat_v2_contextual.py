@@ -40,6 +40,19 @@ def test_default_off_preserves_silence_and_controls(combat,clock):
     assert c.plugin.observations.scope is None
 
 
+def test_sustained_mothership_damage_uses_the_same_zero_model_delivery_path(combat,clock):
+    c=combat;c.plugin.settings['commentary']=True
+    c.feed('Music',MusicTrack='Combat');start=clock.wall
+    for t in range(31):
+        clock.wall=start+t;clock.tick=t
+        c.feed('Status',flags={'InMainShip':True,'ShieldsUp':False,'InDanger':True})
+        if t in (1,20,30):c.feed('HullDamage',Fighter=False,Health={1:.95,20:.9,30:.8}[t])
+    event=c.host.event_manager.incoming.get_nowait();event.responded_at=None
+    c.run(event)
+    assert 'half a minute unshielded' in c.host.tts.say.call_args.args[0]
+    assert c.host.llmModel.calls==0
+
+
 @pytest.mark.parametrize('change',['expiry','target_switch','disabled','combat_exit'])
 def test_expiry_target_change_and_feature_disable_drop_without_generation(combat,clock,change):
     c=combat;history(c,clock)
