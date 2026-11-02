@@ -29,17 +29,46 @@ class TARSCombat(PluginBase):
     def __init__(self, plugin_manifest):
         super().__init__(plugin_manifest)
         self.settings = {}
-        self.tracker = CombatTracker()
+        self.tracker = CombatTracker(self._diagnostic)
         self.lock = threading.RLock()
         self.helper = None
         self.states = {}
         self.sent_alerts = set()
         self.stop = threading.Event()
         self.worker = None
+        self.diagnostic_seen = {}
+
+    def _diagnostic(self, stage, **fields):
+        try:
+            if stage=='combat_alert_not_created' and fields.get('reason')=='cooldown':
+                key=(stage,fields.get('code'),'cooldown',self.tracker.last_alert.get(fields.get('code')))
+                if key in self.diagnostic_seen: return
+                self.diagnostic_seen[key]=True
+                while len(self.diagnostic_seen)>512:
+                    self.diagnostic_seen.pop(next(iter(self.diagnostic_seen)))
+            callback = getattr(self.helper, 'record_combat_diagnostic', None)
+            if callable(callback):
+                callback(stage, enabled=self.settings.get('enabled',True),
+                         alerts_enabled=self.settings.get('alerts',True),
+                         focus_enabled=self.settings.get('focus',True), **fields)
+        except Exception:
+            pass
+
+    def _diagnostic_once(self, stage, **fields):
+        try:
+            key = (stage, fields.get('code'), fields.get('created'))
+            value = (fields.get('reason'), fields.get('accepted'))
+            if self.diagnostic_seen.get(key) != value:
+                self.diagnostic_seen[key] = value
+                while len(self.diagnostic_seen)>512:
+                    self.diagnostic_seen.pop(next(iter(self.diagnostic_seen)))
+                self._diagnostic(stage, **fields)
+        except Exception: pass
 
     def on_chat_start(self, helper):
         self.helper = helper
-        self.tracker = CombatTracker()
+        self.tracker = CombatTracker(self._diagnostic)
+        self.diagnostic_seen.clear()
         self.sent_alerts.clear()
         register = getattr(helper, 'register_combat_provider', None)
         if not callable(register):
@@ -76,6 +105,9 @@ class TARSCombat(PluginBase):
         if self.helper is None:
             return
         if not self.settings.get('enabled', True):
+            data = getattr(event, 'content', None)
+            if isinstance(data,dict) and data.get('event') in ('FighterDestroyed','FighterRebuilt','ShieldState','HullDamage'):
+                self._diagnostic('combat_alert_not_created',event_type=data['event'],reason='combat_disabled')
             self.helper.update_combat_focus('idle', enabled=False)
             return
         data = getattr(event, 'content', None) if event.kind == 'game' else getattr(event, 'status', None) if event.kind == 'status' else None
@@ -94,9 +126,20 @@ class TARSCombat(PluginBase):
                     key = (alert['code'], alert['created'])
                     if key not in self.sent_alerts:
                         self.sent_alerts.add(key)
-                        self.helper.dispatch_event(PluginEvent(plugin_event_name='TARSCombatAlert',
-                            plugin_event_content={'code':alert['code'], 'created':alert['created']}))
+                        self._diagnostic('combat_alert_dispatch_requested',code=alert['code'],created=alert['created'])
+                        try:
+                            self.helper.dispatch_event(PluginEvent(plugin_event_name='TARSCombatAlert',
+                                plugin_event_content={'code':alert['code'], 'created':alert['created']}))
+                        except Exception as error:
+                            self._diagnostic('combat_alert_dispatch_failed',code=alert['code'],created=alert['created'],error_type=type(error).__name__)
+                            raise
+                        self._diagnostic('combat_alert_dispatched',code=alert['code'],created=alert['created'])
+                    else:
+                        self._diagnostic_once('combat_alert_dispatch_rejected',code=alert['code'],created=alert['created'],reason='already_dispatched')
                 self.sent_alerts = set(sorted(self.sent_alerts, key=lambda k:k[1])[-200:])
+            else:
+                for alert in self.tracker.alerts:
+                    self._diagnostic_once('combat_alert_dispatch_rejected',code=alert['code'],created=alert['created'],reason='alerts_disabled')
 
     parse_order = staticmethod(parse_order)
 
@@ -107,12 +150,16 @@ class TARSCombat(PluginBase):
     def alert(self, data):
         with self.lock:
             if not self.settings.get('enabled',True) or not self.settings.get('alerts',True):
+                self._diagnostic_once('combat_alert_revalidation',code=data.get('code'),created=data.get('created'),
+                                      reason='combat_disabled' if not self.settings.get('enabled',True) else 'alerts_disabled',accepted=False)
                 return None
             now = time.time()
             self.tracker.tick(now)
             for alert in self.tracker.alerts:
                 if (alert['code'],alert['created']) == (data.get('code'),data.get('created')):
+                    self._diagnostic_once('combat_alert_revalidation',code=alert['code'],created=alert['created'],reason='valid',accepted=True)
                     return alert['text']
+            self._diagnostic_once('combat_alert_revalidation',code=data.get('code'),created=data.get('created'),reason='alert_unavailable',accepted=False)
         return None
 
     def should_alert(self, event):

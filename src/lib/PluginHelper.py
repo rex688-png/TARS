@@ -121,6 +121,26 @@ class PluginHelper():
     def update_combat_focus(self, phase, enabled=True):
         self._assistant.speech_arbiter().set_combat_focus(phase, enabled)
 
+    def record_combat_diagnostic(self, stage, **fields):
+        """Optional canonical observer. No payloads, actions or tracker queries."""
+        try:
+            if not stage.startswith(('combat_alert_','combat_telemetry_')): return
+            fields['combat_enabled']=fields.pop('enabled',None)
+            created=fields.pop('created',None)
+            alert_id=speech_trace.alert_identity({'code':fields.get('code'),'created':created})
+            sources=self.__dict__.setdefault('_combat_diagnostic_sources',{})
+            if alert_id:
+                if stage=='combat_alert_created':
+                    sources[alert_id]={'source_event_id':speech_trace.current_event.get(),'dispatched':False}
+                    while len(sources)>256: sources.pop(next(iter(sources)))
+                if stage=='combat_alert_dispatched' and alert_id in sources:
+                    sources[alert_id]['dispatched']=True
+                if alert_id not in sources or not sources[alert_id].get('source_event_id'):
+                    fields['evidence']='source_context_unavailable'
+                fields.update(alert_id=alert_id,**sources.get(alert_id,{}))
+            speech_trace.emit(stage,component='combat',**fields)
+        except Exception: pass
+
     def combat_latency(self):
         router = getattr(self._assistant, '_combat_router', None)
         return router.metrics.summary() if router else {'samples':0, 'status':'No command measurements yet.'}

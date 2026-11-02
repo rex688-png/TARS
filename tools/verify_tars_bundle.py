@@ -10,7 +10,7 @@ from pathlib import Path
 import subprocess
 
 
-PINNED_SHA = "83caceaca39712d1c84e4337a09b020b087125ae"
+PINNED_SHA = "7450db03a7b3bed7920994f3632634dde111566d"
 PLUGIN_NAMES = (
     "TARSExplorer",
     "TARSNavigator",
